@@ -136,7 +136,7 @@ class WalletScreen extends ConsumerWidget {
                               icon: Icons.add_circle_outline,
                               label: 'Token Al',
                               color: Colors.green,
-                              onTap: () {},
+                              onTap: () => _showDepositDialog(context),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -145,7 +145,7 @@ class WalletScreen extends ConsumerWidget {
                               icon: Icons.send_outlined,
                               label: 'Gönder',
                               color: Colors.blue,
-                              onTap: () {},
+                              onTap: () => _showSendDialog(context),
                             ),
                           ),
                           if (profile.isVerifiedAuthor) ...[
@@ -155,7 +155,7 @@ class WalletScreen extends ConsumerWidget {
                                 icon: Icons.account_balance_outlined,
                                 label: 'Çekim',
                                 color: Colors.purple,
-                                onTap: () {},
+                                onTap: () => _showWithdrawDialog(context),
                               ),
                             ),
                           ],
@@ -204,6 +204,113 @@ class WalletScreen extends ConsumerWidget {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDepositDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Token Yükle'),
+        content: const Text(
+          'Token yükleme işlemi için lütfen web sitemizi ziyaret edin veya müşteri hizmetleri ile iletişime geçin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tamam'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSendDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Token Gönder'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Alıcı Kullanıcı Adı/ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Miktar (INK)',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Gönderme işlemi başlatıldı (Demo)')),
+              );
+            },
+            child: const Text('Gönder'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWithdrawDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Para Çek'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'IBAN',
+                hintText: 'TR...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Miktar (INK)',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Çekim talebi oluşturuldu (Demo)')),
+              );
+            },
+            child: const Text('Talep Oluştur'),
           ),
         ],
       ),
