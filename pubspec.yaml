@@ -1,0 +1,53 @@
+name: inktoken
+description: "Token-Based Digital Publishing Platform"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Data Classes
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Backend
+  supabase_flutter: ^2.9.0
+
+  # UI / Styling
+  flex_color_scheme: ^8.1.0
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+
+  # Editor
+  flutter_quill: ^11.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+  # Code Generation
+  build_runner: ^2.4.14
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+  # riverpod_generator ve riverpod_lint geçici kapalı (analyzer uyumsuzluğu)
+  # riverpod_generator: ^2.6.3
+  # riverpod_lint: ^2.6.3
+
+flutter:
+  uses-material-design: true
