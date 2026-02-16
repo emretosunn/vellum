@@ -9,13 +9,14 @@ import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
+import '../../notifications/presentation/notifications_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final booksAsync = ref.watch(publishedBooksProvider);
+    final booksAsync = ref.watch(searchedBooksProvider);
     final profileAsync = ref.watch(currentProfileProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -70,7 +71,12 @@ class HomeScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: IconButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        ),
                         icon: Badge(
                           smallSize: 8,
                           child: Icon(
@@ -127,6 +133,9 @@ class HomeScreen extends ConsumerWidget {
                                 contentPadding: EdgeInsets.zero,
                                 isDense: true,
                               ),
+                              onChanged: (value) {
+                                ref.read(searchQueryProvider.notifier).state = value;
+                              },
                             ),
                           ),
                           Container(

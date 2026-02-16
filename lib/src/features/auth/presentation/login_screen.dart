@@ -84,10 +84,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo / Başlık
-                Icon(
-                  Icons.auto_stories_rounded,
-                  size: 64,
-                  color: AppColors.primary,
+                Image.asset(
+                  'assets/icon/icon.png',
+                  width: 100,
+                  height: 100,
                 ).animate().fadeIn(duration: 600.ms).scale(
                       begin: const Offset(0.5, 0.5),
                       end: const Offset(1, 1),

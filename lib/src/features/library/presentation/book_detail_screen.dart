@@ -185,7 +185,7 @@ class BookDetailScreen extends ConsumerWidget {
                               ? const Icon(Icons.lock_open, color: Colors.green)
                               : const Icon(Icons.lock_outline),
                           onTap: () {
-                            // TODO: Okuma ekranına yönlendir
+                            context.push('/reader/${book.id}');
                           },
                         )
                             .animate()

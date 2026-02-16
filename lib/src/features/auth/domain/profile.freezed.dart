@@ -28,6 +28,12 @@ mixin _$Profile {
   int get tokenBalance => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_verified_author')
   bool get isVerifiedAuthor => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: 'notification_preferences',
+    readValue: _readNotificationPreferences,
+  )
+  Map<String, dynamic> get notificationPreferences =>
+      throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
@@ -51,6 +57,11 @@ abstract class $ProfileCopyWith<$Res> {
     UserRole role,
     @JsonKey(name: 'token_balance') int tokenBalance,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
+    @JsonKey(
+      name: 'notification_preferences',
+      readValue: _readNotificationPreferences,
+    )
+    Map<String, dynamic> notificationPreferences,
     @JsonKey(name: 'created_at') DateTime? createdAt,
   });
 }
@@ -75,6 +86,7 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
     Object? role = null,
     Object? tokenBalance = null,
     Object? isVerifiedAuthor = null,
+    Object? notificationPreferences = null,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -99,6 +111,10 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
                 ? _value.isVerifiedAuthor
                 : isVerifiedAuthor // ignore: cast_nullable_to_non_nullable
                       as bool,
+            notificationPreferences: null == notificationPreferences
+                ? _value.notificationPreferences
+                : notificationPreferences // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -123,6 +139,11 @@ abstract class _$$ProfileImplCopyWith<$Res> implements $ProfileCopyWith<$Res> {
     UserRole role,
     @JsonKey(name: 'token_balance') int tokenBalance,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
+    @JsonKey(
+      name: 'notification_preferences',
+      readValue: _readNotificationPreferences,
+    )
+    Map<String, dynamic> notificationPreferences,
     @JsonKey(name: 'created_at') DateTime? createdAt,
   });
 }
@@ -146,6 +167,7 @@ class __$$ProfileImplCopyWithImpl<$Res>
     Object? role = null,
     Object? tokenBalance = null,
     Object? isVerifiedAuthor = null,
+    Object? notificationPreferences = null,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -170,6 +192,10 @@ class __$$ProfileImplCopyWithImpl<$Res>
             ? _value.isVerifiedAuthor
             : isVerifiedAuthor // ignore: cast_nullable_to_non_nullable
                   as bool,
+        notificationPreferences: null == notificationPreferences
+            ? _value._notificationPreferences
+            : notificationPreferences // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -188,8 +214,19 @@ class _$ProfileImpl implements _Profile {
     this.role = UserRole.reader,
     @JsonKey(name: 'token_balance') this.tokenBalance = 0,
     @JsonKey(name: 'is_verified_author') this.isVerifiedAuthor = false,
+    @JsonKey(
+      name: 'notification_preferences',
+      readValue: _readNotificationPreferences,
+    )
+    final Map<String, dynamic> notificationPreferences =
+        const <String, dynamic>{
+          'newChapter': true,
+          'comments': true,
+          'promotions': false,
+          'weeklyDigest': true,
+        },
     @JsonKey(name: 'created_at') this.createdAt,
-  });
+  }) : _notificationPreferences = notificationPreferences;
 
   factory _$ProfileImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProfileImplFromJson(json);
@@ -207,13 +244,26 @@ class _$ProfileImpl implements _Profile {
   @override
   @JsonKey(name: 'is_verified_author')
   final bool isVerifiedAuthor;
+  final Map<String, dynamic> _notificationPreferences;
+  @override
+  @JsonKey(
+    name: 'notification_preferences',
+    readValue: _readNotificationPreferences,
+  )
+  Map<String, dynamic> get notificationPreferences {
+    if (_notificationPreferences is EqualUnmodifiableMapView)
+      return _notificationPreferences;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_notificationPreferences);
+  }
+
   @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'Profile(id: $id, username: $username, role: $role, tokenBalance: $tokenBalance, isVerifiedAuthor: $isVerifiedAuthor, createdAt: $createdAt)';
+    return 'Profile(id: $id, username: $username, role: $role, tokenBalance: $tokenBalance, isVerifiedAuthor: $isVerifiedAuthor, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
   }
 
   @override
@@ -229,6 +279,10 @@ class _$ProfileImpl implements _Profile {
                 other.tokenBalance == tokenBalance) &&
             (identical(other.isVerifiedAuthor, isVerifiedAuthor) ||
                 other.isVerifiedAuthor == isVerifiedAuthor) &&
+            const DeepCollectionEquality().equals(
+              other._notificationPreferences,
+              _notificationPreferences,
+            ) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -242,6 +296,7 @@ class _$ProfileImpl implements _Profile {
     role,
     tokenBalance,
     isVerifiedAuthor,
+    const DeepCollectionEquality().hash(_notificationPreferences),
     createdAt,
   );
 
@@ -266,6 +321,11 @@ abstract class _Profile implements Profile {
     final UserRole role,
     @JsonKey(name: 'token_balance') final int tokenBalance,
     @JsonKey(name: 'is_verified_author') final bool isVerifiedAuthor,
+    @JsonKey(
+      name: 'notification_preferences',
+      readValue: _readNotificationPreferences,
+    )
+    final Map<String, dynamic> notificationPreferences,
     @JsonKey(name: 'created_at') final DateTime? createdAt,
   }) = _$ProfileImpl;
 
@@ -283,6 +343,12 @@ abstract class _Profile implements Profile {
   @override
   @JsonKey(name: 'is_verified_author')
   bool get isVerifiedAuthor;
+  @override
+  @JsonKey(
+    name: 'notification_preferences',
+    readValue: _readNotificationPreferences,
+  )
+  Map<String, dynamic> get notificationPreferences;
   @override
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;

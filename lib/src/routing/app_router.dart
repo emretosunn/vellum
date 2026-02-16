@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/library/presentation/book_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
+import '../features/library/presentation/reader_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shared/widgets/scaffold_with_nav.dart';
+import '../features/studio/presentation/book_editor_screen.dart';
 import '../features/studio/presentation/chapter_editor_screen.dart';
 import '../features/studio/presentation/writer_studio_screen.dart';
 import '../features/wallet/presentation/wallet_screen.dart';
@@ -53,6 +55,26 @@ GoRouter createRouter({bool isLoggedIn = false}) {
             bookId: bookId,
             chapterId: chapterId,
           );
+        },
+      ),
+
+      // Sayfa bazlı kitap editörü
+      GoRoute(
+        path: '/book-editor/:bookId',
+        name: 'bookEditor',
+        builder: (context, state) {
+          final bookId = state.pathParameters['bookId'] ?? '';
+          return BookEditorScreen(bookId: bookId);
+        },
+      ),
+
+      // Kitap okuyucu
+      GoRoute(
+        path: '/reader/:bookId',
+        name: 'reader',
+        builder: (context, state) {
+          final bookId = state.pathParameters['bookId'] ?? '';
+          return ReaderScreen(bookId: bookId);
         },
       ),
 

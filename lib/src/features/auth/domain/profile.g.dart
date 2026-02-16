@@ -14,6 +14,15 @@ _$ProfileImpl _$$ProfileImplFromJson(
   role: $enumDecodeNullable(_$UserRoleEnumMap, json['role']) ?? UserRole.reader,
   tokenBalance: (json['token_balance'] as num?)?.toInt() ?? 0,
   isVerifiedAuthor: json['is_verified_author'] as bool? ?? false,
+  notificationPreferences:
+      _readNotificationPreferences(json, 'notification_preferences')
+          as Map<String, dynamic>? ??
+      const <String, dynamic>{
+        'newChapter': true,
+        'comments': true,
+        'promotions': false,
+        'weeklyDigest': true,
+      },
   createdAt: json['created_at'] == null
       ? null
       : DateTime.parse(json['created_at'] as String),
@@ -26,6 +35,7 @@ Map<String, dynamic> _$$ProfileImplToJson(_$ProfileImpl instance) =>
       'role': _$UserRoleEnumMap[instance.role]!,
       'token_balance': instance.tokenBalance,
       'is_verified_author': instance.isVerifiedAuthor,
+      'notification_preferences': instance.notificationPreferences,
       'created_at': instance.createdAt?.toIso8601String(),
     };
 

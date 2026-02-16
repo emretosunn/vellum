@@ -98,6 +98,17 @@ class AuthRepository {
 
     return Profile.fromJson(data);
   }
+
+  /// Bildirim tercihlerini güncelle
+  Future<void> updateNotificationPreferences({
+    required String userId,
+    required Map<String, dynamic> preferences,
+  }) async {
+    await _client
+        .from('profiles')
+        .update({'notification_preferences': preferences})
+        .eq('id', userId);
+  }
 }
 
 // ─── Providers ────────────────────────────────────

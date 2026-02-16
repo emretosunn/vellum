@@ -87,6 +87,18 @@ class BookRepository {
   }
 
   /// Kitap sil
+  /// Kitap arama (başlık veya özet üzerinden)
+  Future<List<Book>> searchBooks(String query) async {
+    final data = await _client
+        .from('books')
+        .select()
+        .eq('status', 'published')
+        .or('title.ilike.%$query%,summary.ilike.%$query%')
+        .order('created_at', ascending: false);
+
+    return data.map<Book>((json) => Book.fromJson(json)).toList();
+  }
+
   Future<void> deleteBook(String bookId) async {
     await _client.from('books').delete().eq('id', bookId);
   }
@@ -115,4 +127,16 @@ final myBooksProvider = FutureProvider<List<Book>>((ref) async {
 final bookDetailProvider =
     FutureProvider.family<Book?, String>((ref, bookId) async {
   return ref.read(bookRepositoryProvider).getBookById(bookId);
+});
+
+/// Arama sorgusu state'i
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Arama sonuçları
+final searchedBooksProvider = FutureProvider<List<Book>>((ref) async {
+  final query = ref.watch(searchQueryProvider);
+  if (query.trim().isEmpty) {
+    return ref.read(bookRepositoryProvider).getPublishedBooks();
+  }
+  return ref.read(bookRepositoryProvider).searchBooks(query.trim());
 });

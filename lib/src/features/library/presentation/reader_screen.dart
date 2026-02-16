@@ -1,0 +1,363 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../constants/app_colors.dart';
+import '../data/book_repository.dart';
+import '../../studio/data/chapter_repository.dart';
+import '../domain/chapter.dart';
+
+/// Temiz okuma ekranı.
+///
+/// Bölümleri sayfa bazlı gösterir — dikkat dağıtmayan, kitap okuma deneyimi.
+class ReaderScreen extends ConsumerStatefulWidget {
+  const ReaderScreen({
+    super.key,
+    required this.bookId,
+    this.initialChapterIndex = 0,
+  });
+
+  final String bookId;
+  final int initialChapterIndex;
+
+  @override
+  ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
+}
+
+class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  List<Chapter> _chapters = [];
+  int _currentIndex = 0;
+  bool _isLoading = true;
+  bool _showControls = true;
+  String _bookTitle = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final book =
+          await ref.read(bookRepositoryProvider).getBookById(widget.bookId);
+      final chapters = await ref
+          .read(chapterRepositoryProvider)
+          .getChaptersByBook(widget.bookId);
+
+      if (mounted) {
+        setState(() {
+          _bookTitle = book?.title ?? 'Kitap';
+          _chapters = chapters;
+          _currentIndex = widget.initialChapterIndex.clamp(0,
+              chapters.isEmpty ? 0 : chapters.length - 1);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Yükleme hatası: $e')),
+        );
+      }
+    }
+  }
+
+  void _goToPage(int index) {
+    if (index < 0 || index >= _chapters.length) return;
+    setState(() => _currentIndex = index);
+  }
+
+  void _toggleControls() {
+    setState(() => _showControls = !_showControls);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Web/masaüstü için max genişlik sınırı (okunabilirlik)
+    final contentMaxWidth = screenWidth > 800 ? 700.0 : double.infinity;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor:
+            isDark ? const Color(0xFF121225) : const Color(0xFFFAF8F5),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_chapters.isEmpty) {
+      return Scaffold(
+        backgroundColor:
+            isDark ? const Color(0xFF121225) : const Color(0xFFFAF8F5),
+        appBar: AppBar(title: Text(_bookTitle)),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.menu_book_outlined,
+                  size: 64,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+              const SizedBox(height: 16),
+              Text(
+                'Bu kitapta henüz içerik yok',
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final chapter = _chapters[_currentIndex];
+    final content = (chapter.content['text'] as String?) ?? '';
+
+    return Scaffold(
+      backgroundColor:
+          isDark ? const Color(0xFF121225) : const Color(0xFFFAF8F5),
+      body: GestureDetector(
+        onTap: _toggleControls,
+        child: Stack(
+          children: [
+            // ── İçerik — tam ekran, ortala ──
+            Positioned.fill(
+              child: Container(
+                color: isDark
+                    ? const Color(0xFF121225)
+                    : const Color(0xFFFAF8F5),
+                child: SafeArea(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(maxWidth: contentMaxWidth),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(32, 80, 32, 120),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Bölüm başlığı
+                            Text(
+                              chapter.title,
+                              style:
+                                  theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.9)
+                                    : Colors.black.withValues(alpha: 0.85),
+                              ),
+                            ).animate().fadeIn(duration: 400.ms),
+                            const SizedBox(height: 12),
+                            // Süs çizgi
+                            Container(
+                              width: 60,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primary.withValues(alpha: 0.3),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            // İçerik
+                            SelectableText(
+                              content,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                height: 1.9,
+                                fontSize: 17,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.8)
+                                    : Colors.black.withValues(alpha: 0.75),
+                                letterSpacing: 0.2,
+                              ),
+                            ).animate().fadeIn(
+                                  duration: 500.ms,
+                                  delay: 100.ms,
+                                ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Üst Bar ──
+            AnimatedPositioned(
+              duration: 250.ms,
+              top: _showControls ? 0 : -100,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? [
+                            const Color(0xFF121225),
+                            const Color(0xFF121225).withValues(alpha: 0.95),
+                            const Color(0xFF121225).withValues(alpha: 0.0),
+                          ]
+                        : [
+                            const Color(0xFFFAF8F5),
+                            const Color(0xFFFAF8F5).withValues(alpha: 0.95),
+                            const Color(0xFFFAF8F5).withValues(alpha: 0.0),
+                          ],
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _bookTitle,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${chapter.title} — Sayfa ${_currentIndex + 1} / ${_chapters.length}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Alt Navigasyon ──
+            AnimatedPositioned(
+              duration: 250.ms,
+              bottom: _showControls ? 0 : -100,
+              left: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: isDark
+                        ? [
+                            const Color(0xFF121225),
+                            const Color(0xFF121225).withValues(alpha: 0.95),
+                            const Color(0xFF121225).withValues(alpha: 0.0),
+                          ]
+                        : [
+                            const Color(0xFFFAF8F5),
+                            const Color(0xFFFAF8F5).withValues(alpha: 0.95),
+                            const Color(0xFFFAF8F5).withValues(alpha: 0.0),
+                          ],
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 12,
+                    top: 24,
+                    left: 16,
+                    right: 16,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: Row(
+                        children: [
+                          // Önceki
+                          Expanded(
+                            child: _currentIndex > 0
+                                ? TextButton.icon(
+                                    onPressed: () =>
+                                        _goToPage(_currentIndex - 1),
+                                    icon: const Icon(Icons.chevron_left),
+                                    label: const Text('Önceki'),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          // Sayfa göstergesi
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Text(
+                              '${_currentIndex + 1} / ${_chapters.length}',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          // Sonraki
+                          Expanded(
+                            child: _currentIndex < _chapters.length - 1
+                                ? Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () =>
+                                          _goToPage(_currentIndex + 1),
+                                      icon: const Text('Sonraki'),
+                                      label:
+                                          const Icon(Icons.chevron_right),
+                                    ),
+                                  )
+                                : Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FilledButton.icon(
+                                      onPressed: () =>
+                                          Navigator.pop(context),
+                                      icon: const Icon(Icons.check,
+                                          size: 18),
+                                      label: const Text('Bitir'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -7,6 +7,7 @@ import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
+import 'create_book_screen.dart';
 
 class WriterStudioScreen extends ConsumerWidget {
   const WriterStudioScreen({super.key});
@@ -72,7 +73,12 @@ class WriterStudioScreen extends ConsumerWidget {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       FilledButton.icon(
-                        onPressed: () => _showCreateBookDialog(context, ref),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CreateBookScreen(),
+                          ),
+                        ),
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Yeni Kitap'),
                       ),
@@ -147,68 +153,6 @@ class WriterStudioScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _showCreateBookDialog(BuildContext context, WidgetRef ref) {
-    final titleController = TextEditingController();
-    final summaryController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Yeni Kitap Oluştur'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Kitap Adı',
-                  hintText: 'Kitabınızın başlığını girin',
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: summaryController,
-                decoration: const InputDecoration(
-                  labelText: 'Özet',
-                  hintText: 'Kısa bir özet yazın',
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (titleController.text.trim().isEmpty) return;
-
-                final profile =
-                    await ref.read(currentProfileProvider.future);
-                if (profile == null) return;
-
-                await ref.read(bookRepositoryProvider).createBook(
-                      authorId: profile.id,
-                      title: titleController.text.trim(),
-                      summary: summaryController.text.trim(),
-                    );
-
-                ref.invalidate(myBooksProvider);
-
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Oluştur'),
-            ),
-          ],
-        );
-      },
     );
   }
 }
@@ -333,7 +277,7 @@ class _BookListItem extends StatelessWidget {
             ],
           ),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.push('/book/${book.id}'),
+          onTap: () => context.push('/book-editor/${book.id}'),
         ),
       ),
     );

@@ -22,7 +22,7 @@ class InkTokenApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'InkToken',
+      title: 'Vellum',
       debugShowCheckedModeBanner: false,
       theme: FlexThemeData.light(
         scheme: FlexScheme.indigo,

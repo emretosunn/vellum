@@ -649,77 +649,96 @@ class _SecurityPageState extends State<_SecurityPage> {
 class _NotificationsPage extends ConsumerWidget {
   const _NotificationsPage();
 
+  void _toggle(WidgetRef ref, Map<String, dynamic> current, String key, bool value) {
+    final userId = ref.read(authRepositoryProvider).currentUser?.id;
+    if (userId == null) return;
+
+    final updated = {...current, key: value};
+    // Yerel state'i güncelle
+    ref.read(notificationSettingsProvider.notifier).state =
+        updated.map((k, v) => MapEntry(k, v as bool));
+    // Supabase'e kaydet
+    ref.read(authRepositoryProvider).updateNotificationPreferences(
+          userId: userId,
+          preferences: updated,
+        );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(notificationSettingsProvider);
+    final profileAsync = ref.watch(currentProfileProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bildirim Ayarları')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.notifications_active_outlined,
-                    color: AppColors.primary, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Hangi bildirimleri almak istediğinizi seçin.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.7),
-                    ),
-                  ),
+      body: profileAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Hata: $err')),
+        data: (profile) {
+          if (profile == null) {
+            return const Center(child: Text('Profil bulunamadı'));
+          }
+
+          final prefs = profile.notificationPreferences;
+
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          _NotificationTile(
-            icon: Icons.menu_book_rounded,
-            title: 'Yeni Bölüm',
-            subtitle: 'Takip ettiğin kitaplara yeni bölüm eklendiğinde',
-            value: settings['newChapter']!,
-            onChanged: (v) => ref
-                .read(notificationSettingsProvider.notifier)
-                .state = {...settings, 'newChapter': v},
-          ),
-          _NotificationTile(
-            icon: Icons.chat_bubble_outline_rounded,
-            title: 'Yorumlar',
-            subtitle: 'Kitaplarına yorum yapıldığında',
-            value: settings['comments']!,
-            onChanged: (v) => ref
-                .read(notificationSettingsProvider.notifier)
-                .state = {...settings, 'comments': v},
-          ),
-          _NotificationTile(
-            icon: Icons.local_offer_outlined,
-            title: 'Promosyonlar',
-            subtitle: 'Kampanya ve indirimlerden haberdar ol',
-            value: settings['promotions']!,
-            onChanged: (v) => ref
-                .read(notificationSettingsProvider.notifier)
-                .state = {...settings, 'promotions': v},
-          ),
-          _NotificationTile(
-            icon: Icons.summarize_outlined,
-            title: 'Haftalık Özet',
-            subtitle: 'Her hafta okuma özetini al',
-            value: settings['weeklyDigest']!,
-            onChanged: (v) => ref
-                .read(notificationSettingsProvider.notifier)
-                .state = {...settings, 'weeklyDigest': v},
-          ),
-        ],
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_active_outlined,
+                        color: AppColors.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Hangi bildirimleri almak istediğinizi seçin.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _NotificationTile(
+                icon: Icons.menu_book_rounded,
+                title: 'Yeni Bölüm',
+                subtitle: 'Takip ettiğin kitaplara yeni bölüm eklendiğinde',
+                value: prefs['newChapter'] ?? true,
+                onChanged: (v) => _toggle(ref, prefs, 'newChapter', v),
+              ),
+              _NotificationTile(
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'Yorumlar',
+                subtitle: 'Kitaplarına yorum yapıldığında',
+                value: prefs['comments'] ?? true,
+                onChanged: (v) => _toggle(ref, prefs, 'comments', v),
+              ),
+              _NotificationTile(
+                icon: Icons.local_offer_outlined,
+                title: 'Promosyonlar',
+                subtitle: 'Kampanya ve indirimlerden haberdar ol',
+                value: prefs['promotions'] ?? false,
+                onChanged: (v) => _toggle(ref, prefs, 'promotions', v),
+              ),
+              _NotificationTile(
+                icon: Icons.summarize_outlined,
+                title: 'Haftalık Özet',
+                subtitle: 'Her hafta okuma özetini al',
+                value: prefs['weeklyDigest'] ?? true,
+                onChanged: (v) => _toggle(ref, prefs, 'weeklyDigest', v),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
