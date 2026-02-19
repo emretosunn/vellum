@@ -26,9 +26,6 @@ mixin _$Chapter {
   String get bookId => throw _privateConstructorUsedError;
   String get title => throw _privateConstructorUsedError;
   Map<String, dynamic> get content => throw _privateConstructorUsedError;
-  int get price => throw _privateConstructorUsedError;
-  @JsonKey(name: 'is_free')
-  bool get isFree => throw _privateConstructorUsedError;
   @JsonKey(name: 'order')
   int get order => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
@@ -55,8 +52,6 @@ abstract class $ChapterCopyWith<$Res> {
     @JsonKey(name: 'book_id') String bookId,
     String title,
     Map<String, dynamic> content,
-    int price,
-    @JsonKey(name: 'is_free') bool isFree,
     @JsonKey(name: 'order') int order,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -82,8 +77,6 @@ class _$ChapterCopyWithImpl<$Res, $Val extends Chapter>
     Object? bookId = null,
     Object? title = null,
     Object? content = null,
-    Object? price = null,
-    Object? isFree = null,
     Object? order = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -106,14 +99,6 @@ class _$ChapterCopyWithImpl<$Res, $Val extends Chapter>
                 ? _value.content
                 : content // ignore: cast_nullable_to_non_nullable
                       as Map<String, dynamic>,
-            price: null == price
-                ? _value.price
-                : price // ignore: cast_nullable_to_non_nullable
-                      as int,
-            isFree: null == isFree
-                ? _value.isFree
-                : isFree // ignore: cast_nullable_to_non_nullable
-                      as bool,
             order: null == order
                 ? _value.order
                 : order // ignore: cast_nullable_to_non_nullable
@@ -145,8 +130,6 @@ abstract class _$$ChapterImplCopyWith<$Res> implements $ChapterCopyWith<$Res> {
     @JsonKey(name: 'book_id') String bookId,
     String title,
     Map<String, dynamic> content,
-    int price,
-    @JsonKey(name: 'is_free') bool isFree,
     @JsonKey(name: 'order') int order,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -171,8 +154,6 @@ class __$$ChapterImplCopyWithImpl<$Res>
     Object? bookId = null,
     Object? title = null,
     Object? content = null,
-    Object? price = null,
-    Object? isFree = null,
     Object? order = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -195,14 +176,6 @@ class __$$ChapterImplCopyWithImpl<$Res>
             ? _value._content
             : content // ignore: cast_nullable_to_non_nullable
                   as Map<String, dynamic>,
-        price: null == price
-            ? _value.price
-            : price // ignore: cast_nullable_to_non_nullable
-                  as int,
-        isFree: null == isFree
-            ? _value.isFree
-            : isFree // ignore: cast_nullable_to_non_nullable
-                  as bool,
         order: null == order
             ? _value.order
             : order // ignore: cast_nullable_to_non_nullable
@@ -228,8 +201,6 @@ class _$ChapterImpl implements _Chapter {
     @JsonKey(name: 'book_id') required this.bookId,
     required this.title,
     final Map<String, dynamic> content = const <String, dynamic>{},
-    this.price = 10,
-    @JsonKey(name: 'is_free') this.isFree = false,
     @JsonKey(name: 'order') this.order = 0,
     @JsonKey(name: 'created_at') this.createdAt,
     @JsonKey(name: 'updated_at') this.updatedAt,
@@ -255,12 +226,6 @@ class _$ChapterImpl implements _Chapter {
   }
 
   @override
-  @JsonKey()
-  final int price;
-  @override
-  @JsonKey(name: 'is_free')
-  final bool isFree;
-  @override
   @JsonKey(name: 'order')
   final int order;
   @override
@@ -272,7 +237,7 @@ class _$ChapterImpl implements _Chapter {
 
   @override
   String toString() {
-    return 'Chapter(id: $id, bookId: $bookId, title: $title, content: $content, price: $price, isFree: $isFree, order: $order, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Chapter(id: $id, bookId: $bookId, title: $title, content: $content, order: $order, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -284,8 +249,6 @@ class _$ChapterImpl implements _Chapter {
             (identical(other.bookId, bookId) || other.bookId == bookId) &&
             (identical(other.title, title) || other.title == title) &&
             const DeepCollectionEquality().equals(other._content, _content) &&
-            (identical(other.price, price) || other.price == price) &&
-            (identical(other.isFree, isFree) || other.isFree == isFree) &&
             (identical(other.order, order) || other.order == order) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
@@ -301,8 +264,6 @@ class _$ChapterImpl implements _Chapter {
     bookId,
     title,
     const DeepCollectionEquality().hash(_content),
-    price,
-    isFree,
     order,
     createdAt,
     updatedAt,
@@ -328,8 +289,6 @@ abstract class _Chapter implements Chapter {
     @JsonKey(name: 'book_id') required final String bookId,
     required final String title,
     final Map<String, dynamic> content,
-    final int price,
-    @JsonKey(name: 'is_free') final bool isFree,
     @JsonKey(name: 'order') final int order,
     @JsonKey(name: 'created_at') final DateTime? createdAt,
     @JsonKey(name: 'updated_at') final DateTime? updatedAt,
@@ -346,11 +305,6 @@ abstract class _Chapter implements Chapter {
   String get title;
   @override
   Map<String, dynamic> get content;
-  @override
-  int get price;
-  @override
-  @JsonKey(name: 'is_free')
-  bool get isFree;
   @override
   @JsonKey(name: 'order')
   int get order;

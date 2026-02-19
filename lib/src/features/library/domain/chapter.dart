@@ -11,8 +11,6 @@ class Chapter with _$Chapter {
     @JsonKey(name: 'book_id') required String bookId,
     required String title,
     @Default(<String, dynamic>{}) Map<String, dynamic> content,
-    @Default(10) int price,
-    @Default(false) @JsonKey(name: 'is_free') bool isFree,
     @Default(0) @JsonKey(name: 'order') int order,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
 import '../data/auth_repository.dart';
+import '../../subscription/services/subscription_status_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,17 +26,18 @@ class DashboardScreen extends ConsumerWidget {
                 tooltip: 'Çıkış Yap',
                 onPressed: () async {
                   await ref.read(authRepositoryProvider).signOut();
+                  ref.invalidate(isProProvider);
                 },
               ),
             ],
           ),
           SliverToBoxAdapter(
             child: profileAsync.when(
-              loading: () =>
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  )),
+              loading: () => const Center(
+                  child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              )),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text('Hata: $err'),
@@ -46,6 +49,8 @@ class DashboardScreen extends ConsumerWidget {
                     child: Text('Profil yüklenemedi'),
                   );
                 }
+
+                final isActive = profile.hasActiveSubscription;
 
                 return Padding(
                   padding: const EdgeInsets.all(16),
@@ -85,19 +90,19 @@ class DashboardScreen extends ConsumerWidget {
                                     Row(
                                       children: [
                                         Icon(
-                                          profile.isVerifiedAuthor
-                                              ? Icons.verified
+                                          isActive
+                                              ? Icons.workspace_premium
                                               : Icons.person_outline,
                                           size: 16,
-                                          color: profile.isVerifiedAuthor
-                                              ? Colors.blue
+                                          color: isActive
+                                              ? AppColors.primary
                                               : null,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          profile.isVerifiedAuthor
-                                              ? 'Onaylı Yazar'
-                                              : 'Okuyucu',
+                                          isActive
+                                              ? 'Vellum Pro'
+                                              : 'Ücretsiz Hesap',
                                           style:
                                               theme.textTheme.bodySmall,
                                         ),
@@ -113,42 +118,56 @@ class DashboardScreen extends ConsumerWidget {
 
                       const SizedBox(height: 16),
 
-                      // Token Bakiyesi
+                      // Abonelik Durumu Kartı
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppColors.primary, AppColors.secondary],
+                            colors: isActive
+                                ? [AppColors.primary, AppColors.secondary]
+                                : [Colors.grey.shade600, Colors.grey.shade800],
                           ),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
                           children: [
-                            const Text(
-                              'Token Bakiyesi',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
+                            Icon(
+                              isActive
+                                  ? Icons.workspace_premium_rounded
+                                  : Icons.lock_outline,
+                              color: Colors.white70,
+                              size: 32,
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '${profile.tokenBalance}',
+                              isActive ? 'Vellum Pro' : 'Ücretsiz',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 40,
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'INK Token',
-                              style: TextStyle(
+                            Text(
+                              isActive
+                                  ? 'Aboneliğiniz aktif'
+                                  : 'Yazarlık için Pro\'ya geçin',
+                              style: const TextStyle(
                                 color: Colors.white60,
-                                fontSize: 12,
+                                fontSize: 13,
                               ),
                             ),
+                            if (isActive && profile.subEndDate != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Bitiş: ${profile.subEndDate!.day}.${profile.subEndDate!.month}.${profile.subEndDate!.year}',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       )
@@ -167,34 +186,35 @@ class DashboardScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
+                          if (!isActive) ...[
+                            Expanded(
+                              child: _QuickActionCard(
+                                icon: Icons.workspace_premium,
+                                label: 'Pro\'ya Geç',
+                                color: AppColors.primary,
+                                onTap: () =>
+                                    context.go('/subscription'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
                           Expanded(
                             child: _QuickActionCard(
-                              icon: Icons.add_circle_outline,
-                              label: 'Token Al',
-                              color: Colors.green,
-                              onTap: () {},
+                              icon: Icons.edit_note,
+                              label: 'Stüdyo',
+                              color: Colors.orange,
+                              onTap: () => context.go('/studio'),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _QuickActionCard(
-                              icon: Icons.history,
-                              label: 'İşlemler',
-                              color: Colors.orange,
-                              onTap: () {},
+                              icon: Icons.settings,
+                              label: 'Ayarlar',
+                              color: Colors.blueGrey,
+                              onTap: () => context.go('/settings'),
                             ),
                           ),
-                          if (!profile.isVerifiedAuthor) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _QuickActionCard(
-                                icon: Icons.edit_note,
-                                label: 'Yazar Ol',
-                                color: AppColors.primary,
-                                onTap: () {},
-                              ),
-                            ),
-                          ],
                         ],
                       ).animate().fadeIn(delay: 400.ms),
                     ],

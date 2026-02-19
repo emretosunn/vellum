@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// InkToken uygulama renkleri.
+/// Vellum uygulama renkleri.
 abstract final class AppColors {
   // Primary
   static const Color primary = Color(0xFF6C63FF);

@@ -37,8 +37,6 @@ class ChapterRepository {
     required String bookId,
     required String title,
     int order = 0,
-    bool isFree = false,
-    int price = 10,
   }) async {
     final data = await _client
         .from('chapters')
@@ -46,8 +44,6 @@ class ChapterRepository {
           'book_id': bookId,
           'title': title,
           'order': order,
-          'is_free': isFree,
-          'price': price,
           'content': <String, dynamic>{},
         })
         .select()
@@ -61,8 +57,6 @@ class ChapterRepository {
     required String chapterId,
     String? title,
     Map<String, dynamic>? content,
-    bool? isFree,
-    int? price,
     int? order,
   }) async {
     final updates = <String, dynamic>{
@@ -70,8 +64,6 @@ class ChapterRepository {
     };
     if (title != null) updates['title'] = title;
     if (content != null) updates['content'] = content;
-    if (isFree != null) updates['is_free'] = isFree;
-    if (price != null) updates['price'] = price;
     if (order != null) updates['order'] = order;
 
     final data = await _client

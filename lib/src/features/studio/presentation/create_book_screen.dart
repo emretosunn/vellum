@@ -73,6 +73,8 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
           );
 
       ref.invalidate(myBooksProvider);
+      ref.invalidate(publishedBooksProvider);
+      ref.invalidate(searchedBooksProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

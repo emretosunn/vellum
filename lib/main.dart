@@ -3,15 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'src/app.dart';
+import 'src/config/env.dart';
+import 'src/features/onboarding/presentation/onboarding_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  Env.validate();
+
   await Supabase.initialize(
-    url: 'https://cgxnjbdmlyzkcnflyaeu.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNneG5qYmRtbHl6a2NuZmx5YWV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNTUwNjUsImV4cCI6MjA4NjczMTA2NX0.54BgNe_jCo5zgHer_4QhlB6gs-VcDRNwNmkpeOo9MYg',
+    url: Env.supabaseUrl,
+    anonKey: Env.supabaseAnonKey,
   );
 
-  runApp(const ProviderScope(child: InkTokenApp()));
+  final onboardingDone = await isOnboardingCompleted();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        onboardingCompletedProvider.overrideWith((ref) => onboardingDone),
+      ],
+      child: const VellumApp(),
+    ),
+  );
 }

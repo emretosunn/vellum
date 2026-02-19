@@ -1,4 +1,4 @@
-/// InkToken uygulama istisnaları.
+/// Vellum uygulama istisnaları.
 sealed class AppException implements Exception {
   const AppException(this.message);
   final String message;
@@ -12,10 +12,10 @@ class AuthException extends AppException {
   const AuthException(super.message);
 }
 
-/// Yetersiz bakiye hatası.
-class InsufficientBalanceException extends AppException {
-  const InsufficientBalanceException()
-      : super('Yetersiz token bakiyesi.');
+/// Abonelik gerekli hatası.
+class SubscriptionRequiredException extends AppException {
+  const SubscriptionRequiredException()
+      : super('Bu özellik için aktif abonelik gereklidir.');
 }
 
 /// Ağ hatası.

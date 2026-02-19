@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment secrets — ASLA commit edilmemeli
+.env.json
+
+# Android signing — ASLA commit edilmemeli
+android/key.properties
+android/app/vellum-release-key.jks
+*.jks
+*.keystore

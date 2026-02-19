@@ -31,8 +31,6 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
   bool _isSaving = false;
   bool _isSidebarOpen = false;
   bool _isPublishing = false;
-  bool _isBookFree = true;
-  int _bookPrice = 10;
 
   final _textController = TextEditingController();
   final _titleController = TextEditingController();
@@ -62,11 +60,6 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
         _book = book;
         _chapters = chapters;
         _isLoading = false;
-        // İlk bölümün fiyat bilgisini yükle
-        if (chapters.isNotEmpty) {
-          _isBookFree = chapters.first.isFree;
-          _bookPrice = chapters.first.price;
-        }
       });
 
       // İlk sayfa yoksa oluştur
@@ -269,228 +262,6 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     }
   }
 
-  Future<void> _applyPricingToAllChapters() async {
-    try {
-      for (final chapter in _chapters) {
-        await ref.read(chapterRepositoryProvider).updateChapter(
-              chapterId: chapter.id,
-              isFree: _isBookFree,
-              price: _isBookFree ? 0 : _bookPrice,
-            );
-      }
-      // Listeyi güncelle
-      final updated = await ref
-          .read(chapterRepositoryProvider)
-          .getChaptersByBook(widget.bookId);
-      if (mounted) setState(() => _chapters = updated);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fiyatlandırma hatası: $e')),
-        );
-      }
-    }
-  }
-
-  void _showPricingDialog() {
-    bool tempIsFree = _isBookFree;
-    int tempPrice = _bookPrice;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final theme = Theme.of(context);
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.monetization_on_outlined,
-                      color: AppColors.primary, size: 24),
-                  const SizedBox(width: 8),
-                  const Text('Fiyatlandırma'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Ücretsiz / Ücretli seçimi
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        RadioListTile<bool>(
-                          title: Row(
-                            children: [
-                              const Icon(Icons.lock_open, size: 20),
-                              const SizedBox(width: 8),
-                              const Text('Ücretsiz'),
-                            ],
-                          ),
-                          subtitle: const Text('Herkes ücretsiz okuyabilir'),
-                          value: true,
-                          groupValue: tempIsFree,
-                          onChanged: (v) {
-                            setDialogState(() => tempIsFree = v ?? true);
-                          },
-                          activeColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        Divider(height: 1, indent: 16, endIndent: 16,
-                            color: theme.colorScheme.outline.withValues(alpha: 0.1)),
-                        RadioListTile<bool>(
-                          title: Row(
-                            children: [
-                              const Icon(Icons.lock_outline, size: 20),
-                              const SizedBox(width: 8),
-                              const Text('Ücretli'),
-                            ],
-                          ),
-                          subtitle: const Text('Token ile satın alınabilir'),
-                          value: false,
-                          groupValue: tempIsFree,
-                          onChanged: (v) {
-                            setDialogState(() => tempIsFree = v ?? false);
-                          },
-                          activeColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Fiyat ayarı (sadece ücretli ise)
-                  if (!tempIsFree) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sayfa başına fiyat',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              IconButton.filled(
-                                onPressed: tempPrice > 1
-                                    ? () => setDialogState(() => tempPrice--)
-                                    : null,
-                                icon: const Icon(Icons.remove, size: 18),
-                                style: IconButton.styleFrom(
-                                  backgroundColor:
-                                      AppColors.primary.withValues(alpha: 0.15),
-                                  foregroundColor: AppColors.primary,
-                                ),
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: Text(
-                                    '$tempPrice Token',
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              IconButton.filled(
-                                onPressed: tempPrice < 100
-                                    ? () => setDialogState(() => tempPrice++)
-                                    : null,
-                                icon: const Icon(Icons.add, size: 18),
-                                style: IconButton.styleFrom(
-                                  backgroundColor:
-                                      AppColors.primary.withValues(alpha: 0.15),
-                                  foregroundColor: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // Hızlı fiyat seçenekleri
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [5, 10, 25, 50].map((p) {
-                              final isSelected = tempPrice == p;
-                              return ChoiceChip(
-                                label: Text('$p'),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setDialogState(() => tempPrice = p);
-                                },
-                                selectedColor:
-                                    AppColors.primary.withValues(alpha: 0.2),
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : null,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('İptal'),
-                ),
-                FilledButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isBookFree = tempIsFree;
-                      _bookPrice = tempIsFree ? 0 : tempPrice;
-                    });
-                    _applyPricingToAllChapters();
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(tempIsFree
-                            ? 'Kitap ücretsiz olarak ayarlandı ✓'
-                            : 'Fiyat: $tempPrice Token/sayfa olarak ayarlandı ✓'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Uygula'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _publishBook() async {
     if (_book == null) return;
 
@@ -615,15 +386,6 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
         ),
         title: Text(_book?.title ?? 'Kitap Editörü'),
         actions: [
-          // Fiyatlandırma
-          IconButton(
-            onPressed: _showPricingDialog,
-            icon: Icon(
-              _isBookFree ? Icons.lock_open : Icons.monetization_on,
-              size: 22,
-            ),
-            tooltip: _isBookFree ? 'Ücretsiz' : '$_bookPrice Token/sayfa',
-          ),
           // Sidebar aç/kapa
           IconButton(
             onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),

@@ -1,32 +1,55 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/login_screen.dart';
+import '../features/library/presentation/author_profile_screen.dart';
 import '../features/library/presentation/book_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/reader_screen.dart';
+import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shared/widgets/scaffold_with_nav.dart';
 import '../features/studio/presentation/book_editor_screen.dart';
 import '../features/studio/presentation/chapter_editor_screen.dart';
 import '../features/studio/presentation/writer_studio_screen.dart';
-import '../features/wallet/presentation/wallet_screen.dart';
+import '../features/subscription/presentation/subscription_screen.dart';
 
 /// GoRouter yapılandırması.
 ///
 /// [isLoggedIn] parametresi auth durumuna göre yönlendirme yapar.
-GoRouter createRouter({bool isLoggedIn = false}) {
+/// [onboardingCompleted] onboarding süreci tamamlandı mı kontrol eder.
+GoRouter createRouter({
+  bool isLoggedIn = false,
+  bool onboardingCompleted = true,
+}) {
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      final loggingIn = state.matchedLocation == '/login';
+      final location = state.matchedLocation;
+      final isOnboarding = location == '/onboarding';
+      final isLogin = location == '/login';
 
-      if (!isLoggedIn && !loggingIn) return '/login';
-      if (isLoggedIn && loggingIn) return '/';
+      // Onboarding henüz tamamlanmadıysa oraya yönlendir
+      if (!onboardingCompleted && !isOnboarding) return '/onboarding';
+      // Onboarding tamamlandıysa oraya gitmeyi engelle
+      if (onboardingCompleted && isOnboarding) {
+        return isLoggedIn ? '/' : '/login';
+      }
+
+      // Auth yönlendirmeleri
+      if (!isLoggedIn && !isLogin && !isOnboarding) return '/login';
+      if (isLoggedIn && isLogin) return '/';
 
       return null;
     },
     routes: [
+      // Onboarding ekranı (ilk açılış)
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
       // Login ekranı (shell dışında)
       GoRoute(
         path: '/login',
@@ -41,6 +64,16 @@ GoRouter createRouter({bool isLoggedIn = false}) {
         builder: (context, state) {
           final bookId = state.pathParameters['id'] ?? '';
           return BookDetailScreen(bookId: bookId);
+        },
+      ),
+
+      // Yazar profili (shell dışında — tam ekran)
+      GoRoute(
+        path: '/author/:id',
+        name: 'authorProfile',
+        builder: (context, state) {
+          final authorId = state.pathParameters['id'] ?? '';
+          return AuthorProfileScreen(authorId: authorId);
         },
       ),
 
@@ -78,7 +111,7 @@ GoRouter createRouter({bool isLoggedIn = false}) {
         },
       ),
 
-      // Ana navigasyon shell'i (4 tab: Home, Stüdyo, Cüzdan, Ayarlar)
+      // Ana navigasyon shell'i (4 tab: Home, Stüdyo, Abonelik, Ayarlar)
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNav(navigationShell: navigationShell);
@@ -106,13 +139,13 @@ GoRouter createRouter({bool isLoggedIn = false}) {
             ],
           ),
 
-          // Branch 2: Cüzdan
+          // Branch 2: Abonelik
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/wallet',
-                name: 'wallet',
-                builder: (context, state) => const WalletScreen(),
+                path: '/subscription',
+                name: 'subscription',
+                builder: (context, state) => const SubscriptionScreen(),
               ),
             ],
           ),

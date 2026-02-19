@@ -15,7 +15,7 @@ _$BookImpl _$$BookImplFromJson(Map<String, dynamic> json) => _$BookImpl(
   status:
       $enumDecodeNullable(_$BookStatusEnumMap, json['status']) ??
       BookStatus.draft,
-  totalEarnings: (json['total_earnings'] as num?)?.toInt() ?? 0,
+  isPublished: json['is_published'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
@@ -26,7 +26,7 @@ Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
       'summary': instance.summary,
       'cover_image_url': instance.coverImageUrl,
       'status': _$BookStatusEnumMap[instance.status]!,
-      'total_earnings': instance.totalEarnings,
+      'is_published': instance.isPublished,
     };
 
 const _$BookStatusEnumMap = {

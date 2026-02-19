@@ -24,8 +24,6 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
   final _titleController = TextEditingController();
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isFree = false;
-  int _price = 10;
 
   @override
   void initState() {
@@ -47,8 +45,6 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
 
       if (chapter != null && mounted) {
         _titleController.text = chapter.title;
-        _isFree = chapter.isFree;
-        _price = chapter.price;
 
         // JSONB content → Document
         final content = chapter.content;
@@ -93,15 +89,11 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
           chapterId: widget.chapterId!,
           title: _titleController.text.trim(),
           content: content,
-          isFree: _isFree,
-          price: _price,
         );
       } else {
         final newChapter = await chapterRepo.createChapter(
           bookId: widget.bookId,
           title: _titleController.text.trim(),
-          isFree: _isFree,
-          price: _price,
         );
         await chapterRepo.updateChapter(
           chapterId: newChapter.id,
@@ -113,7 +105,7 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bölüm kaydedildi ✓')),
+          const SnackBar(content: Text('Bölüm kaydedildi')),
         );
         Navigator.pop(context);
       }
@@ -170,54 +162,16 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
       ),
       body: Column(
         children: [
-          // Başlık + Ayarlar
+          // Başlık
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Bölüm Başlığı',
-                    hintText: 'Bölümünüzün başlığını yazın',
-                  ),
-                  style: theme.textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    FilterChip(
-                      selected: _isFree,
-                      label: const Text('Ücretsiz'),
-                      onSelected: (val) => setState(() => _isFree = val),
-                    ),
-                    const SizedBox(width: 8),
-                    if (!_isFree)
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Text('Fiyat: '),
-                            SizedBox(
-                              width: 80,
-                              child: TextField(
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  suffixText: 'Token',
-                                  isDense: true,
-                                ),
-                                controller:
-                                    TextEditingController(text: '$_price'),
-                                onChanged: (val) {
-                                  _price = int.tryParse(val) ?? 10;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+            child: TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Bölüm Başlığı',
+                hintText: 'Bölümünüzün başlığını yazın',
+              ),
+              style: theme.textTheme.titleLarge,
             ),
           ),
 

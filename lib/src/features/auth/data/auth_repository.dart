@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,11 +27,12 @@ class AuthRepository {
     required String password,
     required String username,
   }) async {
-    return _client.auth.signUp(
+    final response = await _client.auth.signUp(
       email: email,
       password: password,
       data: {'username': username},
     );
+    return response;
   }
 
   /// E-posta ile giriş yap
@@ -37,10 +40,11 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    return _client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    return response;
   }
 
   /// Çıkış yap
@@ -62,14 +66,20 @@ class AuthRepository {
     return Profile.fromJson(data);
   }
 
-  /// Profili güncelle (username, role, is_verified_author)
+  /// Profili güncelle (username, bio, links, avatar_url, is_verified_author)
   Future<Profile> updateProfile({
     required String id,
     String? username,
+    String? bio,
+    List<Map<String, dynamic>>? links,
+    String? avatarUrl,
     bool? isVerifiedAuthor,
   }) async {
     final updates = <String, dynamic>{};
     if (username != null) updates['username'] = username;
+    if (bio != null) updates['bio'] = bio;
+    if (links != null) updates['links'] = links;
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
     if (isVerifiedAuthor != null) {
       updates['is_verified_author'] = isVerifiedAuthor;
     }
@@ -84,18 +94,35 @@ class AuthRepository {
     return Profile.fromJson(data);
   }
 
-  /// Yazar ol (is_verified_author → true, role → author)
-  Future<Profile> becomeAuthor(String userId) async {
+  /// Avatar fotoğrafı yükle ve URL döndür
+  Future<String> uploadAvatar({
+    required String userId,
+    required String filePath,
+    required Uint8List fileBytes,
+  }) async {
+    final fileExt = filePath.split('.').last.toLowerCase();
+    final storagePath = '$userId/avatar.$fileExt';
+
+    await _client.storage.from('avatars').uploadBinary(
+          storagePath,
+          fileBytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    final publicUrl =
+        _client.storage.from('avatars').getPublicUrl(storagePath);
+    return publicUrl;
+  }
+
+  /// Herhangi bir kullanıcının profilini ID ile al
+  Future<Profile?> getProfileById(String userId) async {
     final data = await _client
         .from('profiles')
-        .update({
-          'is_verified_author': true,
-          'role': 'author',
-        })
-        .eq('id', userId)
         .select()
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
+    if (data == null) return null;
     return Profile.fromJson(data);
   }
 
@@ -120,7 +147,9 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
 
 /// Auth repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(supabaseClientProvider));
+  return AuthRepository(
+    ref.watch(supabaseClientProvider),
+  );
 });
 
 /// Auth state stream provider
@@ -133,4 +162,10 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   // Auth state değişince profili tekrar al
   ref.watch(authStateProvider);
   return ref.read(authRepositoryProvider).getCurrentProfile();
+});
+
+/// Herhangi bir kullanıcının profili (family provider)
+final profileByIdProvider =
+    FutureProvider.family<Profile?, String>((ref, userId) async {
+  return ref.read(authRepositoryProvider).getProfileById(userId);
 });

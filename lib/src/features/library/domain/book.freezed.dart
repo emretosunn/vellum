@@ -29,8 +29,8 @@ mixin _$Book {
   @JsonKey(name: 'cover_image_url')
   String? get coverImageUrl => throw _privateConstructorUsedError;
   BookStatus get status => throw _privateConstructorUsedError;
-  @JsonKey(name: 'total_earnings')
-  int get totalEarnings => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_published')
+  bool get isPublished => throw _privateConstructorUsedError;
 
   /// Serializes this Book to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -53,7 +53,7 @@ abstract class $BookCopyWith<$Res> {
     String summary,
     @JsonKey(name: 'cover_image_url') String? coverImageUrl,
     BookStatus status,
-    @JsonKey(name: 'total_earnings') int totalEarnings,
+    @JsonKey(name: 'is_published') bool isPublished,
   });
 }
 
@@ -78,7 +78,7 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
     Object? summary = null,
     Object? coverImageUrl = freezed,
     Object? status = null,
-    Object? totalEarnings = null,
+    Object? isPublished = null,
   }) {
     return _then(
       _value.copyWith(
@@ -106,10 +106,10 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
                       as BookStatus,
-            totalEarnings: null == totalEarnings
-                ? _value.totalEarnings
-                : totalEarnings // ignore: cast_nullable_to_non_nullable
-                      as int,
+            isPublished: null == isPublished
+                ? _value.isPublished
+                : isPublished // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -131,7 +131,7 @@ abstract class _$$BookImplCopyWith<$Res> implements $BookCopyWith<$Res> {
     String summary,
     @JsonKey(name: 'cover_image_url') String? coverImageUrl,
     BookStatus status,
-    @JsonKey(name: 'total_earnings') int totalEarnings,
+    @JsonKey(name: 'is_published') bool isPublished,
   });
 }
 
@@ -153,7 +153,7 @@ class __$$BookImplCopyWithImpl<$Res>
     Object? summary = null,
     Object? coverImageUrl = freezed,
     Object? status = null,
-    Object? totalEarnings = null,
+    Object? isPublished = null,
   }) {
     return _then(
       _$BookImpl(
@@ -181,10 +181,10 @@ class __$$BookImplCopyWithImpl<$Res>
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
                   as BookStatus,
-        totalEarnings: null == totalEarnings
-            ? _value.totalEarnings
-            : totalEarnings // ignore: cast_nullable_to_non_nullable
-                  as int,
+        isPublished: null == isPublished
+            ? _value.isPublished
+            : isPublished // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -200,7 +200,7 @@ class _$BookImpl implements _Book {
     this.summary = '',
     @JsonKey(name: 'cover_image_url') this.coverImageUrl,
     this.status = BookStatus.draft,
-    @JsonKey(name: 'total_earnings') this.totalEarnings = 0,
+    @JsonKey(name: 'is_published') this.isPublished = false,
   });
 
   factory _$BookImpl.fromJson(Map<String, dynamic> json) =>
@@ -223,12 +223,12 @@ class _$BookImpl implements _Book {
   @JsonKey()
   final BookStatus status;
   @override
-  @JsonKey(name: 'total_earnings')
-  final int totalEarnings;
+  @JsonKey(name: 'is_published')
+  final bool isPublished;
 
   @override
   String toString() {
-    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, totalEarnings: $totalEarnings)';
+    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, isPublished: $isPublished)';
   }
 
   @override
@@ -244,8 +244,8 @@ class _$BookImpl implements _Book {
             (identical(other.coverImageUrl, coverImageUrl) ||
                 other.coverImageUrl == coverImageUrl) &&
             (identical(other.status, status) || other.status == status) &&
-            (identical(other.totalEarnings, totalEarnings) ||
-                other.totalEarnings == totalEarnings));
+            (identical(other.isPublished, isPublished) ||
+                other.isPublished == isPublished));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -258,7 +258,7 @@ class _$BookImpl implements _Book {
     summary,
     coverImageUrl,
     status,
-    totalEarnings,
+    isPublished,
   );
 
   /// Create a copy of Book
@@ -283,7 +283,7 @@ abstract class _Book implements Book {
     final String summary,
     @JsonKey(name: 'cover_image_url') final String? coverImageUrl,
     final BookStatus status,
-    @JsonKey(name: 'total_earnings') final int totalEarnings,
+    @JsonKey(name: 'is_published') final bool isPublished,
   }) = _$BookImpl;
 
   factory _Book.fromJson(Map<String, dynamic> json) = _$BookImpl.fromJson;
@@ -303,8 +303,8 @@ abstract class _Book implements Book {
   @override
   BookStatus get status;
   @override
-  @JsonKey(name: 'total_earnings')
-  int get totalEarnings;
+  @JsonKey(name: 'is_published')
+  bool get isPublished;
 
   /// Create a copy of Book
   /// with the given fields replaced by the non-null parameter values.

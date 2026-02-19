@@ -23,7 +23,7 @@ class Book with _$Book {
     @Default('') String summary,
     @JsonKey(name: 'cover_image_url') String? coverImageUrl,
     @Default(BookStatus.draft) BookStatus status,
-    @Default(0) @JsonKey(name: 'total_earnings') int totalEarnings,
+    @Default(false) @JsonKey(name: 'is_published') bool isPublished,
   }) = _Book;
 
   factory Book.fromJson(Map<String, dynamic> json) =>

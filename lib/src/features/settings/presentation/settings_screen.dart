@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../subscription/services/subscription_status_service.dart';
 
 // ─── Providers ───────────────────────────────────────
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
@@ -51,13 +55,12 @@ class SettingsScreen extends ConsumerWidget {
                 username: profile?.username ?? 'Kullanıcı',
                 email:
                     ref.read(authRepositoryProvider).currentUser?.email ?? '',
+                avatarUrl: profile?.avatarUrl,
                 isDark: isDark,
                 onEdit: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => _ProfilePage(
-                      currentUsername: profile?.username ?? '',
-                    ),
+                    builder: (_) => _ProfileEditPage(profile: profile),
                   ),
                 ),
               ),
@@ -84,9 +87,8 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => _ProfilePage(
-                        currentUsername:
-                            profileAsync.valueOrNull?.username ?? '',
+                      builder: (_) => _ProfileEditPage(
+                        profile: profileAsync.valueOrNull,
                       ),
                     ),
                   ),
@@ -256,6 +258,7 @@ class SettingsScreen extends ConsumerWidget {
                   );
                   if (confirmed == true) {
                     await ref.read(authRepositoryProvider).signOut();
+                    ref.invalidate(isProProvider);
                   }
                 },
                 style: OutlinedButton.styleFrom(
@@ -284,31 +287,151 @@ class SettingsScreen extends ConsumerWidget {
 // ALT SAYFALAR (TAM EKRAN)
 // ═════════════════════════════════════════════════════
 
-// ─── Profil Sayfası ──────────────────────────────────
+// ─── Profil Düzenleme Sayfası ─────────────────────────
 
-class _ProfilePage extends ConsumerStatefulWidget {
-  const _ProfilePage({required this.currentUsername});
-  final String currentUsername;
+class _ProfileEditPage extends ConsumerStatefulWidget {
+  const _ProfileEditPage({this.profile});
+  final dynamic profile;
 
   @override
-  ConsumerState<_ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<_ProfileEditPage> createState() => _ProfileEditPageState();
 }
 
-class _ProfilePageState extends ConsumerState<_ProfilePage> {
+class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   late final TextEditingController _usernameController;
+  late final TextEditingController _bioController;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  bool _uploadingAvatar = false;
+  String? _avatarUrl;
+  Uint8List? _avatarBytes;
+  late List<Map<String, dynamic>> _links;
 
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController(text: widget.currentUsername);
+    final p = widget.profile;
+    _usernameController = TextEditingController(text: p?.username ?? '');
+    _bioController = TextEditingController(text: p?.bio ?? '');
+    _avatarUrl = p?.avatarUrl;
+    _links = List<Map<String, dynamic>>.from(
+      (p?.links as List<dynamic>?)?.map(
+            (e) => Map<String, dynamic>.from(e as Map),
+          ) ??
+          <Map<String, dynamic>>[],
+    );
   }
 
   @override
   void dispose() {
     _usernameController.dispose();
+    _bioController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 80,
+    );
+    if (image == null) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final bytes = await image.readAsBytes();
+      final userId = ref.read(authRepositoryProvider).currentUser?.id;
+      if (userId == null) return;
+
+      final url = await ref.read(authRepositoryProvider).uploadAvatar(
+            userId: userId,
+            filePath: image.name,
+            fileBytes: bytes,
+          );
+
+      setState(() {
+        _avatarBytes = bytes;
+        _avatarUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Avatar yüklenemedi: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  void _addLink() {
+    final titleController = TextEditingController();
+    final urlController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Link Ekle'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: InputDecoration(
+                labelText: 'Başlık',
+                hintText: 'Ör: Twitter, Web Sitesi',
+                prefixIcon: const Icon(Icons.label_outline),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlController,
+              decoration: InputDecoration(
+                labelText: 'URL',
+                hintText: 'https://...',
+                prefixIcon: const Icon(Icons.link),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              keyboardType: TextInputType.url,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final title = titleController.text.trim();
+              final url = urlController.text.trim();
+              if (title.isNotEmpty && url.isNotEmpty) {
+                setState(() {
+                  _links.add({'title': title, 'url': url});
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removeLink(int index) {
+    setState(() => _links.removeAt(index));
   }
 
   Future<void> _save() async {
@@ -321,12 +444,15 @@ class _ProfilePageState extends ConsumerState<_ProfilePage> {
       await ref.read(authRepositoryProvider).updateProfile(
             id: userId,
             username: _usernameController.text.trim(),
+            bio: _bioController.text.trim(),
+            links: _links,
+            avatarUrl: _avatarUrl,
           );
       ref.invalidate(currentProfileProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Profil güncellendi ✓'),
+            content: Text('Profil guncellendi'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -351,10 +477,11 @@ class _ProfilePageState extends ConsumerState<_ProfilePage> {
   Widget build(BuildContext context) {
     final email = ref.read(authRepositoryProvider).currentUser?.email ?? '';
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil Bilgileri'),
+        title: const Text('Profil Duzenle'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -380,55 +507,110 @@ class _ProfilePageState extends ConsumerState<_ProfilePage> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            // Avatar büyük
+            // ─── Avatar ──────────────────────
             Center(
-              child: CircleAvatar(
-                radius: 52,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                child: Text(
-                  widget.currentUsername.isNotEmpty
-                      ? widget.currentUsername[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTap: _uploadingAvatar ? null : _pickAvatar,
+                    child: Container(
+                      width: 112,
+                      height: 112,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          width: 3,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: _avatarBytes != null
+                            ? Image.memory(
+                                _avatarBytes!,
+                                fit: BoxFit.cover,
+                                width: 112,
+                                height: 112,
+                              )
+                            : _avatarUrl != null
+                                ? Image.network(
+                                    _avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    width: 112,
+                                    height: 112,
+                                    errorBuilder: (_, __, ___) =>
+                                        _buildAvatarPlaceholder(),
+                                  )
+                                : _buildAvatarPlaceholder(),
+                      ),
+                    ),
                   ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? AppColors.cardDark : Colors.white,
+                          width: 3,
+                        ),
+                      ),
+                      child: _uploadingAvatar
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Degistirmek icin dokun',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.primary,
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
-            // Kullanıcı adı
-            Text('Kullanıcı Adı',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
+            // ─── Kullanıcı Adı ──────────────
+            _buildSectionLabel(theme, 'Kullanici Adi'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _usernameController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.alternate_email),
-                hintText: 'Kullanıcı adınız',
+                hintText: 'Kullanici adiniz',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Kullanıcı adı boş olamaz';
+                  return 'Kullanici adi bos olamaz';
                 }
-                if (value.trim().length < 3) return 'En az 3 karakter olmalı';
+                if (value.trim().length < 3) return 'En az 3 karakter olmali';
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // E-posta (salt okunur)
-            Text('E-posta',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
+            // ─── E-posta (salt okunur) ──────
+            _buildSectionLabel(theme, 'E-posta'),
             const SizedBox(height: 8),
             TextFormField(
               initialValue: email,
@@ -440,10 +622,193 @@ class _ProfilePageState extends ConsumerState<_ProfilePage> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
+            // ─── Hakkımda ───────────────────
+            _buildSectionLabel(theme, 'Hakkimda'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _bioController,
+              maxLines: 4,
+              maxLength: 300,
+              decoration: InputDecoration(
+                hintText: 'Kendinizden bahsedin...',
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.only(bottom: 60),
+                  child: Icon(Icons.info_outline),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ─── Linkler ────────────────────
+            Row(
+              children: [
+                _buildSectionLabel(theme, 'Linkler'),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _addLink,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Ekle'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            if (_links.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.grey.withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.link_off_rounded,
+                      size: 32,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Henuz link eklenmemis',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...List.generate(_links.length, (index) {
+                final link = _links[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.grey.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          _getLinkIcon(link['title'] ?? ''),
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              link['title'] ?? '',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              link['url'] ?? '',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.error.withValues(alpha: 0.7),
+                        ),
+                        onPressed: () => _removeLink(index),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 80),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAvatarPlaceholder() {
+    return Container(
+      width: 112,
+      height: 112,
+      color: AppColors.primary.withValues(alpha: 0.15),
+      child: Center(
+        child: Text(
+          _usernameController.text.isNotEmpty
+              ? _usernameController.text[0].toUpperCase()
+              : '?',
+          style: const TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(ThemeData theme, String label) {
+    return Text(
+      label,
+      style: theme.textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  IconData _getLinkIcon(String title) {
+    final lower = title.toLowerCase();
+    if (lower.contains('twitter') || lower.contains('x.com')) {
+      return Icons.alternate_email;
+    }
+    if (lower.contains('instagram')) return Icons.camera_alt_outlined;
+    if (lower.contains('youtube')) return Icons.play_circle_outline;
+    if (lower.contains('github')) return Icons.code;
+    if (lower.contains('linkedin')) return Icons.business_center_outlined;
+    if (lower.contains('web') || lower.contains('site')) {
+      return Icons.language;
+    }
+    return Icons.link;
   }
 }
 
@@ -970,7 +1335,7 @@ class _FontSizePage extends ConsumerWidget {
                     color: AppColors.primary, size: 32),
                 const SizedBox(height: 12),
                 Text(
-                  'İnkToken ile keşfetmenin tadını çıkarın.',
+                  'Vellum ile keşfetmenin tadını çıkarın.',
                   style: TextStyle(fontSize: _value(current), height: 1.5),
                   textAlign: TextAlign.center,
                 ),
@@ -1059,24 +1424,24 @@ class _HelpPage extends StatelessWidget {
 
   static const _faqItems = [
     {
-      'q': 'InkToken nedir?',
+      'q': 'Vellum nedir?',
       'a':
-          'InkToken, yazarların bölüm bazlı içerik yayınladığı ve okuyucuların token ile ödeme yaptığı dijital bir kitap platformudur.',
+          'Vellum, yazarların bölüm bazlı içerik yayınladığı ve okuyucuların ücretsiz keşfettiği dijital bir kitap platformudur.',
     },
     {
       'q': 'Nasıl yazar olurum?',
       'a':
-          'Dashboard ekranında "Yazar Ol" butonuna tıklayarak yazar profilinizi aktifleştirebilirsiniz.',
+          'Vellum Pro aboneliğine geçerek yazarlık özelliklerini aktifleştirebilirsiniz. Abonelik sekmesinden planları inceleyebilirsiniz.',
     },
     {
-      'q': 'Token nasıl satın alırım?',
+      'q': 'Abonelik nasıl çalışır?',
       'a':
-          'Cüzdan sekmesindeki "Token Satın Al" butonuyla kredi kartı veya mobil ödeme ile token satın alabilirsiniz.',
+          'Aylık veya yıllık plan seçerek abone olabilirsiniz. Abonelik süresince sınırsız kitap oluşturma ve yayınlama hakkına sahip olursunuz.',
     },
     {
-      'q': 'Kazançlarımı nasıl çekerim?',
+      'q': 'Aboneliğimi nasıl iptal ederim?',
       'a':
-          'Yazar panelinizdeki Cüzdan bölümden en az 50 TL biriktirdiğinizde banka hesabınıza çekim talep edebilirsiniz.',
+          'Abonelik sekmesinden veya uygulama mağazanızın abonelik yönetimi bölümünden aboneliğinizi iptal edebilirsiniz.',
     },
     {
       'q': 'Hesabımı nasıl silerim?',
@@ -1202,12 +1567,14 @@ class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.username,
     required this.email,
+    this.avatarUrl,
     required this.isDark,
     required this.onEdit,
   });
 
   final String username;
   final String email;
+  final String? avatarUrl;
   final bool isDark;
   final VoidCallback onEdit;
 
@@ -1243,15 +1610,38 @@ class _ProfileCard extends StatelessWidget {
                 width: 2,
               ),
             ),
-            child: Center(
-              child: Text(
-                username.isNotEmpty ? username[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+            child: ClipOval(
+              child: avatarUrl != null
+                  ? Image.network(
+                      avatarUrl!,
+                      fit: BoxFit.cover,
+                      width: 56,
+                      height: 56,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          username.isNotEmpty
+                              ? username[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        username.isNotEmpty
+                            ? username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1497,12 +1887,12 @@ class _ThemeChip extends StatelessWidget {
 // ─── İçerik Metinleri ────────────────────────────────
 
 const _termsText = '''
-InkToken Kullanım Şartları
+Vellum Kullanım Şartları
 
 Son Güncelleme: 15 Şubat 2026
 
 1. Genel Hükümler
-InkToken uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılırsınız. Uygulama, dijital içerik yayınlama ve tüketim platformu olarak hizmet vermektedir.
+Vellum uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılırsınız. Uygulama, dijital içerik yayınlama ve tüketim platformu olarak hizmet vermektedir.
 
 2. Kullanıcı Hesapları
 • Hesap oluşturmak için 18 yaşını doldurmuş olmanız gerekmektedir.
@@ -1514,10 +1904,10 @@ InkToken uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılı
 • Yasadışı, müstehcen veya nefret söylemi içeren içerikler yasaktır.
 • Platform, uygunsuz içerikleri kaldırma hakkını saklı tutar.
 
-4. Token ve Ödeme
-• Tokenlar uygulama içi satın alımlarla edinilir.
-• Satın alınan tokenlar iade edilemez.
-• Yazar kazançları, minimum eşik tutarına ulaştığında çekilebilir.
+4. Abonelik ve Ödeme
+• Vellum Pro aboneliği aylık veya yıllık olarak satın alınabilir.
+• Abonelik iptali dönem sonunda geçerli olur.
+• Ödeme işlemleri güvenli ödeme sağlayıcıları üzerinden gerçekleştirilir.
 
 5. Fikri Mülkiyet
 • Yazarlar, yayınladıkları içeriklerin telif haklarına sahiptir.
@@ -1528,24 +1918,24 @@ InkToken uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılı
 • Teknik arızalardan kaynaklanan veri kayıpları için sorumluluk kabul edilmez.
 
 7. İletişim
-Sorularınız için destek@inktoken.com adresine yazabilirsiniz.
+Sorularınız için destek@vellum.app adresine yazabilirsiniz.
 ''';
 
 const _privacyText = '''
-InkToken Gizlilik Politikası
+Vellum Gizlilik Politikası
 
 Son Güncelleme: 15 Şubat 2026
 
 1. Toplanan Veriler
 • Kimlik bilgileri: E-posta, kullanıcı adı
 • Kullanım verileri: Okuma geçmişi, tercihler
-• Ödeme bilgileri: İşlem geçmişi (kart bilgileri saklanmaz)
+• Abonelik bilgileri: Plan türü, dönem bilgisi (kart bilgileri saklanmaz)
 
 2. Veri Kullanımı
 Toplanan veriler aşağıdaki amaçlarla kullanılır:
 • Hesap yönetimi ve kimlik doğrulama
 • İçerik önerileri ve kişiselleştirme
-• Ödeme işlemlerinin yürütülmesi
+• Abonelik işlemlerinin yürütülmesi
 • Platform güvenliğinin sağlanması
 
 3. Veri Paylaşımı
@@ -1568,5 +1958,5 @@ Toplanan veriler aşağıdaki amaçlarla kullanılır:
 • Veri taşınabilirliği hakkınız bulunmaktadır.
 
 7. İletişim
-Gizlilik ile ilgili sorularınız için gizlilik@inktoken.com adresine yazabilirsiniz.
+Gizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsiniz.
 ''';

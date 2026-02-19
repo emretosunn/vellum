@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,9 +28,9 @@ class ScaffoldWithNav extends StatelessWidget {
       label: 'Stüdyo',
     ),
     _NavDestination(
-      icon: Icons.account_balance_wallet_outlined,
-      selectedIcon: Icons.account_balance_wallet_rounded,
-      label: 'Cüzdan',
+      icon: Icons.workspace_premium_outlined,
+      selectedIcon: Icons.workspace_premium_rounded,
+      label: 'Abonelik',
     ),
     _NavDestination(
       icon: Icons.settings_outlined,
@@ -106,14 +104,11 @@ class _PremiumSidebar extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       width: sidebarWidth,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
+      child: Container(
             decoration: BoxDecoration(
               color: isDark
-                  ? const Color(0xFF16162A).withValues(alpha: 0.92)
-                  : Colors.white.withValues(alpha: 0.85),
+                  ? const Color(0xFF16162A)
+                  : const Color(0xFFF8F7FF),
               border: Border(
                 right: BorderSide(
                   color: isDark
@@ -183,7 +178,7 @@ class _PremiumSidebar extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'InkToken v1.0',
+                                  'Vellum v1.0',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark
@@ -225,8 +220,6 @@ class _PremiumSidebar extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -299,7 +292,7 @@ class _SidebarLogo extends StatelessWidget {
                 ],
               ).createShader(bounds),
               child: const Text(
-                'InkToken',
+                'Vellum',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -478,16 +471,12 @@ class _GlassBottomNav extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
+      child: Container(
             height: 72,
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.75),
+                  ? const Color(0xFF1C1C34)
+                  : const Color(0xFFF5F4FF),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isDark
@@ -497,9 +486,9 @@ class _GlassBottomNav extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -518,8 +507,6 @@ class _GlassBottomNav extends StatelessWidget {
               }),
             ),
           ),
-        ),
-      ),
     );
   }
 }

@@ -7,8 +7,12 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'routing/app_router.dart';
 
-class InkTokenApp extends ConsumerWidget {
-  const InkTokenApp({super.key});
+/// Reaktif onboarding durumu — main.dart'ta başlangıç değeri atanır,
+/// onboarding tamamlanınca true'ya çekilir.
+final onboardingCompletedProvider = StateProvider<bool>((ref) => false);
+
+class VellumApp extends ConsumerWidget {
+  const VellumApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,7 +22,12 @@ class InkTokenApp extends ConsumerWidget {
         ) ??
         false;
 
-    final router = createRouter(isLoggedIn: isLoggedIn);
+    final onboardingDone = ref.watch(onboardingCompletedProvider);
+
+    final router = createRouter(
+      isLoggedIn: isLoggedIn,
+      onboardingCompleted: onboardingDone,
+    );
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(

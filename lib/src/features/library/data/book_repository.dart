@@ -30,6 +30,18 @@ class BookRepository {
     return Book.fromJson(data);
   }
 
+  /// Bir yazarın yayınlanmış kitapları
+  Future<List<Book>> getPublishedBooksByAuthor(String authorId) async {
+    final data = await _client
+        .from('books')
+        .select()
+        .eq('author_id', authorId)
+        .eq('status', 'published')
+        .order('created_at', ascending: false);
+
+    return data.map((json) => Book.fromJson(json)).toList();
+  }
+
   /// Yazarın kendi kitapları
   Future<List<Book>> getMyBooks(String authorId) async {
     final data = await _client
@@ -127,6 +139,12 @@ final myBooksProvider = FutureProvider<List<Book>>((ref) async {
 final bookDetailProvider =
     FutureProvider.family<Book?, String>((ref, bookId) async {
   return ref.read(bookRepositoryProvider).getBookById(bookId);
+});
+
+/// Bir yazarın yayınlanmış kitapları (family provider)
+final authorBooksProvider =
+    FutureProvider.family<List<Book>, String>((ref, authorId) async {
+  return ref.read(bookRepositoryProvider).getPublishedBooksByAuthor(authorId);
 });
 
 /// Arama sorgusu state'i

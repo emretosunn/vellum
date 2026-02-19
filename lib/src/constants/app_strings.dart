@@ -1,7 +1,7 @@
-/// InkToken uygulama metin sabitleri.
+/// Vellum uygulama metin sabitleri.
 abstract final class AppStrings {
-  static const String appName = 'InkToken';
-  static const String appTagline = 'Oku, Yaz, Kazan.';
+  static const String appName = 'Vellum';
+  static const String appTagline = 'Oku, Yaz, Yayınla.';
 
   // Auth
   static const String login = 'Giriş Yap';
@@ -17,15 +17,12 @@ abstract final class AppStrings {
   static const String home = 'Ana Sayfa';
   static const String library = 'Kütüphane';
   static const String studio = 'Stüdyo';
-  static const String wallet = 'Cüzdan';
+  static const String subscription = 'Abonelik';
   static const String profile = 'Profil';
 
   // Book
   static const String readNow = 'Şimdi Oku';
   static const String nextChapter = 'Sonraki Bölüm';
-  static const String insufficientBalance = 'Yetersiz Bakiye';
-  static const String loadTokens = 'Token Yükle';
-  static const String freeChapter = 'Ücretsiz';
 
   // Studio
   static const String createBook = 'Kitap Oluştur';
@@ -33,8 +30,11 @@ abstract final class AppStrings {
   static const String publish = 'Yayınla';
   static const String draft = 'Taslak';
 
-  // Wallet
-  static const String tokenBalance = 'Token Bakiyesi';
-  static const String buyTokens = 'Token Satın Al';
-  static const String transactions = 'İşlem Geçmişi';
+  // Subscription
+  static const String subscriptionStatus = 'Abonelik Durumu';
+  static const String subscribeToPro = 'Vellum Pro\'ya Geç';
+  static const String proFeatures = 'Pro Özellikleri';
+  static const String cancelSubscription = 'Aboneliği İptal Et';
+  static const String monthlyPlan = 'Aylık Plan';
+  static const String yearlyPlan = 'Yıllık Plan';
 }

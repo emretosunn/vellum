@@ -1,16 +1,21 @@
-# inktoken
+# Vellum
 
-A new Flutter project.
+Digital Publishing Platform by Vexorabyte.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is a Flutter application for creating, publishing, and reading digital books.
 
-A few resources to get you started if this is your first Flutter project:
+### Requirements
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Flutter SDK 3.x+
+- Dart 3.x+
+- Android SDK 21+
+- iOS 11.0+
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Run
+
+```bash
+flutter pub get
+flutter run
+```

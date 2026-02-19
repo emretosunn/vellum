@@ -1,11 +1,11 @@
 {
-    "name": "inktoken",
-    "short_name": "inktoken",
+    "name": "Vellum",
+    "short_name": "Vellum",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hex_code",
     "theme_color": "#hex_code",
-    "description": "A new Flutter project.",
+    "description": "Vellum - Digital Publishing Platform by Vexorabyte",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

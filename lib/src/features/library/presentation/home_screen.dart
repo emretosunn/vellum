@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/data/review_repository.dart';
 import '../../library/domain/book.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 
@@ -23,8 +22,15 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(searchedBooksProvider);
+            ref.invalidate(publishedBooksProvider);
+            ref.invalidate(unreadNotificationCountProvider);
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
             // ─── Selamlama + Bildirim ─────────────────
             SliverToBoxAdapter(
               child: Padding(
@@ -70,20 +76,34 @@ class HomeScreen extends ConsumerWidget {
                             : Colors.black.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: IconButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen(),
-                          ),
-                        ),
-                        icon: Badge(
-                          smallSize: 8,
-                          child: Icon(
-                            Icons.notifications_none_rounded,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final unreadAsync = ref.watch(
+                              unreadNotificationCountProvider);
+                          final count = unreadAsync.valueOrNull ?? 0;
+
+                          return IconButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const NotificationsScreen(),
+                                ),
+                              );
+                              ref.invalidate(
+                                  unreadNotificationCountProvider);
+                            },
+                            icon: Badge(
+                              isLabelVisible: count > 0,
+                              label: Text('$count'),
+                              child: Icon(
+                                Icons.notifications_none_rounded,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -95,11 +115,7 @@ class HomeScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
+                child: Container(
                       height: 52,
                       decoration: BoxDecoration(
                         color: isDark
@@ -153,8 +169,6 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    ),
-                  ),
                 ),
               ),
             ),
@@ -270,6 +284,7 @@ class HomeScreen extends ConsumerWidget {
               },
             ),
           ],
+          ),
         ),
       ),
     );
@@ -316,14 +331,16 @@ class _SectionHeader extends StatelessWidget {
 
 // ─── Yatay Kitap Kartı ───────────────────────────────
 
-class _HorizontalBookCard extends StatelessWidget {
+class _HorizontalBookCard extends ConsumerWidget {
   const _HorizontalBookCard({required this.book});
   final Book book;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final statsAsync = ref.watch(bookRatingStatsProvider(book.id));
+    final stats = statsAsync.valueOrNull;
 
     return GestureDetector(
       onTap: () => context.push('/book/${book.id}'),
@@ -370,29 +387,42 @@ class _HorizontalBookCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            // Rating yıldızları
-            Row(
-              children: [
-                ...List.generate(
-                  5,
-                  (i) => Icon(
-                    i < 4 ? Icons.star_rounded : Icons.star_border_rounded,
-                    size: 14,
-                    color: AppColors.accent,
+            // Rating yıldızları (yorum varsa göster)
+            if (stats != null && stats.count > 0)
+              Row(
+                children: [
+                  ...List.generate(
+                    5,
+                    (i) => Icon(
+                      i < stats.average.round()
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      size: 14,
+                      color: AppColors.accent,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '4.0',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : Colors.black.withValues(alpha: 0.4),
+                  const SizedBox(width: 4),
+                  Text(
+                    stats.average.toStringAsFixed(1),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.5)
+                          : Colors.black.withValues(alpha: 0.4),
+                    ),
                   ),
+                ],
+              )
+            else
+              Text(
+                'Henüz değerlendirme yok',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.3),
                 ),
-              ],
-            ),
+              ),
           ],
         ),
       ),
@@ -498,13 +528,13 @@ class _VerticalBookCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       Icon(
-                        Icons.token_rounded,
+                        Icons.auto_stories_rounded,
                         size: 16,
                         color: AppColors.accent,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${book.totalEarnings} Token',
+                        'Oku',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
