@@ -8,17 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../subscription/services/subscription_status_service.dart';
+import '../../../config/version.dart';
 
 // ─── Providers ───────────────────────────────────────
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
+/// Bildirim tercihleri için geçici (sadece oturum içi) state.
+/// Gerçek kaynak Supabase'deki `profiles.notification_preferences`.
+/// Bu provider sadece ekranda anında güncelleme (optimistic UI) için kullanılıyor.
 final notificationSettingsProvider =
-    StateProvider<Map<String, bool>>((ref) => {
-          'newChapter': true,
-          'comments': true,
-          'promotions': false,
-          'weeklyDigest': true,
-        });
+    StateProvider<Map<String, bool>>((ref) => {});
 
 final fontSizeProvider = StateProvider<String>((ref) => 'Orta');
 
@@ -35,6 +34,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final themeMode = ref.watch(themeModeProvider);
+    final appVersionAsync = ref.watch(appVersionProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -221,7 +221,11 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.info_outline_rounded,
                   label: 'Uygulama Sürümü',
-                  subtitle: 'v1.0.0',
+                  subtitle: appVersionAsync.when(
+                    data: (v) => 'v$v',
+                    loading: () => 'Yükleniyor...',
+                    error: (_, __) => 'Bilinmiyor',
+                  ),
                   showChevron: false,
                 ),
               ],
@@ -373,57 +377,156 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   void _addLink() {
     final titleController = TextEditingController();
     final urlController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Link Ekle'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
           children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Başlık',
-                hintText: 'Ör: Twitter, Web Sitesi',
-                prefixIcon: const Icon(Icons.label_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.add_link_rounded,
+                color: AppColors.primary,
+                size: 20,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlController,
-              decoration: InputDecoration(
-                labelText: 'URL',
-                hintText: 'https://...',
-                prefixIcon: const Icon(Icons.link),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              keyboardType: TextInputType.url,
-            ),
+            const SizedBox(width: 12),
+            const Text('Yeni Link Ekle'),
           ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleController,
+                autofocus: true,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  labelText: 'Başlık',
+                  hintText: 'Ör: Twitter, Instagram, Web Sitesi',
+                  prefixIcon: const Icon(Icons.label_outline_rounded),
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.02),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Başlık gerekli';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: urlController,
+                style: theme.textTheme.bodyLarge,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: 'URL',
+                  hintText: 'https://...',
+                  prefixIcon: const Icon(Icons.link_rounded),
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.02),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'URL gerekli';
+                  }
+                  if (!value.trim().startsWith('http://') &&
+                      !value.trim().startsWith('https://')) {
+                    return 'Geçerli bir URL girin (http:// veya https://)';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('İptal'),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () {
-              final title = titleController.text.trim();
-              final url = urlController.text.trim();
-              if (title.isNotEmpty && url.isNotEmpty) {
+              if (formKey.currentState!.validate()) {
+                final title = titleController.text.trim();
+                final url = urlController.text.trim();
                 setState(() {
                   _links.add({'title': title, 'url': url});
                 });
+                Navigator.pop(ctx);
               }
-              Navigator.pop(ctx);
             },
-            child: const Text('Ekle'),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Ekle'),
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
@@ -481,7 +584,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil Duzenle'),
+        title: const Text('Profil Düzenle'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -496,7 +599,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.save_rounded, size: 18),
+                  : const Icon(Icons.check_rounded, size: 18),
               label: const Text('Kaydet'),
             ),
           ),
@@ -504,263 +607,522 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            // ─── Avatar ──────────────────────
-            Center(
-              child: Stack(
-                children: [
-                  GestureDetector(
-                    onTap: _uploadingAvatar ? null : _pickAvatar,
-                    child: Container(
-                      width: 112,
-                      height: 112,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 3,
-                        ),
-                      ),
-                      child: ClipOval(
-                        child: _avatarBytes != null
-                            ? Image.memory(
-                                _avatarBytes!,
-                                fit: BoxFit.cover,
-                                width: 112,
-                                height: 112,
-                              )
-                            : _avatarUrl != null
-                                ? Image.network(
-                                    _avatarUrl!,
-                                    fit: BoxFit.cover,
-                                    width: 112,
-                                    height: 112,
-                                    errorBuilder: (_, __, ___) =>
-                                        _buildAvatarPlaceholder(),
-                                  )
-                                : _buildAvatarPlaceholder(),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? AppColors.cardDark : Colors.white,
-                          width: 3,
-                        ),
-                      ),
-                      child: _uploadingAvatar
-                          ? const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.camera_alt_rounded,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                'Degistirmek icin dokun',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // ─── Kullanıcı Adı ──────────────
-            _buildSectionLabel(theme, 'Kullanici Adi'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _usernameController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.alternate_email),
-                hintText: 'Kullanici adiniz',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Kullanici adi bos olamaz';
-                }
-                if (value.trim().length < 3) return 'En az 3 karakter olmali';
-                return null;
-              },
-            ),
-            const SizedBox(height: 20),
-
-            // ─── E-posta (salt okunur) ──────
-            _buildSectionLabel(theme, 'E-posta'),
-            const SizedBox(height: 8),
-            TextFormField(
-              initialValue: email,
-              enabled: false,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── Hakkımda ───────────────────
-            _buildSectionLabel(theme, 'Hakkimda'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _bioController,
-              maxLines: 4,
-              maxLength: 300,
-              decoration: InputDecoration(
-                hintText: 'Kendinizden bahsedin...',
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(bottom: 60),
-                  child: Icon(Icons.info_outline),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ─── Linkler ────────────────────
-            Row(
-              children: [
-                _buildSectionLabel(theme, 'Linkler'),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _addLink,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Ekle'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (_links.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(20),
+        child: CustomScrollView(
+          slivers: [
+            // ─── Avatar Bölümü (Hero Style) ──────────────
+            SliverToBoxAdapter(
+              child: Container(
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : Colors.grey.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.grey.withValues(alpha: 0.12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.1),
+                      AppColors.secondary.withValues(alpha: 0.05),
+                    ],
                   ),
                 ),
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.link_off_rounded,
-                      size: 32,
-                      color: theme.colorScheme.onSurfaceVariant,
+                    // Avatar Container
+                    GestureDetector(
+                      onTap: _uploadingAvatar ? null : _pickAvatar,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.secondary,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: ClipOval(
+                              child: _avatarBytes != null
+                                  ? Image.memory(
+                                      _avatarBytes!,
+                                      fit: BoxFit.cover,
+                                      width: 132,
+                                      height: 132,
+                                    )
+                                  : _avatarUrl != null
+                                      ? Image.network(
+                                          _avatarUrl!,
+                                          fit: BoxFit.cover,
+                                          width: 132,
+                                          height: 132,
+                                          errorBuilder: (_, __, ___) =>
+                                              _buildAvatarPlaceholder(),
+                                        )
+                                      : _buildAvatarPlaceholder(),
+                            ),
+                          ),
+                          // Camera Button
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey.shade900
+                                      : Colors.white,
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: _uploadingAvatar
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(10),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     Text(
-                      'Henuz link eklenmemis',
+                      'Fotoğrafı değiştirmek için dokunun',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              )
-            else
-              ...List.generate(_links.length, (index) {
-                final link = _links[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.grey.withValues(alpha: 0.12),
+              ),
+            ),
+
+            // ─── Form Alanları ────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // ─── Kişisel Bilgiler Card ─────────────
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.person_outline_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Kişisel Bilgiler',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Kullanıcı Adı
+                          TextFormField(
+                            controller: _usernameController,
+                            style: theme.textTheme.bodyLarge,
+                            decoration: InputDecoration(
+                              labelText: 'Kullanıcı Adı',
+                              hintText: 'Kullanıcı adınızı girin',
+                              prefixIcon: const Icon(Icons.alternate_email_rounded),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.02),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Kullanıcı adı boş olamaz';
+                              }
+                              if (value.trim().length < 3) {
+                                return 'En az 3 karakter olmalı';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // E-posta (salt okunur)
+                          TextFormField(
+                            initialValue: email,
+                            enabled: false,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'E-posta',
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.03)
+                                  : Colors.black.withValues(alpha: 0.01),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              disabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.05)
+                                      : Colors.black.withValues(alpha: 0.04),
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          _getLinkIcon(link['title'] ?? ''),
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
+
+                  const SizedBox(height: 16),
+
+                  // ─── Hakkımda Card ─────────────────────
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              link['title'] ?? '',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.edit_note_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
                               ),
-                            ),
-                            Text(
-                              link['url'] ?? '',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: AppColors.primary,
+                              const SizedBox(width: 12),
+                              Text(
+                                'Hakkımda',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            controller: _bioController,
+                            maxLines: 5,
+                            maxLength: 300,
+                            style: theme.textTheme.bodyLarge,
+                            decoration: InputDecoration(
+                              hintText: 'Kendinizden bahsedin...',
+                              hintStyle: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.02),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: AppColors.error.withValues(alpha: 0.7),
-                        ),
-                        onPressed: () => _removeLink(index),
-                      ),
-                    ],
+                    ),
                   ),
-                );
-              }),
-            const SizedBox(height: 80),
+
+                  const SizedBox(height: 16),
+
+                  // ─── Linkler Card ───────────────────────
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.link_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Sosyal Medya & Linkler',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              FilledButton.icon(
+                                onPressed: _addLink,
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('Ekle'),
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          if (_links.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.link_off_rounded,
+                                      size: 32,
+                                      color: AppColors.primary.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Henüz link eklenmemiş',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sosyal medya hesaplarınızı ekleyin',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            ...List.generate(_links.length, (index) {
+                              final link = _links[index];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.05)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : Colors.grey.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            AppColors.primary.withValues(alpha: 0.15),
+                                            AppColors.secondary.withValues(alpha: 0.1),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        _getLinkIcon(link['title'] ?? ''),
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            link['title'] ?? '',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            link['url'] ?? '',
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: AppColors.primary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 20,
+                                        color: AppColors.error.withValues(alpha: 0.7),
+                                      ),
+                                      onPressed: () => _removeLink(index),
+                                      tooltip: 'Sil',
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 100),
+                ]),
+              ),
+            ),
           ],
         ),
       ),
@@ -769,29 +1131,29 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
   Widget _buildAvatarPlaceholder() {
     return Container(
-      width: 112,
-      height: 112,
-      color: AppColors.primary.withValues(alpha: 0.15),
+      width: 132,
+      height: 132,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.2),
+            AppColors.secondary.withValues(alpha: 0.15),
+          ],
+        ),
+      ),
       child: Center(
         child: Text(
           _usernameController.text.isNotEmpty
               ? _usernameController.text[0].toUpperCase()
               : '?',
-          style: const TextStyle(
-            fontSize: 40,
+          style: TextStyle(
+            fontSize: 48,
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primary.withValues(alpha: 0.8),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(ThemeData theme, String label) {
-    return Text(
-      label,
-      style: theme.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -1014,14 +1376,20 @@ class _SecurityPageState extends State<_SecurityPage> {
 class _NotificationsPage extends ConsumerWidget {
   const _NotificationsPage();
 
-  void _toggle(WidgetRef ref, Map<String, dynamic> current, String key, bool value) {
+  void _toggle(
+    WidgetRef ref,
+    Map<String, bool> current,
+    String key,
+    bool value,
+  ) {
     final userId = ref.read(authRepositoryProvider).currentUser?.id;
     if (userId == null) return;
 
     final updated = {...current, key: value};
-    // Yerel state'i güncelle
-    ref.read(notificationSettingsProvider.notifier).state =
-        updated.map((k, v) => MapEntry(k, v as bool));
+
+    // Anında UI güncelle (optimistic update)
+    ref.read(notificationSettingsProvider.notifier).state = updated;
+
     // Supabase'e kaydet
     ref.read(authRepositoryProvider).updateNotificationPreferences(
           userId: userId,
@@ -1044,7 +1412,27 @@ class _NotificationsPage extends ConsumerWidget {
             return const Center(child: Text('Profil bulunamadı'));
           }
 
-          final prefs = profile.notificationPreferences;
+          final backendPrefs = profile.notificationPreferences;
+          final localOverrides = ref.watch(notificationSettingsProvider);
+
+          bool resolve(String key, bool fallback) {
+            // Önce local override (kullanıcının bu oturumda yaptığı değişiklik)
+            if (localOverrides.containsKey(key)) {
+              return localOverrides[key] ?? fallback;
+            }
+            // Sonra Supabase'den gelen değer
+            final backendValue = backendPrefs[key];
+            if (backendValue is bool) return backendValue;
+            // Hiçbiri yoksa varsayılan
+            return fallback;
+          }
+
+          final prefs = <String, bool>{
+            'newChapter': resolve('newChapter', true),
+            'comments': resolve('comments', true),
+            'promotions': resolve('promotions', false),
+            'weeklyDigest': resolve('weeklyDigest', true),
+          };
 
           return ListView(
             padding: const EdgeInsets.all(24),

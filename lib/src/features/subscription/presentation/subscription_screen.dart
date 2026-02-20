@@ -6,6 +6,7 @@ import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../data/subscription_repository.dart';
+import '../services/subscription_status_service.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -58,12 +59,26 @@ class SubscriptionScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
 
                       if (isActive) ...[
-                        _SubscriptionDetails(profile: profile),
+                        _SubscriptionDetails(
+                          profile: profile,
+                          onCancel: () => _handleCancelSubscription(
+                            context,
+                            ref,
+                            profile.id,
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         const _ActiveBenefitsCard(),
                         const SizedBox(height: 24),
                       ] else ...[
-                        const _PaywallButton(),
+                        _PaywallButton(
+                          onPressed: () => _handleSubscribe(
+                            context,
+                            ref,
+                            profile.id,
+                            30, // Aylık plan
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         _SectionHeader(title: 'veya Manuel Plan Seçin'),
                         const SizedBox(height: 12),
@@ -169,6 +184,8 @@ class SubscriptionScreen extends ConsumerWidget {
     int days,
   ) async {
     final planName = days == 365 ? 'Yıllık' : 'Aylık';
+    final planType = days == 365 ? 'yearly' : 'monthly';
+    final amount = days == 365 ? 399.99 : 49.99;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -193,11 +210,22 @@ class SubscriptionScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
+      // Aboneliği aktifleştir
       await ref
           .read(subscriptionRepositoryProvider)
           .activateSubscription(userId: userId, durationDays: days);
+      
+      // Ödeme kaydı oluştur
+      await ref.read(subscriptionRepositoryProvider).recordPayment(
+            userId: userId,
+            planType: planType,
+            amount: amount,
+          );
+
+      // Provider'ları yenile
       ref.invalidate(currentProfileProvider);
       ref.invalidate(paymentHistoryProvider);
+      ref.invalidate(isProProvider);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,12 +246,75 @@ class SubscriptionScreen extends ConsumerWidget {
       }
     }
   }
+
+  Future<void> _handleCancelSubscription(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aboneliği İptal Et'),
+        content: const Text(
+          'Aboneliğinizi iptal etmek istediğinize emin misiniz? '
+          'İptal edildikten sonra Pro özelliklere erişiminiz sona erecek.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('İptal Et'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await ref
+          .read(subscriptionRepositoryProvider)
+          .cancelSubscription(userId);
+
+      // Provider'ları yenile
+      ref.invalidate(currentProfileProvider);
+      ref.invalidate(paymentHistoryProvider);
+      ref.invalidate(isProProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aboneliğiniz iptal edildi.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Hata: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 }
 
 // ─── Paywall Button ──────────────────────────────
 
 class _PaywallButton extends StatelessWidget {
-  const _PaywallButton();
+  const _PaywallButton({required this.onPressed});
+
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -245,15 +336,7 @@ class _PaywallButton extends StatelessWidget {
           ],
         ),
         child: ElevatedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Abonelik için aşağıdaki planlardan birini seçebilirsiniz.',
-                ),
-              ),
-            );
-          },
+          onPressed: onPressed,
           icon: const Icon(Icons.workspace_premium_rounded, size: 22),
           label: const Text(
             'Vellum Pro\'ya Abone Ol',
@@ -382,9 +465,11 @@ class _SubscriptionStatusCard extends StatelessWidget {
 class _SubscriptionDetails extends StatelessWidget {
   const _SubscriptionDetails({
     required this.profile,
+    required this.onCancel,
   });
 
   final Profile profile;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -456,19 +541,13 @@ class _SubscriptionDetails extends StatelessWidget {
 
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Aboneliğinizi yönetmek için uygulama mağazanızın abonelik ayarlarını kullanabilirsiniz.',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.manage_accounts_rounded, size: 18),
-                label: const Text('Aboneliği Yönet'),
-                style: FilledButton.styleFrom(
+              child: OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined, size: 18),
+                label: const Text('Aboneliği İptal Et'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
