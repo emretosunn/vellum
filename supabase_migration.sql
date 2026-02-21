@@ -50,9 +50,9 @@ ADD COLUMN IF NOT EXISTS avatar_url text,
 ADD COLUMN IF NOT EXISTS bio text DEFAULT '',
 ADD COLUMN IF NOT EXISTS links jsonb DEFAULT '[]'::jsonb;
 
--- 10. Avatarlar için Supabase Storage bucket oluştur
--- NOT: Bu komutu Supabase Dashboard > Storage > New Bucket ile oluşturun
--- Bucket adı: avatars, Public: true
+-- 10. Avatarlar ve kitap kapakları için Storage bucket'ları
+-- NOT: supabase_storage_buckets.sql dosyasını SQL Editor'da çalıştırın
+-- (avatars + book-covers bucket'ları ve politikaları)
 
 -- 11. Abonelik durumunu kontrol eden fonksiyon
 CREATE OR REPLACE FUNCTION check_subscription(user_id uuid)

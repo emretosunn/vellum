@@ -4,21 +4,72 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/book.dart';
 
+/// Sıralama türü (ana sayfa filtre)
+enum BookSortOrder {
+  recent,
+  rating,
+}
+
 /// Kitap CRUD repository
 class BookRepository {
   BookRepository(this._client);
   final SupabaseClient _client;
 
-  /// Yayınlanan kitapları listele (vitrin)
-  Future<List<Book>> getPublishedBooks({int limit = 20, int offset = 0}) async {
-    final data = await _client
+  /// Yayınlanan kitapları listele (vitrin) — sıralama ve kategori filtresi
+  Future<List<Book>> getPublishedBooks({
+    int limit = 20,
+    int offset = 0,
+    BookSortOrder sortOrder = BookSortOrder.recent,
+    String? category,
+  }) async {
+    final base = _client
         .from('books')
         .select()
-        .eq('status', 'published')
+        .eq('status', 'published');
+
+    final filtered = (category != null && category.isNotEmpty)
+        ? base.eq('category', category)
+        : base;
+
+    final data = await filtered
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    return data.map((json) => Book.fromJson(json)).toList();
+    var books = data.map((json) => Book.fromJson(json)).toList();
+
+    if (sortOrder == BookSortOrder.rating && books.isNotEmpty) {
+      books = await _sortByRating(books);
+    }
+
+    return books;
+  }
+
+  /// Kitapları ortalama puana göre sıralar (reviews tablosundan)
+  Future<List<Book>> _sortByRating(List<Book> books) async {
+    if (books.isEmpty) return books;
+    final bookIds = books.map((b) => b.id).toList();
+    final reviewsData = await _client
+        .from('reviews')
+        .select('book_id, rating')
+        .inFilter('book_id', bookIds);
+    final Map<String, List<int>> byBook = {};
+    for (final r in reviewsData) {
+      final bid = r['book_id'] as String?;
+      final rating = r['rating'] as int?;
+      if (bid == null || rating == null) continue;
+      byBook.putIfAbsent(bid, () => []).add(rating);
+    }
+    final Map<String, double> avgByBook = {};
+    for (final e in byBook.entries) {
+      final list = e.value;
+      avgByBook[e.key] = list.reduce((a, b) => a + b) / list.length;
+    }
+    books.sort((a, b) {
+      final avgA = avgByBook[a.id] ?? 0.0;
+      final avgB = avgByBook[b.id] ?? 0.0;
+      return avgB.compareTo(avgA);
+    });
+    return books;
   }
 
   /// Tek kitap detayı
@@ -59,6 +110,9 @@ class BookRepository {
     required String title,
     String summary = '',
     String? coverImageUrl,
+    String? category,
+    bool isAdult18 = false,
+    List<String> contentWarnings = const [],
   }) async {
     final data = await _client
         .from('books')
@@ -67,6 +121,9 @@ class BookRepository {
           'title': title,
           'summary': summary,
           'cover_image_url': coverImageUrl,
+          if (category != null && category.isNotEmpty) 'category': category,
+          'is_adult_18': isAdult18,
+          'content_warnings': contentWarnings,
         })
         .select()
         .single();
@@ -81,12 +138,18 @@ class BookRepository {
     String? summary,
     String? coverImageUrl,
     String? status,
+    String? category,
+    bool? isAdult18,
+    List<String>? contentWarnings,
   }) async {
     final updates = <String, dynamic>{'updated_at': DateTime.now().toIso8601String()};
     if (title != null) updates['title'] = title;
     if (summary != null) updates['summary'] = summary;
     if (coverImageUrl != null) updates['cover_image_url'] = coverImageUrl;
     if (status != null) updates['status'] = status;
+    if (category != null) updates['category'] = category;
+    if (isAdult18 != null) updates['is_adult_18'] = isAdult18;
+    if (contentWarnings != null) updates['content_warnings'] = contentWarnings;
 
     final data = await _client
         .from('books')
@@ -99,7 +162,7 @@ class BookRepository {
   }
 
   /// Kitap sil
-  /// Kitap arama (başlık veya özet üzerinden)
+  /// Kitap arama (başlık veya özet üzerinden); kategori/sıra uygulanmaz
   Future<List<Book>> searchBooks(String query) async {
     final data = await _client
         .from('books')
@@ -128,6 +191,14 @@ final publishedBooksProvider = FutureProvider<List<Book>>((ref) async {
   return ref.read(bookRepositoryProvider).getPublishedBooks();
 });
 
+/// Vitrin / Editörün Seçimi: puana göre üst sıradaki kitaplar (hero alanı)
+final featuredBooksProvider = FutureProvider<List<Book>>((ref) async {
+  return ref.read(bookRepositoryProvider).getPublishedBooks(
+    limit: 5,
+    sortOrder: BookSortOrder.rating,
+  );
+});
+
 /// Yazarın kendi kitapları
 final myBooksProvider = FutureProvider<List<Book>>((ref) async {
   final profile = await ref.watch(currentProfileProvider.future);
@@ -150,11 +221,37 @@ final authorBooksProvider =
 /// Arama sorgusu state'i
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-/// Arama sonuçları
+/// Filtre: sıralama ve kategori (ana sayfa)
+final bookSortOrderProvider = StateProvider<BookSortOrder>((ref) => BookSortOrder.recent);
+final bookCategoryFilterProvider = StateProvider<String?>((ref) => null);
+
+/// Arama sonuçları veya filtrelenmiş liste (arama boşsa filtre uygulanır)
 final searchedBooksProvider = FutureProvider<List<Book>>((ref) async {
   final query = ref.watch(searchQueryProvider);
-  if (query.trim().isEmpty) {
-    return ref.read(bookRepositoryProvider).getPublishedBooks();
+  final sortOrder = ref.watch(bookSortOrderProvider);
+  final category = ref.watch(bookCategoryFilterProvider);
+
+  if (query.trim().isNotEmpty) {
+    return ref.read(bookRepositoryProvider).searchBooks(query.trim());
   }
-  return ref.read(bookRepositoryProvider).searchBooks(query.trim());
+  return ref.read(bookRepositoryProvider).getPublishedBooks(
+        sortOrder: sortOrder,
+        category: category,
+      );
+});
+
+/// Ana sayfada "Yeni Eklenenler" için son 5 kitap
+final recentBooksProvider = FutureProvider<List<Book>>((ref) async {
+  return ref.read(bookRepositoryProvider).getPublishedBooks(
+    limit: 5,
+    sortOrder: BookSortOrder.recent,
+  );
+});
+
+/// "Tümünü Gör" sayfası: en fazla 25 kitap (son eklenenler)
+final allBooksProvider = FutureProvider<List<Book>>((ref) async {
+  return ref.read(bookRepositoryProvider).getPublishedBooks(
+    limit: 25,
+    sortOrder: BookSortOrder.recent,
+  );
 });

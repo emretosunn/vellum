@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/domain/book.dart';
 import '../data/image_upload_service.dart';
 
 /// Yeni kitap oluşturma sayfası (kapak resmi + başlık + özet).
@@ -25,6 +26,10 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
   bool _isCreating = false;
+
+  String? _selectedCategory;
+  bool _isAdult18 = false;
+  final Set<String> _contentWarnings = {};
 
   Future<void> _pickCoverImage() async {
     final service = ref.read(imageUploadServiceProvider);
@@ -70,6 +75,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
             title: title,
             summary: _summaryController.text.trim(),
             coverImageUrl: coverUrl,
+            category: _selectedCategory,
+            isAdult18: _isAdult18,
+            contentWarnings: _contentWarnings.toList(),
           );
 
       ref.invalidate(myBooksProvider);
@@ -106,157 +114,611 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Yeni Kitap Oluştur'),
-        actions: [
-          if (_isCreating)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilledButton.icon(
-                onPressed: _createBook,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Oluştur'),
-              ),
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Kapak Resmi ──
-            Text(
-              'Kapak Resmi',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: GestureDetector(
-                onTap: _pickCoverImage,
-                child: AnimatedContainer(
-                  duration: 300.ms,
-                  width: 180,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _pickedImageBytes != null
-                          ? AppColors.primary
-                          : (isDark
-                              ? Colors.white.withValues(alpha: 0.15)
-                              : Colors.black.withValues(alpha: 0.1)),
-                      width: 2,
+            // Özel üst bar: geri + başlık + Oluştur
+            _buildCustomAppBar(context, theme, isDark),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle(theme, 'Kapak Resmi'),
+                    const SizedBox(height: 12),
+                    _buildCoverPicker(context, theme, isDark),
+                    const SizedBox(height: 28),
+                    _buildSectionTitle(theme, 'Kitap Bilgileri'),
+                    const SizedBox(height: 14),
+                    _buildStyledTextField(
+                      theme,
+                      controller: _titleController,
+                      hint: 'Kitabınızın başlığını girin',
+                      icon: Icons.title_rounded,
+                      label: 'Kitap Adı',
+                      maxLines: 1,
                     ),
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.03),
-                    boxShadow: _pickedImageBytes != null
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ]
-                        : null,
-                    image: _pickedImageBytes != null
-                        ? DecorationImage(
-                            image: MemoryImage(_pickedImageBytes!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: _pickedImageBytes == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add_photo_alternate_outlined,
-                              size: 48,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.3),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Kapak Seç',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.4),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ),
+                    const SizedBox(height: 16),
+                    _buildStyledTextField(
+                      theme,
+                      controller: _summaryController,
+                      hint: 'Kitabınızın kısa bir özetini yazın...',
+                      icon: Icons.description_rounded,
+                      label: 'Özet',
+                      maxLines: 5,
+                      maxLength: 500,
+                    ),
+                    const SizedBox(height: 26),
+                    _buildSectionTitle(theme, 'Kategori'),
+                    const SizedBox(height: 10),
+                    _buildCategorySelector(theme, isDark),
+                    const SizedBox(height: 22),
+                    _buildAdult18Card(theme, isDark),
+                    const SizedBox(height: 22),
+                    _buildSectionTitle(theme, 'İçerik uyarıları (isteğe bağlı)'),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Varsa okuyucuyu bilgilendirmek için seçin.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildContentWarningsChips(theme, isDark),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-            ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
-
-            const SizedBox(height: 32),
-
-            // ── Kitap Bilgileri ──
-            Text(
-              'Kitap Bilgileri',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Kitap Adı',
-                hintText: 'Kitabınızın başlığını girin',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.title),
-              ),
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _summaryController,
-              decoration: InputDecoration(
-                labelText: 'Özet',
-                hintText: 'Kitabınızın kısa bir özetini yazın...',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.description),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 5,
-              maxLength: 500,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCustomAppBar(
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.scaffoldBackgroundColor,
+            isDark
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : AppColors.primary.withValues(alpha: 0.06),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.05),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Yeni Kitap Oluştur',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 40,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isCreating)
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: Padding(
+                padding: EdgeInsets.all(4),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _createBook,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.primaryDark],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Oluştur',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(ThemeData theme, String text) {
+    return Text(
+      text,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        color: theme.colorScheme.onSurface,
+      ),
+    );
+  }
+
+  Widget _buildCoverPicker(
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    return Center(
+      child: GestureDetector(
+        onTap: _pickCoverImage,
+        child: AnimatedContainer(
+          duration: 300.ms,
+          width: 180,
+          height: 260,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _pickedImageBytes != null
+                  ? AppColors.primary
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.08)),
+              width: 2,
+            ),
+            color: _pickedImageBytes == null
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.black.withValues(alpha: 0.03))
+                : null,
+            gradient: _pickedImageBytes == null
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.06),
+                      AppColors.secondary.withValues(alpha: 0.04),
+                    ],
+                  )
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: (_pickedImageBytes != null
+                        ? AppColors.primary
+                        : Colors.black)
+                    .withValues(alpha: _pickedImageBytes != null ? 0.25 : 0.06),
+                blurRadius: _pickedImageBytes != null ? 20 : 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+            image: _pickedImageBytes != null
+                ? DecorationImage(
+                    image: MemoryImage(_pickedImageBytes!),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: _pickedImageBytes == null
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.add_photo_alternate_rounded,
+                        size: 40,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Kapak Seç',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                )
+              : Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.secondary],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+    ).animate().fadeIn().scale(begin: const Offset(0.96, 0.96));
+  }
+
+  Widget _buildStyledTextField(
+    ThemeData theme, {
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required String label,
+    int maxLines = 1,
+    int? maxLength,
+  }) {
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        maxLength: maxLength,
+        style: theme.textTheme.bodyLarge,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 12),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 20, color: AppColors.primary),
+            ),
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          counterText: maxLength != null ? null : '',
+        ),
+        autofocus: controller == _titleController,
+        textInputAction:
+            maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(ThemeData theme, bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showCategoryBottomSheet(context, theme),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.category_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  _selectedCategory ?? 'Seçiniz',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: _selectedCategory != null
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight:
+                        _selectedCategory != null ? FontWeight.w600 : null,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryBottomSheet(BuildContext context, ThemeData theme) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Kategori seçin',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...[
+              null,
+              ...bookCategories,
+            ].map((c) {
+              final selected = _selectedCategory == c;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() => _selectedCategory = c);
+                    Navigator.pop(ctx);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      children: [
+                        Icon(
+                          selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                          size: 22,
+                          color: selected ? AppColors.primary : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          c ?? 'Seçiniz',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: selected ? FontWeight.w600 : null,
+                            color: selected ? AppColors.primary : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdult18Card(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      decoration: BoxDecoration(
+        color: _isAdult18
+            ? Colors.orange.withValues(alpha: 0.12)
+            : (isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.black.withValues(alpha: 0.03)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _isAdult18
+              ? Colors.orange.withValues(alpha: 0.4)
+              : (isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _isAdult18
+                  ? Colors.orange.withValues(alpha: 0.2)
+                  : AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              _isAdult18 ? Icons.warning_amber_rounded : Icons.person_rounded,
+              size: 22,
+              color: _isAdult18 ? Colors.orange.shade700 : AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '18+ içerik (olgun)',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Bu kitap yetişkinlere yönelik içerik içeriyorsa işaretleyin.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isAdult18,
+            onChanged: (v) => setState(() => _isAdult18 = v),
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentWarningsChips(ThemeData theme, bool isDark) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: contentWarningLabels.map((label) {
+        final selected = _contentWarnings.contains(label);
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                if (selected) {
+                  _contentWarnings.remove(label);
+                } else {
+                  _contentWarnings.add(label);
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.primary.withValues(alpha: 0.18)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.04)),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primary.withValues(alpha: 0.5)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06)),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    selected ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+                    size: 18,
+                    color: selected ? AppColors.primary : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w600 : null,
+                      color: selected ? AppColors.primary : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

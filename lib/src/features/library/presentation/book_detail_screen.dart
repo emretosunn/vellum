@@ -8,6 +8,7 @@ import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/data/book_report_repository.dart';
 import '../../library/data/review_repository.dart';
 import '../../library/domain/book.dart';
 import '../../library/domain/chapter.dart';
@@ -46,6 +47,7 @@ class BookDetailScreen extends ConsumerWidget {
                     book: book,
                     isDark: isDark,
                     screenWidth: screenWidth,
+                    onReport: () => _showReportBookSheet(context, ref, book),
                   ),
 
                   // İçerik
@@ -248,6 +250,35 @@ class BookDetailScreen extends ConsumerWidget {
     );
   }
 
+  static void _showReportBookSheet(
+      BuildContext context, WidgetRef ref, Book book) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ReportBookSheet(
+        book: book,
+        onClose: () => Navigator.pop(ctx),
+        onSubmit: (String message) async {
+          final userId = ref.read(authRepositoryProvider).currentUser?.id;
+          if (userId == null) return;
+          await ref.read(bookReportRepositoryProvider).createReport(
+                bookId: book.id,
+                reporterUserId: userId,
+                message: message,
+              );
+          if (ctx.mounted) {
+            Navigator.pop(ctx);
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                  content: Text('Şikayetiniz alındı. İncelenecektir.')),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   Widget _buildErrorState(BuildContext context, ThemeData theme) {
     return Center(
       child: Column(
@@ -274,11 +305,13 @@ class _HeroCoverSliver extends StatelessWidget {
     required this.book,
     required this.isDark,
     required this.screenWidth,
+    this.onReport,
   });
 
   final Book book;
   final bool isDark;
   final double screenWidth;
+  final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -299,6 +332,17 @@ class _HeroCoverSliver extends StatelessWidget {
           ),
         ),
       ),
+      actions: [
+        if (onReport != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.flag_outlined, color: Colors.white),
+              tooltip: 'Şikayet et',
+              onPressed: onReport,
+            ),
+          ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         stretchModes: const [
           StretchMode.zoomBackground,
@@ -1476,5 +1520,128 @@ class _ReviewCard extends StatelessWidget {
     return '${date.day.toString().padLeft(2, '0')}.'
         '${date.month.toString().padLeft(2, '0')}.'
         '${date.year}';
+  }
+}
+
+// ─── Kitap şikayet bottom sheet ───────────────────────
+
+class _ReportBookSheet extends StatefulWidget {
+  const _ReportBookSheet({
+    required this.book,
+    required this.onClose,
+    required this.onSubmit,
+  });
+
+  final Book book;
+  final VoidCallback onClose;
+  final Future<void> Function(String message) onSubmit;
+
+  @override
+  State<_ReportBookSheet> createState() => _ReportBookSheetState();
+}
+
+class _ReportBookSheetState extends State<_ReportBookSheet> {
+  final _controller = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+      ),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Kitabı şikayet et',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                onPressed: widget.onClose,
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '"${widget.book.title}" hakkında şikayetinizi yazın.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            maxLines: 4,
+            maxLength: 500,
+            decoration: InputDecoration(
+              hintText: 'Şikayet gerekçenizi kısaca açıklayın...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.03),
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: _sending
+                ? null
+                : () async {
+                    final msg = _controller.text.trim();
+                    if (msg.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Lütfen şikayet gerekçenizi yazın')),
+                      );
+                      return;
+                    }
+                    setState(() => _sending = true);
+                    await widget.onSubmit(msg);
+                    if (mounted) setState(() => _sending = false);
+                  },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _sending
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Gönder'),
+          ),
+        ],
+      ),
+    );
   }
 }

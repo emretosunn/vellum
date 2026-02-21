@@ -45,6 +45,39 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           .read(chapterRepositoryProvider)
           .getChaptersByBook(widget.bookId);
 
+      if (!mounted) return;
+
+      if (book != null && book.isAdult18) {
+        final confirm = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            icon: Icon(Icons.warning_amber_rounded,
+                color: Colors.orange.shade700, size: 48),
+            title: const Text('18+ İçerik Uyarısı'),
+            content: const Text(
+              'Bu kitap yetişkinlere yönelik içerik (18+) uyarısı içermektedir. '
+              'Devam etmek istiyor musunuz?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Geri dön'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Devam et'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (confirm != true) {
+          Navigator.pop(context);
+          return;
+        }
+      }
+
       if (mounted) {
         setState(() {
           _bookTitle = book?.title ?? 'Kitap';

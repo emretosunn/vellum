@@ -26,6 +26,7 @@ class Profile with _$Profile {
     @JsonKey(name: 'sub_end_date') DateTime? subEndDate,
     @JsonKey(name: 'stripe_customer_id') String? stripeCustomerId,
     @Default(false) @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
+    @Default(false) @JsonKey(name: 'is_developer') bool isDeveloper,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     @Default('') String bio,
     @Default(<Map<String, dynamic>>[])

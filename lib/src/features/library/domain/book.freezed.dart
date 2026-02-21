@@ -32,6 +32,17 @@ mixin _$Book {
   @JsonKey(name: 'is_published')
   bool get isPublished => throw _privateConstructorUsedError;
 
+  /// Kategori (Roman, Öykü, Korku vb.)
+  String? get category => throw _privateConstructorUsedError;
+
+  /// 18+ içerik uyarısı; okurken onay istenir.
+  @JsonKey(name: 'is_adult_18')
+  bool get isAdult18 => throw _privateConstructorUsedError;
+
+  /// İçerik uyarıları (cinsellik, şiddet vb.)
+  @JsonKey(name: 'content_warnings')
+  List<String> get contentWarnings => throw _privateConstructorUsedError;
+
   /// Serializes this Book to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -54,6 +65,9 @@ abstract class $BookCopyWith<$Res> {
     @JsonKey(name: 'cover_image_url') String? coverImageUrl,
     BookStatus status,
     @JsonKey(name: 'is_published') bool isPublished,
+    String? category,
+    @JsonKey(name: 'is_adult_18') bool isAdult18,
+    @JsonKey(name: 'content_warnings') List<String> contentWarnings,
   });
 }
 
@@ -79,6 +93,9 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
     Object? coverImageUrl = freezed,
     Object? status = null,
     Object? isPublished = null,
+    Object? category = freezed,
+    Object? isAdult18 = null,
+    Object? contentWarnings = null,
   }) {
     return _then(
       _value.copyWith(
@@ -110,6 +127,18 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
                 ? _value.isPublished
                 : isPublished // ignore: cast_nullable_to_non_nullable
                       as bool,
+            category: freezed == category
+                ? _value.category
+                : category // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isAdult18: null == isAdult18
+                ? _value.isAdult18
+                : isAdult18 // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            contentWarnings: null == contentWarnings
+                ? _value.contentWarnings
+                : contentWarnings // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
           )
           as $Val,
     );
@@ -132,6 +161,9 @@ abstract class _$$BookImplCopyWith<$Res> implements $BookCopyWith<$Res> {
     @JsonKey(name: 'cover_image_url') String? coverImageUrl,
     BookStatus status,
     @JsonKey(name: 'is_published') bool isPublished,
+    String? category,
+    @JsonKey(name: 'is_adult_18') bool isAdult18,
+    @JsonKey(name: 'content_warnings') List<String> contentWarnings,
   });
 }
 
@@ -154,6 +186,9 @@ class __$$BookImplCopyWithImpl<$Res>
     Object? coverImageUrl = freezed,
     Object? status = null,
     Object? isPublished = null,
+    Object? category = freezed,
+    Object? isAdult18 = null,
+    Object? contentWarnings = null,
   }) {
     return _then(
       _$BookImpl(
@@ -185,6 +220,18 @@ class __$$BookImplCopyWithImpl<$Res>
             ? _value.isPublished
             : isPublished // ignore: cast_nullable_to_non_nullable
                   as bool,
+        category: freezed == category
+            ? _value.category
+            : category // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isAdult18: null == isAdult18
+            ? _value.isAdult18
+            : isAdult18 // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        contentWarnings: null == contentWarnings
+            ? _value._contentWarnings
+            : contentWarnings // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
       ),
     );
   }
@@ -201,7 +248,11 @@ class _$BookImpl implements _Book {
     @JsonKey(name: 'cover_image_url') this.coverImageUrl,
     this.status = BookStatus.draft,
     @JsonKey(name: 'is_published') this.isPublished = false,
-  });
+    this.category,
+    @JsonKey(name: 'is_adult_18') this.isAdult18 = false,
+    @JsonKey(name: 'content_warnings')
+    final List<String> contentWarnings = const [],
+  }) : _contentWarnings = contentWarnings;
 
   factory _$BookImpl.fromJson(Map<String, dynamic> json) =>
       _$$BookImplFromJson(json);
@@ -226,9 +277,30 @@ class _$BookImpl implements _Book {
   @JsonKey(name: 'is_published')
   final bool isPublished;
 
+  /// Kategori (Roman, Öykü, Korku vb.)
+  @override
+  final String? category;
+
+  /// 18+ içerik uyarısı; okurken onay istenir.
+  @override
+  @JsonKey(name: 'is_adult_18')
+  final bool isAdult18;
+
+  /// İçerik uyarıları (cinsellik, şiddet vb.)
+  final List<String> _contentWarnings;
+
+  /// İçerik uyarıları (cinsellik, şiddet vb.)
+  @override
+  @JsonKey(name: 'content_warnings')
+  List<String> get contentWarnings {
+    if (_contentWarnings is EqualUnmodifiableListView) return _contentWarnings;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_contentWarnings);
+  }
+
   @override
   String toString() {
-    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, isPublished: $isPublished)';
+    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, isPublished: $isPublished, category: $category, isAdult18: $isAdult18, contentWarnings: $contentWarnings)';
   }
 
   @override
@@ -245,7 +317,15 @@ class _$BookImpl implements _Book {
                 other.coverImageUrl == coverImageUrl) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.isPublished, isPublished) ||
-                other.isPublished == isPublished));
+                other.isPublished == isPublished) &&
+            (identical(other.category, category) ||
+                other.category == category) &&
+            (identical(other.isAdult18, isAdult18) ||
+                other.isAdult18 == isAdult18) &&
+            const DeepCollectionEquality().equals(
+              other._contentWarnings,
+              _contentWarnings,
+            ));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -259,6 +339,9 @@ class _$BookImpl implements _Book {
     coverImageUrl,
     status,
     isPublished,
+    category,
+    isAdult18,
+    const DeepCollectionEquality().hash(_contentWarnings),
   );
 
   /// Create a copy of Book
@@ -284,6 +367,9 @@ abstract class _Book implements Book {
     @JsonKey(name: 'cover_image_url') final String? coverImageUrl,
     final BookStatus status,
     @JsonKey(name: 'is_published') final bool isPublished,
+    final String? category,
+    @JsonKey(name: 'is_adult_18') final bool isAdult18,
+    @JsonKey(name: 'content_warnings') final List<String> contentWarnings,
   }) = _$BookImpl;
 
   factory _Book.fromJson(Map<String, dynamic> json) = _$BookImpl.fromJson;
@@ -305,6 +391,20 @@ abstract class _Book implements Book {
   @override
   @JsonKey(name: 'is_published')
   bool get isPublished;
+
+  /// Kategori (Roman, Öykü, Korku vb.)
+  @override
+  String? get category;
+
+  /// 18+ içerik uyarısı; okurken onay istenir.
+  @override
+  @JsonKey(name: 'is_adult_18')
+  bool get isAdult18;
+
+  /// İçerik uyarıları (cinsellik, şiddet vb.)
+  @override
+  @JsonKey(name: 'content_warnings')
+  List<String> get contentWarnings;
 
   /// Create a copy of Book
   /// with the given fields replaced by the non-null parameter values.

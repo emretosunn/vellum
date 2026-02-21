@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/login_screen.dart';
+import '../features/library/presentation/all_books_screen.dart';
 import '../features/library/presentation/author_profile_screen.dart';
 import '../features/library/presentation/book_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
@@ -65,6 +66,13 @@ GoRouter createRouter({
           final bookId = state.pathParameters['id'] ?? '';
           return BookDetailScreen(bookId: bookId);
         },
+      ),
+
+      // Tüm kitaplar (Tümünü Gör — en fazla 25)
+      GoRoute(
+        path: '/books',
+        name: 'allBooks',
+        builder: (context, state) => const AllBooksScreen(),
       ),
 
       // Yazar profili (shell dışında — tam ekran)

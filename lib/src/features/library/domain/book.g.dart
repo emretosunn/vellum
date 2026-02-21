@@ -16,6 +16,13 @@ _$BookImpl _$$BookImplFromJson(Map<String, dynamic> json) => _$BookImpl(
       $enumDecodeNullable(_$BookStatusEnumMap, json['status']) ??
       BookStatus.draft,
   isPublished: json['is_published'] as bool? ?? false,
+  category: json['category'] as String?,
+  isAdult18: json['is_adult_18'] as bool? ?? false,
+  contentWarnings:
+      (json['content_warnings'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
@@ -27,6 +34,9 @@ Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
       'cover_image_url': instance.coverImageUrl,
       'status': _$BookStatusEnumMap[instance.status]!,
       'is_published': instance.isPublished,
+      'category': instance.category,
+      'is_adult_18': instance.isAdult18,
+      'content_warnings': instance.contentWarnings,
     };
 
 const _$BookStatusEnumMap = {

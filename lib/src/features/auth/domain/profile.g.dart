@@ -18,6 +18,7 @@ _$ProfileImpl _$$ProfileImplFromJson(
       : DateTime.parse(json['sub_end_date'] as String),
   stripeCustomerId: json['stripe_customer_id'] as String?,
   isVerifiedAuthor: json['is_verified_author'] as bool? ?? false,
+  isDeveloper: json['is_developer'] as bool? ?? false,
   avatarUrl: json['avatar_url'] as String?,
   bio: json['bio'] as String? ?? '',
   links:
@@ -48,6 +49,7 @@ Map<String, dynamic> _$$ProfileImplToJson(_$ProfileImpl instance) =>
       'sub_end_date': instance.subEndDate?.toIso8601String(),
       'stripe_customer_id': instance.stripeCustomerId,
       'is_verified_author': instance.isVerifiedAuthor,
+      'is_developer': instance.isDeveloper,
       'avatar_url': instance.avatarUrl,
       'bio': instance.bio,
       'links': instance.links,

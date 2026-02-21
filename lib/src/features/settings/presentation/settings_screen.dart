@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../library/data/book_report_repository.dart';
+import '../../library/domain/book_report.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import '../../../config/version.dart';
 
@@ -177,6 +179,29 @@ class SettingsScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 24),
+
+            // ─── Geliştirici (sadece is_developer kullanıcılar) ───
+            if (profileAsync.valueOrNull?.isDeveloper == true) ...[
+              _SectionTitle(title: 'Geliştirici'),
+              const SizedBox(height: 8),
+              _SettingsGroup(
+                isDark: isDark,
+                items: [
+                  _SettingsTile(
+                    icon: Icons.flag_outlined,
+                    label: 'Kitap şikayetleri',
+                    subtitle: 'Şikayetleri görüntüle ve okundu işaretle',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _DeveloperReportsPage(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // ─── Hakkında ────────────────────────────
             _SectionTitle(title: 'Hakkında'),
@@ -2348,3 +2373,182 @@ Toplanan veriler aşağıdaki amaçlarla kullanılır:
 7. İletişim
 Gizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsiniz.
 ''';
+
+// ─── Geliştirici: Kitap şikayetleri sayfası ─────────
+
+class _DeveloperReportsPage extends ConsumerWidget {
+  const _DeveloperReportsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportsAsync = ref.watch(bookReportsListProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kitap şikayetleri'),
+      ),
+      body: reportsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 16),
+              Text('Yüklenemedi: $err', textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+        data: (reports) {
+          if (reports.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.flag_outlined,
+                      size: 64,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Henüz şikayet yok',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            itemCount: reports.length,
+            itemBuilder: (context, index) {
+              final report = reports[index];
+              return _ReportCard(
+                report: report,
+                isDark: isDark,
+                currentUserId: currentUserId ?? '',
+                onMarkRead: () async {
+                  await ref.read(bookReportRepositoryProvider).markAsRead(
+                        reportId: report.id,
+                        readByUserId: currentUserId!,
+                        reporterUserId: report.reporterUserId,
+                      );
+                  ref.invalidate(bookReportsListProvider);
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({
+    required this.report,
+    required this.isDark,
+    required this.currentUserId,
+    required this.onMarkRead,
+  });
+
+  final BookReport report;
+  final bool isDark;
+  final String currentUserId;
+  final VoidCallback onMarkRead;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: report.isRead
+              ? (isDark ? Colors.white12 : Colors.black12)
+              : AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.menu_book_outlined,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Kitap ID: ${report.bookId}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (!report.isRead)
+                  FilledButton.tonal(
+                    onPressed: onMarkRead,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('Okundu'),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'İncelendi',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Şikayetçi: ${report.reporterUserId}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              report.message,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _formatDate(report.createdAt),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.'
+        '${date.month.toString().padLeft(2, '0')}.${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}

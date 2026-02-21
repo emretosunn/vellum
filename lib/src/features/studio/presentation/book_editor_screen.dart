@@ -219,19 +219,30 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
       return;
     }
 
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Sayfayı Sil'),
         content: Text(
-            '"${_chapters[index].title}" silinecek. Bu işlem geri alınamaz.'),
+          '"${_chapters[index].title}" silinecek. Bu işlem geri alınamaz.',
+          style: theme.textTheme.bodyMedium,
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('İptal')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sil')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text('Sil'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -272,9 +283,11 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
       return;
     }
 
+    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Kitabı Yayınla'),
         content: const Text(
           'Kitabınız yayınlandığında herkes görebilir ve okuyabilir.\n'
@@ -282,11 +295,16 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('İptal')),
-          FilledButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yayınla'),
+            icon: const Icon(Icons.publish_rounded, size: 18),
+            label: const Text('Yayınla'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
           ),
         ],
       ),
@@ -364,8 +382,29 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Yükleniyor...',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -373,77 +412,20 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     final isPublished = _book?.status == BookStatus.published;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () {
-            if (_isSidebarOpen) {
-              setState(() => _isSidebarOpen = false);
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-          icon: Icon(_isSidebarOpen ? Icons.close : Icons.arrow_back),
-        ),
-        title: Text(_book?.title ?? 'Kitap Editörü'),
-        actions: [
-          // Sidebar aç/kapa
-          IconButton(
-            onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
-            icon: Icon(
-              _isSidebarOpen ? Icons.menu_open : Icons.menu_book_rounded,
-            ),
-            tooltip: 'Sayfalar',
-          ),
-          // Kaydet
-          if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              onPressed: () => _saveCurrentPage(),
-              icon: const Icon(Icons.save_rounded),
-              tooltip: 'Kaydet',
-            ),
-          // Yayınla / Taslağa al
-          if (_isPublishing)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: isPublished
-                  ? OutlinedButton.icon(
-                      onPressed: _unpublishBook,
-                      icon: const Icon(Icons.unpublished, size: 18),
-                      label: const Text('Taslağa Al'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _publishBook,
-                      icon: const Icon(Icons.publish, size: 18),
-                      label: const Text('Yayınla'),
-                    ),
-            ),
-        ],
-      ),
       body: Stack(
         children: [
-          // ── Ana İçerik — Editör (her zaman tam genişlik) ──
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildCustomAppBar(theme, isDark, isPublished),
               Expanded(
-                child: _buildEditorPanel(theme, isDark, charCount),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildEditorPanel(theme, isDark, charCount),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -467,13 +449,14 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
             bottom: 0,
             width: 280,
             child: Material(
-              elevation: _isSidebarOpen ? 12 : 0,
-              shadowColor: Colors.black45,
+              elevation: _isSidebarOpen ? 16 : 0,
+              shadowColor: Colors.black38,
+              borderRadius: const BorderRadius.only(topRight: Radius.circular(0), bottomRight: Radius.circular(0)),
               child: Container(
                 decoration: BoxDecoration(
                   color: isDark
                       ? const Color(0xFF1A1A2E)
-                      : Colors.white,
+                      : const Color(0xFFF8F7FF),
                   border: Border(
                     right: BorderSide(
                       color: isDark
@@ -485,40 +468,89 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                 child: SafeArea(
                   child: Column(
                     children: [
-                      // Başlık
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Sayfalar',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sayfalar',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  width: 28,
+                                  height: 3,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(2),
+                                    gradient: const LinearGradient(
+                                      colors: [AppColors.primary, AppColors.secondary],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  onPressed: () => _addNewPage(),
-                                  icon: const Icon(Icons.add, size: 22),
-                                  tooltip: 'Yeni Sayfa',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor:
-                                        AppColors.primary.withValues(alpha: 0.12),
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _addNewPage(),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [AppColors.primary, AppColors.primaryDark],
+                                        ),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(alpha: 0.35),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'Yeni',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 IconButton(
                                   onPressed: () => setState(() => _isSidebarOpen = false),
-                                  icon: const Icon(Icons.close, size: 20),
+                                  icon: const Icon(Icons.close_rounded, size: 22),
                                   tooltip: 'Kapat',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                                  ),
                                 ),
                               ],
                             ),
                           ],
                         ),
                       ),
-                      const Divider(height: 1),
+                      Divider(height: 1, color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)),
                       // Liste
                       Expanded(
                         child: ListView.builder(
@@ -642,155 +674,417 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     );
   }
 
+  Widget _buildCustomAppBar(
+    ThemeData theme,
+    bool isDark,
+    bool isPublished,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.scaffoldBackgroundColor,
+            isDark
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : AppColors.primary.withValues(alpha: 0.06),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.05),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () {
+                if (_isSidebarOpen) {
+                  setState(() => _isSidebarOpen = false);
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+              icon: Icon(
+                _isSidebarOpen ? Icons.close_rounded : Icons.arrow_back_ios_new_rounded,
+                size: 22,
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.05),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _book?.title ?? 'Kitap Editörü',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 32,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.secondary],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
+              icon: Icon(
+                _isSidebarOpen ? Icons.menu_open_rounded : Icons.menu_book_rounded,
+                size: 24,
+              ),
+              tooltip: 'Sayfalar',
+              style: IconButton.styleFrom(
+                backgroundColor: _isSidebarOpen
+                    ? AppColors.primary.withValues(alpha: 0.2)
+                    : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            if (_isSaving)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              IconButton(
+                onPressed: () => _saveCurrentPage(),
+                icon: const Icon(Icons.save_rounded, size: 22),
+                tooltip: 'Kaydet',
+                style: IconButton.styleFrom(
+                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                ),
+              ),
+            const SizedBox(width: 6),
+            if (_isPublishing)
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isPublished ? _unpublishBook : _publishBook,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: isPublished ? null : const LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryDark],
+                        ),
+                        color: isPublished
+                            ? (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06))
+                            : null,
+                        borderRadius: BorderRadius.circular(14),
+                        border: isPublished
+                            ? Border.all(color: AppColors.primary.withValues(alpha: 0.5))
+                            : null,
+                        boxShadow: isPublished ? null : [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isPublished ? Icons.unpublished_rounded : Icons.publish_rounded,
+                            size: 18,
+                            color: isPublished ? AppColors.primary : Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isPublished ? 'Taslağa Al' : 'Yayınla',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isPublished ? AppColors.primary : Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Editör paneli ──
   Widget _buildEditorPanel(ThemeData theme, bool isDark, int charCount) {
+    final progress = (charCount / _maxCharsPerPage).clamp(0.0, 1.0);
+    final isNearLimit = charCount > _maxCharsPerPage * 0.9;
+
     return Column(
       children: [
-        // Sayfa başlığı
+        // Sayfa başlığı (özel stil)
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: TextField(
-            controller: _titleController,
-            decoration: InputDecoration(
-              hintText: 'Sayfa başlığı...',
-              border: InputBorder.none,
-              hintStyle: theme.textTheme.headlineSmall?.copyWith(
-                color: theme.colorScheme.onSurface
-                    .withValues(alpha: 0.3),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
               ),
             ),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+            child: TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: 'Sayfa başlığı...',
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                hintStyle: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                ),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 14, right: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.title_rounded, size: 20, color: AppColors.primary),
+                  ),
+                ),
+              ),
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              onChanged: (_) => _hasUnsavedChanges = true,
             ),
-            onChanged: (_) => _hasUnsavedChanges = true,
-          ),
-        ),
-        const Divider(),
-
-        // Karakter sayacı
-        Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          child: Row(
-            children: [
-              Text(
-                'Sayfa ${_currentPageIndex + 1} / ${_chapters.length}',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.5),
-                ),
-              ),
-              const Spacer(),
-              // Karakter sayacı
-              Text(
-                '$charCount / $_maxCharsPerPage',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: charCount > _maxCharsPerPage * 0.9
-                      ? AppColors.error
-                      : theme.colorScheme.onSurface
-                          .withValues(alpha: 0.4),
-                  fontWeight: charCount > _maxCharsPerPage * 0.9
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Progress bar
-              SizedBox(
-                width: 80,
-                child: LinearProgressIndicator(
-                  value: (charCount / _maxCharsPerPage).clamp(0.0, 1.0),
-                  backgroundColor: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.black.withValues(alpha: 0.06),
-                  color: charCount > _maxCharsPerPage * 0.9
-                      ? AppColors.error
-                      : AppColors.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ],
           ),
         ),
 
-        // Metin editörü
+        // Karakter sayacı + sayfa bilgisi (kart)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Sayfa ${_currentPageIndex + 1} / ${_chapters.length}',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '$charCount / $_maxCharsPerPage',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: isNearLimit ? AppColors.error : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isNearLimit ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isNearLimit ? AppColors.error : AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Metin editörü (özel container)
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: TextField(
-              controller: _textController,
-              decoration: InputDecoration(
-                hintText: 'Yazmaya başlayın...',
-                border: InputBorder.none,
-                hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.3),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
                 ),
               ),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                height: 1.8,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: TextField(
+                  controller: _textController,
+                  decoration: InputDecoration(
+                    hintText: 'Yazmaya başlayın...',
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.75),
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                ),
               ),
-              maxLines: null,
-              expands: true,
-              textAlignVertical: TextAlignVertical.top,
             ),
           ),
         ),
 
-        // Alt navigasyon
+        // Alt sayfa navigasyonu (glassmorphism tarzı)
         Container(
-          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.04)
-                : Colors.black.withValues(alpha: 0.02),
-            border: Border(
-              top: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06),
-              ),
+            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                onPressed: _currentPageIndex > 0
-                    ? () {
-                        _saveCurrentPage(silent: true);
-                        _loadPageContent(_currentPageIndex - 1);
-                      }
-                    : null,
-                icon: const Icon(Icons.chevron_left),
-                tooltip: 'Önceki sayfa',
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${_currentPageIndex + 1} / ${_chapters.length}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _currentPageIndex > 0
+                      ? () {
+                          _saveCurrentPage(silent: true);
+                          _loadPageContent(_currentPageIndex - 1);
+                        }
+                      : null,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _currentPageIndex > 0
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.chevron_left_rounded,
+                      size: 28,
+                      color: _currentPageIndex > 0
+                          ? AppColors.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _currentPageIndex < _chapters.length - 1
-                    ? () {
-                        _saveCurrentPage(silent: true);
-                        _loadPageContent(_currentPageIndex + 1);
-                      }
-                    : null,
-                icon: const Icon(Icons.chevron_right),
-                tooltip: 'Sonraki sayfa',
+              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '${_currentPageIndex + 1} / ${_chapters.length}',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _currentPageIndex < _chapters.length - 1
+                      ? () {
+                          _saveCurrentPage(silent: true);
+                          _loadPageContent(_currentPageIndex + 1);
+                        }
+                      : null,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _currentPageIndex < _chapters.length - 1
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 28,
+                      color: _currentPageIndex < _chapters.length - 1
+                          ? AppColors.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

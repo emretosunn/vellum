@@ -32,6 +32,8 @@ mixin _$Profile {
   String? get stripeCustomerId => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_verified_author')
   bool get isVerifiedAuthor => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_developer')
+  bool get isDeveloper => throw _privateConstructorUsedError;
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl => throw _privateConstructorUsedError;
   String get bio => throw _privateConstructorUsedError;
@@ -68,6 +70,7 @@ abstract class $ProfileCopyWith<$Res> {
     @JsonKey(name: 'sub_end_date') DateTime? subEndDate,
     @JsonKey(name: 'stripe_customer_id') String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
+    @JsonKey(name: 'is_developer') bool isDeveloper,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -102,6 +105,7 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
     Object? subEndDate = freezed,
     Object? stripeCustomerId = freezed,
     Object? isVerifiedAuthor = null,
+    Object? isDeveloper = null,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -137,6 +141,10 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
             isVerifiedAuthor: null == isVerifiedAuthor
                 ? _value.isVerifiedAuthor
                 : isVerifiedAuthor // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isDeveloper: null == isDeveloper
+                ? _value.isDeveloper
+                : isDeveloper // ignore: cast_nullable_to_non_nullable
                       as bool,
             avatarUrl: freezed == avatarUrl
                 ? _value.avatarUrl
@@ -180,6 +188,7 @@ abstract class _$$ProfileImplCopyWith<$Res> implements $ProfileCopyWith<$Res> {
     @JsonKey(name: 'sub_end_date') DateTime? subEndDate,
     @JsonKey(name: 'stripe_customer_id') String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
+    @JsonKey(name: 'is_developer') bool isDeveloper,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -213,6 +222,7 @@ class __$$ProfileImplCopyWithImpl<$Res>
     Object? subEndDate = freezed,
     Object? stripeCustomerId = freezed,
     Object? isVerifiedAuthor = null,
+    Object? isDeveloper = null,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -248,6 +258,10 @@ class __$$ProfileImplCopyWithImpl<$Res>
         isVerifiedAuthor: null == isVerifiedAuthor
             ? _value.isVerifiedAuthor
             : isVerifiedAuthor // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isDeveloper: null == isDeveloper
+            ? _value.isDeveloper
+            : isDeveloper // ignore: cast_nullable_to_non_nullable
                   as bool,
         avatarUrl: freezed == avatarUrl
             ? _value.avatarUrl
@@ -285,6 +299,7 @@ class _$ProfileImpl extends _Profile {
     @JsonKey(name: 'sub_end_date') this.subEndDate,
     @JsonKey(name: 'stripe_customer_id') this.stripeCustomerId,
     @JsonKey(name: 'is_verified_author') this.isVerifiedAuthor = false,
+    @JsonKey(name: 'is_developer') this.isDeveloper = false,
     @JsonKey(name: 'avatar_url') this.avatarUrl,
     this.bio = '',
     @JsonKey(readValue: _readLinks)
@@ -328,6 +343,9 @@ class _$ProfileImpl extends _Profile {
   @JsonKey(name: 'is_verified_author')
   final bool isVerifiedAuthor;
   @override
+  @JsonKey(name: 'is_developer')
+  final bool isDeveloper;
+  @override
   @JsonKey(name: 'avatar_url')
   final String? avatarUrl;
   @override
@@ -361,7 +379,7 @@ class _$ProfileImpl extends _Profile {
 
   @override
   String toString() {
-    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
+    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, isDeveloper: $isDeveloper, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
   }
 
   @override
@@ -380,6 +398,8 @@ class _$ProfileImpl extends _Profile {
                 other.stripeCustomerId == stripeCustomerId) &&
             (identical(other.isVerifiedAuthor, isVerifiedAuthor) ||
                 other.isVerifiedAuthor == isVerifiedAuthor) &&
+            (identical(other.isDeveloper, isDeveloper) ||
+                other.isDeveloper == isDeveloper) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
             (identical(other.bio, bio) || other.bio == bio) &&
@@ -403,6 +423,7 @@ class _$ProfileImpl extends _Profile {
     subEndDate,
     stripeCustomerId,
     isVerifiedAuthor,
+    isDeveloper,
     avatarUrl,
     bio,
     const DeepCollectionEquality().hash(_links),
@@ -433,6 +454,7 @@ abstract class _Profile extends Profile {
     @JsonKey(name: 'sub_end_date') final DateTime? subEndDate,
     @JsonKey(name: 'stripe_customer_id') final String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') final bool isVerifiedAuthor,
+    @JsonKey(name: 'is_developer') final bool isDeveloper,
     @JsonKey(name: 'avatar_url') final String? avatarUrl,
     final String bio,
     @JsonKey(readValue: _readLinks) final List<Map<String, dynamic>> links,
@@ -465,6 +487,9 @@ abstract class _Profile extends Profile {
   @override
   @JsonKey(name: 'is_verified_author')
   bool get isVerifiedAuthor;
+  @override
+  @JsonKey(name: 'is_developer')
+  bool get isDeveloper;
   @override
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl;
