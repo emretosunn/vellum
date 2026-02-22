@@ -81,6 +81,20 @@ class BookRepository {
     return Book.fromJson(data);
   }
 
+  /// Birden fazla kitabı ID listesine göre getirir (sıra korunur).
+  Future<List<Book>> getBooksByIds(List<String> bookIds) async {
+    if (bookIds.isEmpty) return [];
+    final data = await _client
+        .from('books')
+        .select()
+        .inFilter('id', bookIds);
+    final byId = {for (final j in data) j['id'] as String: Book.fromJson(j)};
+    return bookIds
+        .map((id) => byId[id])
+        .whereType<Book>()
+        .toList();
+  }
+
   /// Bir yazarın yayınlanmış kitapları
   Future<List<Book>> getPublishedBooksByAuthor(String authorId) async {
     final data = await _client
@@ -176,6 +190,11 @@ class BookRepository {
 
   Future<void> deleteBook(String bookId) async {
     await _client.from('books').delete().eq('id', bookId);
+  }
+
+  /// Kitap detayı açıldığında görüntülenme sayısını 1 artırır (RPC: increment_book_view)
+  Future<void> incrementBookView(String bookId) async {
+    await _client.rpc('increment_book_view', params: {'book_id': bookId});
   }
 }
 

@@ -7,7 +7,7 @@ import '../../../constants/app_colors.dart';
 
 // ─── Bildirim Modeli ───────────────────────────────────
 
-enum NotificationType { newChapter, comment, review, promotion, system, earning }
+enum NotificationType { newChapter, comment, review, promotion, system, earning, bookLike }
 
 class NotificationItem {
   final String id;
@@ -55,6 +55,8 @@ class NotificationItem {
         return NotificationType.promotion;
       case 'earning':
         return NotificationType.earning;
+      case 'bookLike':
+        return NotificationType.bookLike;
       default:
         return NotificationType.system;
     }
@@ -268,6 +270,8 @@ class _NotificationCard extends StatelessWidget {
         return (icon: Icons.info_rounded, color: Colors.grey);
       case NotificationType.earning:
         return (icon: Icons.monetization_on_rounded, color: Colors.green);
+      case NotificationType.bookLike:
+        return (icon: Icons.favorite_rounded, color: Colors.pink);
     }
   }
 

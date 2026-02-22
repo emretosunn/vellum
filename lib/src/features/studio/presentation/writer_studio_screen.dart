@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
@@ -589,20 +590,18 @@ class _BookListItem extends StatelessWidget {
                       colors: [AppColors.primary, AppColors.secondary],
                     ),
                   ),
-                  child: book.coverImageUrl != null
+                  child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                       ? Image.network(
                           book.coverImageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.menu_book_rounded,
-                            color: Colors.white54,
-                            size: 28,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            AppAssets.defaultBookCover,
+                            fit: BoxFit.cover,
                           ),
                         )
-                      : const Icon(
-                          Icons.menu_book_rounded,
-                          color: Colors.white70,
-                          size: 28,
+                      : Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
                         ),
                 ),
               ),

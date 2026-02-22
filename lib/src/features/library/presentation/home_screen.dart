@@ -5,12 +5,23 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../library/data/book_like_repository.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/data/reading_progress_repository.dart';
 import '../../library/data/review_repository.dart';
 import '../../library/domain/book.dart';
 import '../../notifications/presentation/notifications_screen.dart';
+
+/// Saate göre selamlama (referans tasarım: GOOD MORNING / EVENING)
+String _timeBasedGreeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'İYİ SABAHLAR';
+  if (hour < 18) return 'İYİ GÜNLER';
+  return 'İYİ AKŞAMLAR';
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -34,40 +45,89 @@ class HomeScreen extends ConsumerWidget {
                 ref.invalidate(featuredBooksProvider);
                 ref.invalidate(recentBooksProvider);
                 ref.invalidate(unreadNotificationCountProvider);
+                ref.invalidate(continueReadingEntriesProvider);
+                ref.invalidate(continueReadingBooksProvider);
+                ref.invalidate(likedBooksProvider);
               },
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // ─── Selamlama + Bildirim ─────────────────
+                  // ─── Zaman selamı + Avatar + Bildirim ─────────────────
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
                       child: Row(
                         children: [
+                          // Avatar (profil fotoğrafı) — tıklanınca kendi profil sayfasına git
+                          profileAsync.when(
+                            data: (profile) {
+                              final avatarUrl = profile?.avatarUrl;
+                              return GestureDetector(
+                                onTap: () {
+                                  if (profile != null) {
+                                    context.push('/author/${profile.id}');
+                                  }
+                                },
+                                child: CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                                      ? NetworkImage(avatarUrl)
+                                      : null,
+                                  onBackgroundImageError: (avatarUrl != null && avatarUrl.isNotEmpty)
+                                      ? (_, __) {}
+                                      : null,
+                                  child: avatarUrl == null || avatarUrl.isEmpty
+                                      ? Text(
+                                          (profile?.username.isNotEmpty == true
+                                                  ? profile!.username[0]
+                                                  : 'O')
+                                              .toUpperCase(),
+                                          style: theme.textTheme.titleLarge?.copyWith(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              );
+                            },
+                            loading: () => const CircleAvatar(radius: 20, child: SizedBox()),
+                            error: (_, __) => CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                              child: Text(
+                                'O',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Merhaba,',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                  _timeBasedGreeting(),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
+                                        .withValues(alpha: 0.65),
                                   ),
                                 ),
                                 profileAsync.when(
                                   data: (profile) => Text(
                                     profile?.username ?? 'Okuyucu',
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
+                                    style: theme.textTheme.headlineSmall?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  loading: () => const SizedBox(height: 28),
+                                  loading: () => const SizedBox(height: 26),
                                   error: (_, __) => Text(
                                     'Okuyucu',
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
+                                    style: theme.textTheme.headlineSmall?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -117,10 +177,10 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  // ─── Arama: ince, yumuşak köşe, editoryal placeholder ──────────
+                  // ─── Arama ─────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                       child: Container(
                         height: 46,
                         decoration: BoxDecoration(
@@ -274,7 +334,7 @@ class HomeScreen extends ConsumerWidget {
                         onSeeAll: null,
                       ),
                       SizedBox(
-                        height: 268,
+                        height: 302,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -318,7 +378,7 @@ class HomeScreen extends ConsumerWidget {
                         onSeeAll: null,
                       ),
                       SizedBox(
-                        height: 268,
+                        height: 302,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -348,21 +408,25 @@ class HomeScreen extends ConsumerWidget {
                   data: (recentBooks) {
                     return SliverList(
                       delegate: SliverChildListDelegate([
+                        // ─── Devam Et (yarıda kalan okumalar) ──────
+                        const _ContinueReadingSection(),
+                        const SizedBox(height: 28),
                         // ─── Popüler Kitaplar (Yatay, en fazla 5) ──────
                         _SectionHeader(
                           title: 'Popüler Kitaplar',
                           onSeeAll: null,
                         ),
+                        const SizedBox(height: 14),
                         SizedBox(
-                          height: 268,
+                          height: 302,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             itemCount: displayBooks.length,
                             itemBuilder: (context, index) {
                               final book = displayBooks[index];
                               return Padding(
-                                padding: const EdgeInsets.only(right: 14),
+                                padding: const EdgeInsets.only(right: 16),
                                 child: _HorizontalBookCard(book: book)
                                     .animate()
                                     .fadeIn(
@@ -374,16 +438,20 @@ class HomeScreen extends ConsumerWidget {
                             },
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        // ─── Yeni Eklenenler (Son 5, Tümünü Gör -> 25) ──────
+                        const SizedBox(height: 28),
+                        // ─── Beğenilenler ──────
+                        const _LikedBooksSection(),
+                        const SizedBox(height: 28),
+                        // ─── Sizin İçin Seçilenler (son 5, görüntülenme + beğeni) ──────
                         _SectionHeader(
-                          title: 'Yeni Eklenenler',
+                          title: 'Sizin İçin Seçilenler',
                           onSeeAll: () => context.push('/books'),
                         ),
+                        const SizedBox(height: 14),
                         ...recentBooks.asMap().entries.map((entry) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 6),
+                                horizontal: 24, vertical: 8),
                             child: _VerticalBookCard(book: entry.value)
                                 .animate()
                                 .fadeIn(
@@ -393,7 +461,7 @@ class HomeScreen extends ConsumerWidget {
                                 .slideY(begin: 0.05),
                           );
                         }),
-                        const SizedBox(height: 100),
+                        const SizedBox(height: 120),
                       ]),
                     );
                   },
@@ -428,21 +496,41 @@ class _HeroShowcase extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Editörün Seçimi',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Text(
+                  'Günün Hikayesi',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'ÖNE ÇIKAN',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             height: 220,
             child: PageView.builder(
@@ -450,7 +538,7 @@ class _HeroShowcase extends StatelessWidget {
               itemBuilder: (context, index) {
                 final book = books[index];
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: _HeroBookCard(book: book, isDark: isDark),
                 ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05);
               },
@@ -490,14 +578,19 @@ class _HeroBookCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (book.coverImageUrl != null)
-                Image.network(
-                  book.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _HeroPlaceholder(book: book),
-                )
-              else
-                _HeroPlaceholder(book: book),
+              (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                  ? Image.network(
+                      book.coverImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(
+                      AppAssets.defaultBookCover,
+                      fit: BoxFit.cover,
+                    ),
               // Karartma overlay
               Container(
                 decoration: BoxDecoration(
@@ -618,7 +711,7 @@ class _SectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
       child: Row(
         children: [
           Text(
@@ -650,6 +743,97 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ─── Devam Et bölümü (yarıda kalan okumalar) ─────────────────────────────
+
+class _ContinueReadingSection extends ConsumerWidget {
+  const _ContinueReadingSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(continueReadingBooksProvider);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _SectionHeader(title: 'Devam Et', onSeeAll: null),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 302,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: list.length,
+                itemBuilder: (context, index) {
+                  final item = list[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: GestureDetector(
+                      onTap: () => context.push('/reader/${item.book.id}?chapter=${item.chapterIndex}'),
+                      child: _HorizontalBookCard(book: item.book),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─── Beğenilenler bölümü ────────────────────────────────────────────────
+
+class _LikedBooksSection extends ConsumerWidget {
+  const _LikedBooksSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(likedBooksProvider);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _SectionHeader(title: 'Beğenilenler', onSeeAll: null),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 302,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: list.length,
+                itemBuilder: (context, index) {
+                  final book = list[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: _HorizontalBookCard(book: book),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 // ─── Yatay Kitap Kartı (2:3 oran, Serif başlık, Sans yazar) ───────────────────────────────
 
 class _HorizontalBookCard extends ConsumerWidget {
@@ -671,8 +855,10 @@ class _HorizontalBookCard extends ConsumerWidget {
       onTap: () => context.push('/book/${book.id}'),
       child: SizedBox(
         width: _coverWidth,
+        height: 298,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Kapak (dikey dikdörtgen, kitap oranı)
             Container(
@@ -690,23 +876,32 @@ class _HorizontalBookCard extends ConsumerWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: book.coverImageUrl != null
+                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
-                        errorBuilder: (_, __, ___) =>
-                            _PlaceholderCover(title: book.title),
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
                       )
-                    : _PlaceholderCover(title: book.title),
+                    : Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
               ),
             ),
             const SizedBox(height: 10),
-            // Başlık (Serif)
+            // Başlık (tek satır, taşmayı önlemek için)
             Text(
               book.title,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -738,8 +933,44 @@ class _HorizontalBookCard extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.visibility_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text(
+                  _formatCount(book.viewCount),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final likeAsync = ref.watch(bookLikeCountProvider(book.id));
+                    return likeAsync.when(
+                      data: (count) => Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.favorite_border_rounded, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatCount(count),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    );
+                  },
+                ),
+              ],
+            ),
             if (stats != null && stats.count > 0) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Icon(Icons.star_rounded, size: 14, color: AppColors.accent),
@@ -758,6 +989,12 @@ class _HorizontalBookCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _formatCount(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+  return '$n';
 }
 
 // ─── Dikey Kitap Kartı (2:3 kapak, Serif başlık, Sans yazar) ───────────────────────────────
@@ -797,14 +1034,19 @@ class _VerticalBookCard extends ConsumerWidget {
               child: SizedBox(
                 width: _coverWidth,
                 height: _coverHeight,
-                child: book.coverImageUrl != null
+                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _PlaceholderCover(title: book.title),
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                        ),
                       )
-                    : _PlaceholderCover(title: book.title),
+                    : Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
             const SizedBox(width: 16),
@@ -812,6 +1054,24 @@ class _VerticalBookCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (book.category != null && book.category!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          book.category!,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
                   Text(
                     book.title,
                     maxLines: 1,
@@ -846,7 +1106,57 @@ class _VerticalBookCard extends ConsumerWidget {
                           .withValues(alpha: 0.55),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.visibility_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatCount(book.viewCount),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final likeAsync = ref.watch(bookLikeCountProvider(book.id));
+                          return likeAsync.when(
+                            data: (count) => Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.favorite_border_rounded, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatCount(count),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
+                          );
+                        },
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Oku',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 12,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
@@ -870,20 +1180,6 @@ class _VerticalBookCard extends ConsumerWidget {
                                 : Colors.orange.shade700,
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Oku',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 12,
-                        color: AppColors.primary,
                       ),
                     ],
                   ),

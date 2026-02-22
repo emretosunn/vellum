@@ -23,6 +23,7 @@ _$BookImpl _$$BookImplFromJson(Map<String, dynamic> json) => _$BookImpl(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  viewCount: (json['view_count'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
@@ -37,6 +38,7 @@ Map<String, dynamic> _$$BookImplToJson(_$BookImpl instance) =>
       'category': instance.category,
       'is_adult_18': instance.isAdult18,
       'content_warnings': instance.contentWarnings,
+      'view_count': instance.viewCount,
     };
 
 const _$BookStatusEnumMap = {

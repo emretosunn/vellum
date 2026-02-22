@@ -109,13 +109,15 @@ GoRouter createRouter({
         },
       ),
 
-      // Kitap okuyucu
+      // Kitap okuyucu (query: chapter = bölüm indeksi, 0 tabanlı)
       GoRoute(
         path: '/reader/:bookId',
         name: 'reader',
         builder: (context, state) {
           final bookId = state.pathParameters['bookId'] ?? '';
-          return ReaderScreen(bookId: bookId);
+          final chapter = state.uri.queryParameters['chapter'];
+          final initialChapterIndex = chapter != null ? int.tryParse(chapter) ?? 0 : 0;
+          return ReaderScreen(bookId: bookId, initialChapterIndex: initialChapterIndex);
         },
       ),
 

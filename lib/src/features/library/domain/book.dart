@@ -30,6 +30,8 @@ class Book with _$Book {
     @Default(false) @JsonKey(name: 'is_adult_18') bool isAdult18,
     /// İçerik uyarıları (cinsellik, şiddet vb.)
     @Default([]) @JsonKey(name: 'content_warnings') List<String> contentWarnings,
+    /// Görüntülenme sayısı (detay sayfası açılışta artar)
+    @Default(0) @JsonKey(name: 'view_count') int viewCount,
   }) = _Book;
 
   factory Book.fromJson(Map<String, dynamic> json) =>

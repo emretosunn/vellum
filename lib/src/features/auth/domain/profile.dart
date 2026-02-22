@@ -35,6 +35,8 @@ class Profile with _$Profile {
     @Default(<String, dynamic>{
       'newChapter': true,
       'comments': true,
+      'bookLike': true,
+      'reviews': true,
       'promotions': false,
       'weeklyDigest': true,
     })
@@ -70,16 +72,23 @@ Object? _readLinks(Map<dynamic, dynamic> json, String key) {
   return <Map<String, dynamic>>[];
 }
 
-/// null gelirse default map döndürür
+const Map<String, dynamic> _defaultNotificationPreferences = {
+  'newChapter': true,
+  'comments': true,
+  'bookLike': true,
+  'reviews': true,
+  'promotions': false,
+  'weeklyDigest': true,
+};
+
+/// null gelirse default map; değilse backend'deki ile birleştirir (yeni anahtarlar varsayılan alır).
 Object? _readNotificationPreferences(Map<dynamic, dynamic> json, String key) {
   final value = json[key];
-  if (value == null) {
-    return <String, dynamic>{
-      'newChapter': true,
-      'comments': true,
-      'promotions': false,
-      'weeklyDigest': true,
-    };
+  if (value == null) return Map<String, dynamic>.from(_defaultNotificationPreferences);
+  if (value is! Map) return Map<String, dynamic>.from(_defaultNotificationPreferences);
+  final merged = Map<String, dynamic>.from(_defaultNotificationPreferences);
+  for (final e in (value as Map<dynamic, dynamic>).entries) {
+    if (e.value is bool) merged[e.key.toString()] = e.value as bool;
   }
-  return value;
+  return merged;
 }

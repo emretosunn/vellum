@@ -312,6 +312,8 @@ class _$ProfileImpl extends _Profile {
         const <String, dynamic>{
           'newChapter': true,
           'comments': true,
+          'bookLike': true,
+          'reviews': true,
           'promotions': false,
           'weeklyDigest': true,
         },

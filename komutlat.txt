@@ -3,6 +3,7 @@ flutter run --dart-define-from-file=.env.json
 
 flutter run -d chrome --release --dart-define-from-file=.env.json
 
+flutter run -d chrome --dart-define-from-file=.env.json
 
 flutter build appbundle --release --dart-define-from-file=.env.json
 

@@ -32,6 +32,8 @@ _$ProfileImpl _$$ProfileImplFromJson(
       const <String, dynamic>{
         'newChapter': true,
         'comments': true,
+        'bookLike': true,
+        'reviews': true,
         'promotions': false,
         'weeklyDigest': true,
       },

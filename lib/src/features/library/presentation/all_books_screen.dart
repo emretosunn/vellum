@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/book_repository.dart';
@@ -217,14 +218,19 @@ class _BookListCard extends ConsumerWidget {
               child: SizedBox(
                 width: _coverWidth,
                 height: _coverHeight,
-                child: book.coverImageUrl != null
+                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _PlaceholderCover(title: book.title),
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                        ),
                       )
-                    : _PlaceholderCover(title: book.title),
+                    : Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
             const SizedBox(width: 16),

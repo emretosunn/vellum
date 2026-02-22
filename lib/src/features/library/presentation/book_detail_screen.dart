@@ -3,10 +3,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
+import '../../library/data/book_like_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/data/review_repository.dart';
@@ -38,7 +40,9 @@ class BookDetailScreen extends ConsumerWidget {
 
           final authorAsync = ref.watch(profileByIdProvider(book.authorId));
 
-          return Stack(
+          return _IncrementViewOnLoad(
+            bookId: bookId,
+            child: Stack(
             children: [
               CustomScrollView(
                 slivers: [
@@ -80,6 +84,15 @@ class BookDetailScreen extends ConsumerWidget {
                                   );
                             },
                           ),
+
+                          const SizedBox(height: 20),
+
+                          // Görüntülenme + Beğeni
+                          _BookViewLikeRow(
+                            book: book,
+                            theme: theme,
+                            isDark: isDark,
+                          ).animate().fadeIn(delay: 280.ms),
 
                           const SizedBox(height: 24),
 
@@ -244,6 +257,7 @@ class BookDetailScreen extends ConsumerWidget {
                 ),
               ),
             ],
+            ),
           );
         },
       ),
@@ -294,6 +308,120 @@ class BookDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Kitap detayı açıldığında görüntülenme sayısını 1 artırır (uygulama oturumunda kitap başına en fazla 1 kez)
+class _IncrementViewOnLoad extends ConsumerStatefulWidget {
+  const _IncrementViewOnLoad({required this.bookId, required this.child});
+  final String bookId;
+  final Widget child;
+
+  @override
+  ConsumerState<_IncrementViewOnLoad> createState() => _IncrementViewOnLoadState();
+}
+
+class _IncrementViewOnLoadState extends ConsumerState<_IncrementViewOnLoad> {
+  /// Aynı oturumda aynı kitap için birden fazla artırma yapılmaz (sayfa yeniden build olsa bile)
+  static final Set<String> _incrementedInSession = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_incrementedInSession.contains(widget.bookId)) return;
+      _incrementedInSession.add(widget.bookId);
+      await ref.read(bookRepositoryProvider).incrementBookView(widget.bookId);
+      if (!mounted) return;
+      ref.invalidate(bookDetailProvider(widget.bookId));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// Görüntülenme sayısı + Beğeni butonu (kitap detayda)
+class _BookViewLikeRow extends ConsumerWidget {
+  const _BookViewLikeRow({
+    required this.book,
+    required this.theme,
+    required this.isDark,
+  });
+  final Book book;
+  final ThemeData theme;
+  final bool isDark;
+
+  static String _formatCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final likeCountAsync = ref.watch(bookLikeCountProvider(book.id));
+    final isLikedAsync = ref.watch(isBookLikedByCurrentUserProvider(book.id));
+
+    return Row(
+      children: [
+        Icon(Icons.visibility_outlined, size: 20, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Text(
+          '${_formatCount(book.viewCount)} görüntülenme',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 24),
+        isLikedAsync.when(
+          data: (isLiked) => likeCountAsync.when(
+            data: (count) => Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  final profile = await ref.read(currentProfileProvider.future);
+                  if (profile == null) return;
+                  await ref.read(bookLikeRepositoryProvider).toggleLike(
+                    bookId: book.id,
+                    userId: profile.id,
+                  );
+                  ref.invalidate(bookLikeCountProvider(book.id));
+                  ref.invalidate(isBookLikedByCurrentUserProvider(book.id));
+                  ref.invalidate(authorTotalLikesProvider(book.authorId));
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        size: 22,
+                        color: isLiked ? AppColors.error : theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatCount(count),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }
@@ -351,15 +479,20 @@ class _HeroCoverSliver extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Arka plan görseli veya gradient
-            if (book.coverImageUrl != null)
-              Image.network(
-                book.coverImageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildGradientBackground(),
-              )
-            else
-              _buildGradientBackground(),
+            // Arka plan görseli veya varsayılan kapak
+            (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                ? Image.network(
+                    book.coverImageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Image.asset(
+                      AppAssets.defaultBookCover,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Image.asset(
+                    AppAssets.defaultBookCover,
+                    fit: BoxFit.cover,
+                  ),
 
             // Gradient overlay (metin okunabilirliği için)
             Container(
@@ -1411,6 +1544,9 @@ class _ReviewCard extends StatelessWidget {
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 backgroundImage: review.avatarUrl != null
                     ? NetworkImage(review.avatarUrl!)
+                    : null,
+                onBackgroundImageError: review.avatarUrl != null
+                    ? (_, __) {}
                     : null,
                 child: review.avatarUrl == null
                     ? Text(

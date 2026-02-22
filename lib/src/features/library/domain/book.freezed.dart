@@ -43,6 +43,10 @@ mixin _$Book {
   @JsonKey(name: 'content_warnings')
   List<String> get contentWarnings => throw _privateConstructorUsedError;
 
+  /// Görüntülenme sayısı (detay sayfası açılışta artar)
+  @JsonKey(name: 'view_count')
+  int get viewCount => throw _privateConstructorUsedError;
+
   /// Serializes this Book to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -68,6 +72,7 @@ abstract class $BookCopyWith<$Res> {
     String? category,
     @JsonKey(name: 'is_adult_18') bool isAdult18,
     @JsonKey(name: 'content_warnings') List<String> contentWarnings,
+    @JsonKey(name: 'view_count') int viewCount,
   });
 }
 
@@ -96,6 +101,7 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
     Object? category = freezed,
     Object? isAdult18 = null,
     Object? contentWarnings = null,
+    Object? viewCount = null,
   }) {
     return _then(
       _value.copyWith(
@@ -139,6 +145,10 @@ class _$BookCopyWithImpl<$Res, $Val extends Book>
                 ? _value.contentWarnings
                 : contentWarnings // ignore: cast_nullable_to_non_nullable
                       as List<String>,
+            viewCount: null == viewCount
+                ? _value.viewCount
+                : viewCount // ignore: cast_nullable_to_non_nullable
+                      as int,
           )
           as $Val,
     );
@@ -164,6 +174,7 @@ abstract class _$$BookImplCopyWith<$Res> implements $BookCopyWith<$Res> {
     String? category,
     @JsonKey(name: 'is_adult_18') bool isAdult18,
     @JsonKey(name: 'content_warnings') List<String> contentWarnings,
+    @JsonKey(name: 'view_count') int viewCount,
   });
 }
 
@@ -189,6 +200,7 @@ class __$$BookImplCopyWithImpl<$Res>
     Object? category = freezed,
     Object? isAdult18 = null,
     Object? contentWarnings = null,
+    Object? viewCount = null,
   }) {
     return _then(
       _$BookImpl(
@@ -232,6 +244,10 @@ class __$$BookImplCopyWithImpl<$Res>
             ? _value._contentWarnings
             : contentWarnings // ignore: cast_nullable_to_non_nullable
                   as List<String>,
+        viewCount: null == viewCount
+            ? _value.viewCount
+            : viewCount // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -252,6 +268,7 @@ class _$BookImpl implements _Book {
     @JsonKey(name: 'is_adult_18') this.isAdult18 = false,
     @JsonKey(name: 'content_warnings')
     final List<String> contentWarnings = const [],
+    @JsonKey(name: 'view_count') this.viewCount = 0,
   }) : _contentWarnings = contentWarnings;
 
   factory _$BookImpl.fromJson(Map<String, dynamic> json) =>
@@ -298,9 +315,14 @@ class _$BookImpl implements _Book {
     return EqualUnmodifiableListView(_contentWarnings);
   }
 
+  /// Görüntülenme sayısı (detay sayfası açılışta artar)
+  @override
+  @JsonKey(name: 'view_count')
+  final int viewCount;
+
   @override
   String toString() {
-    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, isPublished: $isPublished, category: $category, isAdult18: $isAdult18, contentWarnings: $contentWarnings)';
+    return 'Book(id: $id, authorId: $authorId, title: $title, summary: $summary, coverImageUrl: $coverImageUrl, status: $status, isPublished: $isPublished, category: $category, isAdult18: $isAdult18, contentWarnings: $contentWarnings, viewCount: $viewCount)';
   }
 
   @override
@@ -325,7 +347,9 @@ class _$BookImpl implements _Book {
             const DeepCollectionEquality().equals(
               other._contentWarnings,
               _contentWarnings,
-            ));
+            ) &&
+            (identical(other.viewCount, viewCount) ||
+                other.viewCount == viewCount));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -342,6 +366,7 @@ class _$BookImpl implements _Book {
     category,
     isAdult18,
     const DeepCollectionEquality().hash(_contentWarnings),
+    viewCount,
   );
 
   /// Create a copy of Book
@@ -370,6 +395,7 @@ abstract class _Book implements Book {
     final String? category,
     @JsonKey(name: 'is_adult_18') final bool isAdult18,
     @JsonKey(name: 'content_warnings') final List<String> contentWarnings,
+    @JsonKey(name: 'view_count') final int viewCount,
   }) = _$BookImpl;
 
   factory _Book.fromJson(Map<String, dynamic> json) = _$BookImpl.fromJson;
@@ -405,6 +431,11 @@ abstract class _Book implements Book {
   @override
   @JsonKey(name: 'content_warnings')
   List<String> get contentWarnings;
+
+  /// Görüntülenme sayısı (detay sayfası açılışta artar)
+  @override
+  @JsonKey(name: 'view_count')
+  int get viewCount;
 
   /// Create a copy of Book
   /// with the given fields replaced by the non-null parameter values.

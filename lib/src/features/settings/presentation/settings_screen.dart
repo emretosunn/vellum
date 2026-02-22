@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
+import '../services/notification_permission_service.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/domain/book_report.dart';
 import '../../subscription/services/subscription_status_service.dart';
@@ -22,6 +24,17 @@ final notificationSettingsProvider =
     StateProvider<Map<String, bool>>((ref) => {});
 
 final fontSizeProvider = StateProvider<String>((ref) => 'Orta');
+
+/// Sistem bildirim izni durumu (yenilemek için invalidate edin).
+/// Web/desktop gibi izin API'si olmayan platformlarda [PermissionStatus.granted] kabul edilir.
+final notificationPermissionStatusProvider =
+    FutureProvider<PermissionStatus>((ref) async {
+  try {
+    return await NotificationPermissionService.status;
+  } catch (_) {
+    return PermissionStatus.granted;
+  }
+});
 
 // ═════════════════════════════════════════════════════
 // ANA AYARLAR EKRANI
@@ -1420,6 +1433,8 @@ class _NotificationsPage extends ConsumerWidget {
           userId: userId,
           preferences: updated,
         );
+    // Profil cache'ini güncelle ki diğer ekranlar güncel tercihleri görsün
+    ref.invalidate(currentProfileProvider);
   }
 
   @override
@@ -1455,6 +1470,8 @@ class _NotificationsPage extends ConsumerWidget {
           final prefs = <String, bool>{
             'newChapter': resolve('newChapter', true),
             'comments': resolve('comments', true),
+            'bookLike': resolve('bookLike', true),
+            'reviews': resolve('reviews', true),
             'promotions': resolve('promotions', false),
             'weeklyDigest': resolve('weeklyDigest', true),
           };
@@ -1462,6 +1479,8 @@ class _NotificationsPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
+              const _SystemNotificationPermissionCard(),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -1470,7 +1489,7 @@ class _NotificationsPage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.notifications_active_outlined,
+                    Icon(Icons.tune_rounded,
                         color: AppColors.primary, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1501,6 +1520,20 @@ class _NotificationsPage extends ConsumerWidget {
                 onChanged: (v) => _toggle(ref, prefs, 'comments', v),
               ),
               _NotificationTile(
+                icon: Icons.favorite_rounded,
+                title: 'Beğeniler',
+                subtitle: 'Kitapların beğenildiğinde',
+                value: prefs['bookLike'] ?? true,
+                onChanged: (v) => _toggle(ref, prefs, 'bookLike', v),
+              ),
+              _NotificationTile(
+                icon: Icons.star_rounded,
+                title: 'Değerlendirmeler',
+                subtitle: 'Kitaplarına puan veya inceleme eklendiğinde',
+                value: prefs['reviews'] ?? true,
+                onChanged: (v) => _toggle(ref, prefs, 'reviews', v),
+              ),
+              _NotificationTile(
                 icon: Icons.local_offer_outlined,
                 title: 'Promosyonlar',
                 subtitle: 'Kampanya ve indirimlerden haberdar ol',
@@ -1517,6 +1550,189 @@ class _NotificationsPage extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Sistem (cihaz) bildirim izni kartı: durum + izin ver / ayarlara git.
+class _SystemNotificationPermissionCard extends ConsumerWidget {
+  const _SystemNotificationPermissionCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(notificationPermissionStatusProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return statusAsync.when(
+      loading: () => _permissionCard(
+        context,
+        isDark: isDark,
+        icon: Icons.notifications_outlined,
+        iconColor: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+        title: 'Bildirim izni kontrol ediliyor...',
+        body: null,
+        actions: const [],
+      ),
+      error: (_, __) => _permissionCard(
+        context,
+        isDark: isDark,
+        icon: Icons.notifications_off_outlined,
+        iconColor: AppColors.warning,
+        title: 'Bildirim izni bilinemedi',
+        body: 'Cihaz ayarlarından bildirimlere izin verebilirsiniz.',
+        actions: [
+          _PermissionButton(
+            label: 'Ayarlara git',
+            onPressed: () async {
+              await NotificationPermissionService.openSettings();
+              ref.invalidate(notificationPermissionStatusProvider);
+            },
+          ),
+        ],
+      ),
+      data: (status) {
+        if (status.isGranted) {
+          return _permissionCard(
+            context,
+            isDark: isDark,
+            icon: Icons.notifications_active_rounded,
+            iconColor: AppColors.success,
+            title: 'Bildirimler açık',
+            body: 'Bu cihazda bildirim alacaksınız.',
+            actions: const [],
+          );
+        }
+        final isPermanentlyDenied = status.isPermanentlyDenied;
+        return _permissionCard(
+          context,
+          isDark: isDark,
+          icon: Icons.notifications_off_rounded,
+          iconColor: isPermanentlyDenied ? AppColors.warning : AppColors.primary,
+          title: isPermanentlyDenied
+              ? 'Bildirimler kapalı'
+              : 'Bildirimlere izin verin',
+          body: isPermanentlyDenied
+              ? 'Bildirim almak için uygulama ayarlarından izin açın.'
+              : 'Yeni bölüm, beğeni ve yorum gibi bildirimleri almak için izin verin.',
+          actions: [
+            if (isPermanentlyDenied)
+              _PermissionButton(
+                label: 'Ayarlara git',
+                onPressed: () async {
+                  await NotificationPermissionService.openSettings();
+                  ref.invalidate(notificationPermissionStatusProvider);
+                },
+              )
+            else
+              _PermissionButton(
+                label: 'İzin ver',
+                onPressed: () async {
+                  await NotificationPermissionService.request();
+                  ref.invalidate(notificationPermissionStatusProvider);
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _permissionCard(
+    BuildContext context, {
+    required bool isDark,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? body,
+    required List<Widget> actions,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (body != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        body,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: actions,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionButton extends StatelessWidget {
+  const _PermissionButton({
+    required this.label,
+    required this.onPressed,
+  });
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.settings_rounded, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       ),
     );
   }

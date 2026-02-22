@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../constants/app_colors.dart';
 import '../data/book_repository.dart';
+import '../data/reading_progress_repository.dart';
 import '../../studio/data/chapter_repository.dart';
 import '../domain/chapter.dart';
 
@@ -79,11 +80,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
 
       if (mounted) {
+        final savedIndex = await ref.read(readingProgressRepositoryProvider).getChapterIndex(widget.bookId);
+        final initialIndex = widget.initialChapterIndex > 0
+            ? widget.initialChapterIndex
+            : savedIndex;
         setState(() {
           _bookTitle = book?.title ?? 'Kitap';
           _chapters = chapters;
-          _currentIndex = widget.initialChapterIndex.clamp(0,
-              chapters.isEmpty ? 0 : chapters.length - 1);
+          _currentIndex = initialIndex.clamp(0, chapters.isEmpty ? 0 : chapters.length - 1);
           _isLoading = false;
         });
       }
@@ -100,10 +104,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _goToPage(int index) {
     if (index < 0 || index >= _chapters.length) return;
     setState(() => _currentIndex = index);
+    ref.read(readingProgressRepositoryProvider).saveProgress(widget.bookId, index);
   }
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
+  }
+
+  @override
+  void dispose() {
+    ref.read(readingProgressRepositoryProvider).saveProgress(widget.bookId, _currentIndex);
+    super.dispose();
   }
 
   @override

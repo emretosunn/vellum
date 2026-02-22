@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 
+import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
+import '../data/book_like_repository.dart';
 import '../data/book_repository.dart';
 import '../domain/book.dart';
 
@@ -52,13 +54,35 @@ class AuthorProfileScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 20),
 
-                      // İstatistikler
+                      // İstatistikler (kitap sayısı, toplam beğeni, üyelik)
                       booksAsync.whenOrNull(
-                            data: (books) => _StatsRow(
-                              bookCount: books.length,
-                              isDark: isDark,
-                              theme: theme,
-                              memberSince: author.createdAt,
+                            data: (books) => Consumer(
+                              builder: (context, ref, _) {
+                                final totalLikesAsync = ref.watch(authorTotalLikesProvider(authorId));
+                                return totalLikesAsync.when(
+                                  data: (totalLikes) => _StatsRow(
+                                    bookCount: books.length,
+                                    totalLikes: totalLikes,
+                                    isDark: isDark,
+                                    theme: theme,
+                                    memberSince: author.createdAt,
+                                  ),
+                                  loading: () => _StatsRow(
+                                    bookCount: books.length,
+                                    totalLikes: 0,
+                                    isDark: isDark,
+                                    theme: theme,
+                                    memberSince: author.createdAt,
+                                  ),
+                                  error: (_, __) => _StatsRow(
+                                    bookCount: books.length,
+                                    totalLikes: 0,
+                                    isDark: isDark,
+                                    theme: theme,
+                                    memberSince: author.createdAt,
+                                  ),
+                                );
+                              },
                             ),
                           ) ??
                           const SizedBox.shrink(),
@@ -397,12 +421,14 @@ class _ProfileHeaderSliver extends StatelessWidget {
 class _StatsRow extends StatelessWidget {
   const _StatsRow({
     required this.bookCount,
+    required this.totalLikes,
     required this.isDark,
     required this.theme,
     this.memberSince,
   });
 
   final int bookCount;
+  final int totalLikes;
   final bool isDark;
   final ThemeData theme;
   final DateTime? memberSince;
@@ -423,6 +449,16 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
+            icon: Icons.favorite_rounded,
+            label: 'Beğeni',
+            value: _formatCount(totalLikes),
+            isDark: isDark,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
             icon: Icons.calendar_today_rounded,
             label: 'Üyelik',
             value: _formatMemberSince(),
@@ -432,6 +468,12 @@ class _StatsRow extends StatelessWidget {
         ),
       ],
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1);
+  }
+
+  static String _formatCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
   }
 
   String _formatMemberSince() {
@@ -606,14 +648,19 @@ class _BookListItem extends StatelessWidget {
                   child: SizedBox(
                     width: 64,
                     height: 86,
-                    child: book.coverImageUrl != null
+                    child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                         ? Image.network(
                             book.coverImageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _buildCoverPlaceholder(),
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              AppAssets.defaultBookCover,
+                              fit: BoxFit.cover,
+                            ),
                           )
-                        : _buildCoverPlaceholder(),
+                        : Image.asset(
+                            AppAssets.defaultBookCover,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -781,14 +828,19 @@ class _BookGridItem extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: book.coverImageUrl != null
+                  child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                       ? Image.network(
                           book.coverImageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _buildGridCoverPlaceholder(),
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            AppAssets.defaultBookCover,
+                            fit: BoxFit.cover,
+                          ),
                         )
-                      : _buildGridCoverPlaceholder(),
+                      : Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                        ),
                 ),
               ),
 
