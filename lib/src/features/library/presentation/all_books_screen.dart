@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
@@ -52,14 +53,14 @@ class AllBooksScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Kitaplar yüklenemedi',
+                              translate('library.books_load_error'),
                               style: theme.textTheme.titleMedium,
                             ),
                             const SizedBox(height: 12),
                             FilledButton.tonal(
                               onPressed: () =>
                                   ref.invalidate(allBooksProvider),
-                              child: const Text('Tekrar dene'),
+                              child: Text(translate('common.retry')),
                             ),
                           ],
                         ),
@@ -77,7 +78,7 @@ class AllBooksScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Henüz kitap yok',
+                                  translate('library.no_books'),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
@@ -91,14 +92,16 @@ class AllBooksScreen extends ConsumerWidget {
                           itemCount: books.length,
                           itemBuilder: (context, index) {
                             final book = books[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _BookListCard(book: book)
-                                  .animate()
-                                  .fadeIn(
-                                    delay: Duration(milliseconds: index * 40),
-                                  )
-                                  .slideY(begin: 0.04),
+                            return RepaintBoundary(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _BookListCard(book: book)
+                                    .animate()
+                                    .fadeIn(
+                                      delay: Duration(milliseconds: index * 40),
+                                    )
+                                    .slideY(begin: 0.04),
+                              ),
                             );
                           },
                         );
@@ -156,7 +159,7 @@ class AllBooksScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Yeni Eklenenler',
+                  translate('library.new_additions'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -264,7 +267,7 @@ class _BookListCard extends ConsumerWidget {
                   Text(
                     book.summary.isNotEmpty
                         ? book.summary
-                        : 'Açıklama yok',
+                        : translate('library.no_description'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -286,8 +289,8 @@ class _BookListCard extends ConsumerWidget {
                         ),
                         child: Text(
                           book.status == BookStatus.published
-                              ? 'Yayında'
-                              : 'Taslak',
+                              ? translate('library.published')
+                              : translate('library.draft'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -299,7 +302,7 @@ class _BookListCard extends ConsumerWidget {
                       ),
                       const Spacer(),
                       Text(
-                        'Oku',
+                        translate('library.read'),
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,

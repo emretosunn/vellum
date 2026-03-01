@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/data/auth_repository.dart';
+import '../../studio/data/chapter_repository.dart';
 import 'book_repository.dart';
+import 'read_books_repository.dart';
 import '../domain/book.dart';
 
 /// Yarıda bırakılan okuma: kitap ID + bölüm indeksi (cihazda saklanır).
@@ -89,6 +92,13 @@ class ReadingProgressRepository {
   Future<List<ReadingProgressEntry>> getContinueReadingEntries() async {
     return _parseList();
   }
+
+  /// Kitabı listeden kaldır (bitirildiğinde "Devam Et"ten çıkar).
+  Future<void> removeBook(String bookId) async {
+    var list = await _parseList();
+    list.removeWhere((e) => e.bookId == bookId);
+    await _saveList(list);
+  }
 }
 
 final readingProgressRepositoryProvider = Provider<ReadingProgressRepository>((ref) {
@@ -101,15 +111,49 @@ final continueReadingEntriesProvider = FutureProvider.autoDispose<List<ReadingPr
   return repo.getContinueReadingEntries();
 });
 
-/// Devam edilecek kitaplar (Book + bölüm indeksi). Sadece yayında olan kitaplar döner.
+/// Devam edilecek kitaplar (Book + bölüm indeksi). Sadece yayında olan ve henüz bitirilmemiş kitaplar döner.
+/// Son bölüme ulaşılmış kitaplar otomatik tamamlanır ve "Devam Et"ten kaldırılır.
 final continueReadingBooksProvider = FutureProvider.autoDispose<List<({Book book, int chapterIndex})>>((ref) async {
   final entries = await ref.watch(continueReadingEntriesProvider.future);
   if (entries.isEmpty) return [];
+
+  final bookIds = entries.map((e) => e.bookId).toSet().toList();
   final bookRepo = ref.read(bookRepositoryProvider);
-  final books = await bookRepo.getBooksByIds(entries.map((e) => e.bookId).toList());
+  final chapterRepo = ref.read(chapterRepositoryProvider);
+  final progressRepo = ref.read(readingProgressRepositoryProvider);
+
+  final books = await bookRepo.getBooksByIds(bookIds);
   final byId = {for (final b in books) b.id: b};
+  final chapterCounts = await chapterRepo.getChapterCountsByBookIds(bookIds);
+
+  // Tamamlanmış kitapları filtrele (Supabase user_read_books)
+  final authRepo = ref.read(authRepositoryProvider);
+  final userId = authRepo.currentUser?.id;
+  Set<String> completedIds = {};
+  if (userId != null) {
+    final readRepo = ref.read(readBooksRepositoryProvider);
+    completedIds = (await readRepo.getCompletedBookIds(userId)).toSet();
+  }
+
+  // Son bölüme ulaşılmış ama "Bitir" tıklanmamış kitapları otomatik tamamla
+  if (userId != null) {
+    final readRepo = ref.read(readBooksRepositoryProvider);
+    for (final e in entries) {
+      if (completedIds.contains(e.bookId)) continue;
+      final count = chapterCounts[e.bookId] ?? 0;
+      if (count > 0 && e.chapterIndex >= count - 1) {
+        await readRepo.markBookAsCompleted(userId: userId, bookId: e.bookId);
+        await progressRepo.removeBook(e.bookId);
+        completedIds.add(e.bookId);
+        ref.invalidate(completedBooksProvider(userId));
+        ref.invalidate(continueReadingEntriesProvider);
+      }
+    }
+  }
+
   final result = <({Book book, int chapterIndex})>[];
   for (final e in entries) {
+    if (completedIds.contains(e.bookId)) continue;
     final book = byId[e.bookId];
     if (book != null && book.status == BookStatus.published) {
       result.add((book: book, chapterIndex: e.chapterIndex));

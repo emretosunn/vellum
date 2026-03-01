@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
+import '../../../services/in_app_update_service.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_like_repository.dart';
 import '../../library/data/book_repository.dart';
@@ -37,6 +38,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
+          const Positioned(left: 0, top: 0, right: 0, bottom: 0, child: InAppUpdateTrigger()),
           SafeArea(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -49,9 +51,10 @@ class HomeScreen extends ConsumerWidget {
                 ref.invalidate(continueReadingBooksProvider);
                 ref.invalidate(likedBooksProvider);
               },
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
+              child: ClipRect(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
                   // ─── Zaman selamı + Avatar + Bildirim ─────────────────
                   SliverToBoxAdapter(
                     child: Padding(
@@ -470,6 +473,7 @@ class HomeScreen extends ConsumerWidget {
             ),
                 ],
               ),
+            ),
             ),
           ),
           // Hafif grain dokusu (parşömen hissi)

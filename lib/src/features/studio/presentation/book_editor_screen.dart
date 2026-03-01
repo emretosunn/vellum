@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../library/data/book_repository.dart';
@@ -193,8 +194,8 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
 
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kaydedildi ✓'),
+          SnackBar(
+            content: Text(translate('studio.saved')),
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 1),
           ),
@@ -224,7 +225,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Sayfayı Sil'),
+        title: Text(translate('studio.delete_page_title')),
         content: Text(
           '"${_chapters[index].title}" silinecek. Bu işlem geri alınamaz.',
           style: theme.textTheme.bodyMedium,
@@ -288,7 +289,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Kitabı Yayınla'),
+        title: Text(translate('studio.publish_title')),
         content: const Text(
           'Kitabınız yayınlandığında herkes görebilir ve okuyabilir.\n'
           'Devam etmek istiyor musunuz?',
@@ -397,7 +398,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Yükleniyor...',
+                translate('common.loading'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -518,13 +519,13 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                                           ),
                                         ],
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                                          SizedBox(width: 6),
+                                          const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                                          const SizedBox(width: 6),
                                           Text(
-                                            'Yeni',
+                                            translate('studio.new'),
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.w700,
@@ -540,7 +541,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                                 IconButton(
                                   onPressed: () => setState(() => _isSidebarOpen = false),
                                   icon: const Icon(Icons.close_rounded, size: 22),
-                                  tooltip: 'Kapat',
+                                  tooltip: translate('studio.close_tooltip'),
                                   style: IconButton.styleFrom(
                                     backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
                                   ),
@@ -756,7 +757,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                 _isSidebarOpen ? Icons.menu_open_rounded : Icons.menu_book_rounded,
                 size: 24,
               ),
-              tooltip: 'Sayfalar',
+              tooltip: translate('studio.pages_tooltip'),
               style: IconButton.styleFrom(
                 backgroundColor: _isSidebarOpen
                     ? AppColors.primary.withValues(alpha: 0.2)
@@ -777,7 +778,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
               IconButton(
                 onPressed: () => _saveCurrentPage(),
                 icon: const Icon(Icons.save_rounded, size: 22),
-                tooltip: 'Kaydet',
+                tooltip: translate('studio.save_tooltip'),
                 style: IconButton.styleFrom(
                   backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
                 ),
@@ -831,7 +832,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            isPublished ? 'Taslağa Al' : 'Yayınla',
+                            isPublished ? translate('studio.move_to_draft') : translate('studio.publish'),
                             style: theme.textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: isPublished ? AppColors.primary : Colors.white,

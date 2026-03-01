@@ -11,6 +11,7 @@ class BookReport {
     this.readByUserId,
     this.bookTitle,
     this.reporterUsername,
+    this.authorId,
   });
 
   final String id;
@@ -23,6 +24,8 @@ class BookReport {
   final String? readByUserId;
   final String? bookTitle;
   final String? reporterUsername;
+  /// Kitabın yazarı (books.author_id) — yazara uyarı göndermek için.
+  final String? authorId;
 
   factory BookReport.fromJson(Map<String, dynamic> json) {
     return BookReport(

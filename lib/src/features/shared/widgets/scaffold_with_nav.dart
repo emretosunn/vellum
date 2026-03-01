@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
@@ -18,26 +19,26 @@ class ScaffoldWithNav extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  static const _destinations = <_NavDestination>[
+  static List<_NavDestination> _getDestinations(BuildContext context) => [
     _NavDestination(
       icon: Icons.home_outlined,
       selectedIcon: Icons.home_rounded,
-      label: 'Ana Sayfa',
+      label: translate('nav.home'),
     ),
     _NavDestination(
       icon: Icons.edit_note_outlined,
       selectedIcon: Icons.edit_note_rounded,
-      label: 'Stüdyo',
+      label: translate('nav.studio'),
     ),
     _NavDestination(
       icon: Icons.workspace_premium_outlined,
       selectedIcon: Icons.workspace_premium_rounded,
-      label: 'Abonelik',
+      label: translate('nav.subscription'),
     ),
     _NavDestination(
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings_rounded,
-      label: 'Ayarlar',
+      label: translate('nav.settings'),
     ),
   ];
 
@@ -59,7 +60,7 @@ class ScaffoldWithNav extends StatelessWidget {
         body: navigationShell,
         bottomNavigationBar: _GlassBottomNav(
           currentIndex: currentIndex,
-          destinations: _destinations,
+          destinations: _getDestinations(context),
           onTap: _onDestinationSelected,
         ),
       );
@@ -71,7 +72,7 @@ class ScaffoldWithNav extends StatelessWidget {
         children: [
           _PremiumSidebar(
             currentIndex: currentIndex,
-            destinations: _destinations,
+            destinations: _getDestinations(context),
             onTap: _onDestinationSelected,
             isExpanded: context.isDesktop,
           ),
@@ -180,7 +181,7 @@ class _PremiumSidebar extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Vellum v1.0',
+                                  translate('common.app_name'),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark
@@ -293,8 +294,8 @@ class _SidebarLogo extends StatelessWidget {
                   AppColors.primaryLight,
                 ],
               ).createShader(bounds),
-              child: const Text(
-                'Vellum',
+              child: Text(
+                translate('common.app_name'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,

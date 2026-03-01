@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,9 +12,12 @@ import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
 import '../data/image_upload_service.dart';
 
-/// Yeni kitap oluşturma sayfası (kapak resmi + başlık + özet).
+/// Yeni kitap oluşturma / düzenleme sayfası (kapak resmi + başlık + özet).
 class CreateBookScreen extends ConsumerStatefulWidget {
-  const CreateBookScreen({super.key});
+  const CreateBookScreen({super.key, this.initialBook});
+
+  /// Düzenleme modunda doldurulacak mevcut kitap.
+  final Book? initialBook;
 
   @override
   ConsumerState<CreateBookScreen> createState() => _CreateBookScreenState();
@@ -30,6 +34,21 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
   String? _selectedCategory;
   bool _isAdult18 = false;
   final Set<String> _contentWarnings = {};
+
+  bool get _isEditMode => widget.initialBook != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final book = widget.initialBook;
+    if (book != null) {
+      _titleController.text = book.title;
+      _summaryController.text = book.summary;
+      _selectedCategory = book.category;
+      _isAdult18 = book.isAdult18;
+      _contentWarnings.addAll(book.contentWarnings);
+    }
+  }
 
   Future<void> _pickCoverImage() async {
     final service = ref.read(imageUploadServiceProvider);
@@ -62,33 +81,58 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
       // Kapak resmi yükleme
       if (_pickedImage != null) {
-        // Geçici bir ID ile yükleme yapacağız, sonra bookId ile tekrar yükleriz
+        final coverBookId = _isEditMode
+            ? widget.initialBook!.id
+            : DateTime.now().millisecondsSinceEpoch.toString();
         coverUrl = await ref.read(imageUploadServiceProvider).uploadCoverImage(
               userId: profile.id,
-              bookId: DateTime.now().millisecondsSinceEpoch.toString(),
+              bookId: coverBookId,
               file: _pickedImage!,
             );
       }
 
-      await ref.read(bookRepositoryProvider).createBook(
-            authorId: profile.id,
-            title: title,
-            summary: _summaryController.text.trim(),
-            coverImageUrl: coverUrl,
-            category: _selectedCategory,
-            isAdult18: _isAdult18,
-            contentWarnings: _contentWarnings.toList(),
+      if (_isEditMode) {
+        await ref.read(bookRepositoryProvider).updateBook(
+              bookId: widget.initialBook!.id,
+              title: title,
+              summary: _summaryController.text.trim(),
+              coverImageUrl: coverUrl,
+              category: _selectedCategory,
+              isAdult18: _isAdult18,
+              contentWarnings: _contentWarnings.toList(),
+            );
+
+        ref.invalidate(myBooksProvider);
+        ref.invalidate(publishedBooksProvider);
+        ref.invalidate(searchedBooksProvider);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kitap güncellendi ✓')),
           );
+          Navigator.pop(context);
+        }
+      } else {
+        await ref.read(bookRepositoryProvider).createBook(
+              authorId: profile.id,
+              title: title,
+              summary: _summaryController.text.trim(),
+              coverImageUrl: coverUrl,
+              category: _selectedCategory,
+              isAdult18: _isAdult18,
+              contentWarnings: _contentWarnings.toList(),
+            );
 
-      ref.invalidate(myBooksProvider);
-      ref.invalidate(publishedBooksProvider);
-      ref.invalidate(searchedBooksProvider);
+        ref.invalidate(myBooksProvider);
+        ref.invalidate(publishedBooksProvider);
+        ref.invalidate(searchedBooksProvider);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Kitap oluşturuldu ✓')),
-        );
-        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kitap oluşturuldu ✓')),
+          );
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -214,7 +258,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Yeni Kitap Oluştur',
+                  _isEditMode ? 'Kitabı Düzenle' : 'Yeni Kitap Oluştur',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -263,14 +307,14 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
+                      const Icon(Icons.check_rounded, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
                       Text(
-                        'Oluştur',
-                        style: TextStyle(
+                        _isEditMode ? 'Kaydet' : 'Oluştur',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -301,6 +345,11 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     ThemeData theme,
     bool isDark,
   ) {
+    final existingCoverUrl =
+        (widget.initialBook?.coverImageUrl != null && widget.initialBook!.coverImageUrl!.isNotEmpty)
+            ? widget.initialBook!.coverImageUrl
+            : null;
+
     return Center(
       child: GestureDetector(
         onTap: _pickCoverImage,
@@ -348,9 +397,14 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                     image: MemoryImage(_pickedImageBytes!),
                     fit: BoxFit.cover,
                   )
-                : null,
+                : existingCoverUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(existingCoverUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
           ),
-          child: _pickedImageBytes == null
+          child: _pickedImageBytes == null && existingCoverUrl == null
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -466,7 +520,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _showCategoryBottomSheet(context, theme),
+        onTap: () => _showCategoryDialog(context, theme),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
@@ -520,77 +574,147 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     );
   }
 
-  void _showCategoryBottomSheet(BuildContext context, ThemeData theme) {
-    showModalBottomSheet<void>(
+  void _showCategoryDialog(BuildContext context, ThemeData theme) {
+    showDialog<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (ctx) {
+        final size = MediaQuery.sizeOf(ctx);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 420,
+                maxHeight: size.height * 0.6,
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Kategori seçin',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...[
-              null,
-              ...bookCategories,
-            ].map((c) {
-              final selected = _selectedCategory == c;
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() => _selectedCategory = c);
-                    Navigator.pop(ctx);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      children: [
-                        Icon(
-                          selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                          size: 22,
-                          color: selected ? AppColors.primary : theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          c ?? 'Seçiniz',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: selected ? FontWeight.w600 : null,
-                            color: selected ? AppColors.primary : null,
-                          ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.08),
+                          Colors.white.withValues(alpha: 0.02),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
                         ),
                       ],
                     ),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Kategori seçin',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ...[
+                                    null,
+                                    ...bookCategories,
+                                  ].map((c) {
+                                    final selected =
+                                        _selectedCategory == c;
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(
+                                              () => _selectedCategory = c);
+                                          Navigator.of(ctx).pop();
+                                        },
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                selected
+                                                    ? Icons
+                                                        .check_circle_rounded
+                                                    : Icons.circle_outlined,
+                                                size: 22,
+                                                color: selected
+                                                    ? AppColors.primary
+                                                    : Colors.white.withValues(
+                                                        alpha: 0.7),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                c ?? 'Seçiniz',
+                                                style: theme
+                                                    .textTheme.bodyLarge
+                                                    ?.copyWith(
+                                                  fontWeight: selected
+                                                      ? FontWeight.w600
+                                                      : null,
+                                                  color: Colors.white
+                                                      .withValues(
+                                                    alpha:
+                                                        selected ? 1.0 : 0.9,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

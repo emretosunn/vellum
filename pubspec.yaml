@@ -2,13 +2,15 @@ name: vellum
 description: "Vellum - Digital Publishing Platform by Vexorabyte"
 publish_to: 'none'
 
-version: 0.2.0+2
+version: 0.2.8+6
 
 environment:
   sdk: ^3.9.2
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
@@ -43,6 +45,15 @@ dependencies:
   shared_preferences: ^2.5.4
   package_info_plus: ^8.0.0
   permission_handler: ^11.3.1
+
+  # Çeviri / yerelleştirme
+  flutter_translate: ^3.1.0
+
+  # Uygulama içi satın alma (Google Play)
+  in_app_purchase: ^3.2.0
+
+  # Uygulama içi güncelleme (Android, Google Play)
+  in_app_update: ^4.2.5
 
 dev_dependencies:
   flutter_test:
@@ -83,3 +94,4 @@ flutter:
   assets:
     - assets/icon/
     - assets/image/
+    - assets/i18n/

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
@@ -126,7 +127,7 @@ class BookDetailScreen extends ConsumerWidget {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                'Bölümler',
+                                translate('library.chapters'),
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -174,10 +175,10 @@ class BookDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    error: (_, __) => const SliverToBoxAdapter(
+                    error: (_, __) => SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('Bölümler yüklenemedi'),
+                        padding: const EdgeInsets.all(16),
+                        child: Text(translate('library.chapters_load_error')),
                       ),
                     ),
                     data: (chapters) {
@@ -199,7 +200,8 @@ class BookDetailScreen extends ConsumerWidget {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
                               final chapter = chapters[index];
-                              return _ChapterCard(
+                              return RepaintBoundary(
+                                child: _ChapterCard(
                                 chapter: chapter,
                                 index: index,
                                 bookId: book.id,
@@ -215,9 +217,11 @@ class BookDetailScreen extends ConsumerWidget {
                                   .slideX(
                                     begin: 0.03,
                                     curve: Curves.easeOutCubic,
-                                  );
+                                  ),
+                              );
                             },
                             childCount: chapters.length,
+                            addRepaintBoundaries: true,
                           ),
                         ),
                       );
@@ -300,11 +304,11 @@ class BookDetailScreen extends ConsumerWidget {
         children: [
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           const SizedBox(height: 16),
-          Text('Kitap bulunamadı', style: theme.textTheme.titleMedium),
+          Text(translate('library.book_not_found'), style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: () => context.pop(),
-            child: const Text('Geri Dön'),
+            child: Text(translate('common.back')),
           ),
         ],
       ),
@@ -466,7 +470,7 @@ class _HeroCoverSliver extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8),
             child: IconButton(
               icon: const Icon(Icons.flag_outlined, color: Colors.white),
-              tooltip: 'Şikayet et',
+              tooltip: translate('library.complaint'),
               onPressed: onReport,
             ),
           ),

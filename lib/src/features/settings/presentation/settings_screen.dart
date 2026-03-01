@@ -2,20 +2,25 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../config/theme_preferences.dart';
+import '../../../localization/translate_preferences.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../services/notification_permission_service.dart';
 import '../../library/data/book_report_repository.dart';
+import '../../library/data/book_repository.dart';
 import '../../library/domain/book_report.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import '../../../config/version.dart';
 
 // ─── Providers ───────────────────────────────────────
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+/// Başlangıç teması her zaman açık (beyaz) ekran; kullanıcı Ayarlar'dan değiştirebilir.
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
 /// Bildirim tercihleri için geçici (sadece oturum içi) state.
 /// Gerçek kaynak Supabase'deki `profiles.notification_preferences`.
@@ -24,6 +29,10 @@ final notificationSettingsProvider =
     StateProvider<Map<String, bool>>((ref) => {});
 
 final fontSizeProvider = StateProvider<String>((ref) => 'Orta');
+
+/// "Sistem dili" seçili mi? Dil ayarları sayfasından dönünce yenilenir.
+final useSystemLocaleProvider =
+    FutureProvider<bool>((ref) => VellumTranslatePreferences.getUseSystemLocale());
 
 /// Sistem bildirim izni durumu (yenilemek için invalidate edin).
 /// Web/desktop gibi izin API'si olmayan platformlarda [PermissionStatus.granted] kabul edilir.
@@ -57,7 +66,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
             Text(
-              'Ayarlar',
+              translate('settings.title'),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -67,7 +76,7 @@ class SettingsScreen extends ConsumerWidget {
             // ─── Profil Kartı ────────────────────────
             profileAsync.when(
               data: (profile) => _ProfileCard(
-                username: profile?.username ?? 'Kullanıcı',
+                username: profile?.username ?? translate('settings.user'),
                 email:
                     ref.read(authRepositoryProvider).currentUser?.email ?? '',
                 avatarUrl: profile?.avatarUrl,
@@ -91,14 +100,14 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 28),
 
             // ─── Hesap ──────────────────────────────
-            _SectionTitle(title: 'Hesap'),
+            _SectionTitle(title: translate('settings.account')),
             const SizedBox(height: 8),
             _SettingsGroup(
               isDark: isDark,
               items: [
                 _SettingsTile(
                   icon: Icons.person_outline_rounded,
-                  label: 'Profil Bilgileri',
+                  label: translate('settings.profile_info'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -110,7 +119,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.lock_outline_rounded,
-                  label: 'Güvenlik',
+                  label: translate('settings.security'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const _SecurityPage()),
@@ -118,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.notifications_none_rounded,
-                  label: 'Bildirimler',
+                  label: translate('settings.notifications'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -131,14 +140,14 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // ─── Görünüm ────────────────────────────
-            _SectionTitle(title: 'Görünüm'),
+            _SectionTitle(title: translate('settings.appearance')),
             const SizedBox(height: 8),
             _SettingsGroup(
               isDark: isDark,
               items: [
                 _SettingsTile(
                   icon: Icons.palette_outlined,
-                  label: 'Tema',
+                  label: translate('settings.theme'),
                   showChevron: false,
                   trailing: Container(
                     decoration: BoxDecoration(
@@ -152,19 +161,27 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         _ThemeChip(
                           icon: Icons.light_mode_rounded,
-                          label: 'Aydınlık',
+                          label: translate('settings.light'),
                           isSelected: themeMode == ThemeMode.light,
-                          onTap: () => ref
-                              .read(themeModeProvider.notifier)
-                              .state = ThemeMode.light,
+                          onTap: () async {
+                            await saveThemeMode(ThemeMode.light);
+                            if (context.mounted) {
+                              ref.read(themeModeProvider.notifier).state =
+                                  ThemeMode.light;
+                            }
+                          },
                         ),
                         _ThemeChip(
                           icon: Icons.dark_mode_rounded,
-                          label: 'Karanlık',
+                          label: translate('settings.dark'),
                           isSelected: themeMode == ThemeMode.dark,
-                          onTap: () => ref
-                              .read(themeModeProvider.notifier)
-                              .state = ThemeMode.dark,
+                          onTap: () async {
+                            await saveThemeMode(ThemeMode.dark);
+                            if (context.mounted) {
+                              ref.read(themeModeProvider.notifier).state =
+                                  ThemeMode.dark;
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -172,16 +189,30 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.language_rounded,
-                  label: 'Dil',
-                  subtitle: 'Türkçe',
+                  label: translate('settings.language'),
+                  subtitle: ref.watch(useSystemLocaleProvider).when(
+                        data: (useSystem) {
+                          if (useSystem) {
+                            return translate('settings.language_system');
+                          }
+                          final locale =
+                              LocalizedApp.of(context).delegate.currentLocale;
+                          return locale.languageCode == 'tr'
+                              ? translate('settings.language_turkish')
+                              : translate('settings.language_english');
+                        },
+                        loading: () => translate('settings.language_turkish'),
+                        error: (_, __) =>
+                            translate('settings.language_turkish'),
+                      ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const _LanguagePage()),
-                  ),
+                  ).then((_) => ref.invalidate(useSystemLocaleProvider)),
                 ),
                 _SettingsTile(
                   icon: Icons.text_fields_rounded,
-                  label: 'Font Boyutu',
+                  label: translate('settings.font_size'),
                   subtitle: ref.watch(fontSizeProvider),
                   onTap: () => Navigator.push(
                     context,
@@ -195,15 +226,15 @@ class SettingsScreen extends ConsumerWidget {
 
             // ─── Geliştirici (sadece is_developer kullanıcılar) ───
             if (profileAsync.valueOrNull?.isDeveloper == true) ...[
-              _SectionTitle(title: 'Geliştirici'),
+              _SectionTitle(title: translate('settings.developer')),
               const SizedBox(height: 8),
               _SettingsGroup(
                 isDark: isDark,
                 items: [
                   _SettingsTile(
                     icon: Icons.flag_outlined,
-                    label: 'Kitap şikayetleri',
-                    subtitle: 'Şikayetleri görüntüle ve okundu işaretle',
+                    label: translate('settings.book_reports'),
+                    subtitle: translate('settings.book_reports_subtitle'),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -217,14 +248,14 @@ class SettingsScreen extends ConsumerWidget {
             ],
 
             // ─── Hakkında ────────────────────────────
-            _SectionTitle(title: 'Hakkında'),
+            _SectionTitle(title: translate('settings.about')),
             const SizedBox(height: 8),
             _SettingsGroup(
               isDark: isDark,
               items: [
                 _SettingsTile(
                   icon: Icons.help_outline_rounded,
-                  label: 'Yardım & SSS',
+                  label: translate('settings.help_faq'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const _HelpPage()),
@@ -232,12 +263,12 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.description_outlined,
-                  label: 'Kullanım Şartları',
+                  label: translate('settings.terms'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const _LegalPage(
-                        title: 'Kullanım Şartları',
+                      builder: (_) => _LegalPage(
+                        title: translate('settings.terms'),
                         content: _termsText,
                       ),
                     ),
@@ -245,12 +276,12 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.privacy_tip_outlined,
-                  label: 'Gizlilik Politikası',
+                  label: translate('settings.privacy'),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const _LegalPage(
-                        title: 'Gizlilik Politikası',
+                      builder: (_) => _LegalPage(
+                        title: translate('settings.privacy'),
                         content: _privacyText,
                       ),
                     ),
@@ -258,11 +289,11 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsTile(
                   icon: Icons.info_outline_rounded,
-                  label: 'Uygulama Sürümü',
+                  label: translate('settings.version'),
                   subtitle: appVersionAsync.when(
                     data: (v) => 'v$v',
-                    loading: () => 'Yükleniyor...',
-                    error: (_, __) => 'Bilinmiyor',
+                    loading: () => translate('common.loading'),
+                    error: (_, __) => translate('common.unknown'),
                   ),
                   showChevron: false,
                 ),
@@ -280,20 +311,20 @@ class SettingsScreen extends ConsumerWidget {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Çıkış Yap'),
-                      content: const Text(
-                          'Hesabınızdan çıkış yapmak istediğinize emin misiniz?'),
+                      title: Text(translate('settings.logout')),
+                      content: Text(
+                          translate('settings.logout_confirm')),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('İptal'),
+                          child: Text(translate('common.cancel')),
                         ),
                         FilledButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.error,
                           ),
-                          child: const Text('Çıkış Yap'),
+                          child: Text(translate('settings.logout')),
                         ),
                       ],
                     ),
@@ -311,8 +342,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text(
-                  'Çıkış Yap',
+                label: Text(
+                  translate('settings.logout'),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -545,7 +576,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
+            child: Text(translate('common.cancel')),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -1822,97 +1853,146 @@ class _LanguagePage extends StatefulWidget {
 }
 
 class _LanguagePageState extends State<_LanguagePage> {
-  static const _languages = [
-    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
-    {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
-    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-    {'code': 'fr', 'name': 'Français', 'flag': '🇫🇷'},
-    {'code': 'ar', 'name': 'العربية', 'flag': '🇸🇦'},
+  static const List<Map<String, String>> _languages = [
+    {'code': 'system', 'nameKey': 'settings.language_system', 'flag': '🌐'},
+    {'code': 'tr', 'nameKey': 'settings.language_turkish', 'flag': '🇹🇷'},
+    {'code': 'en', 'nameKey': 'settings.language_english', 'flag': '🇬🇧'},
   ];
 
-  String _selected = 'tr';
+  String? _selected;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final delegate = LocalizedApp.of(context).delegate;
+      _loadCurrentSelection(delegate);
+    });
+  }
+
+  Future<void> _loadCurrentSelection(LocalizationDelegate delegate) async {
+    final useSystem =
+        await VellumTranslatePreferences.getUseSystemLocale();
+    if (!mounted) return;
+    final locale = delegate.currentLocale;
+    setState(() {
+      _selected = useSystem ? 'system' : locale.languageCode;
+      _loading = false;
+    });
+  }
+
+  Future<void> _apply() async {
+    if (_selected == null) return;
+    final code = _selected!;
+    final delegate = LocalizedApp.of(context).delegate;
+    final state = LocalizationProvider.of(context).state;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    if (code == 'system') {
+      await VellumTranslatePreferences.setUseSystemLocale(true);
+      final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
+      final langCode = deviceLocale.languageCode;
+      final supported = langCode == 'tr' || langCode == 'en';
+      await delegate.changeLocale(
+          localeFromString(supported ? langCode : 'tr'));
+      state.onLocaleChanged();
+    } else {
+      await delegate.changeLocale(localeFromString(code));
+      state.onLocaleChanged();
+    }
+    if (!mounted) return;
+    final name = code == 'system'
+        ? translate('settings.language_system')
+        : code == 'tr'
+            ? translate('settings.language_turkish')
+            : translate('settings.language_english');
+    navigator.pop();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(translate('settings.language_set', args: {'name': name})),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final selected = _selected ?? 'tr';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dil Seçimi'),
+        title: Text(translate('settings.language_choice')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton(
-              onPressed: () {
-                final langName = _languages
-                    .firstWhere((l) => l['code'] == _selected)['name'];
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Dil ayarlandı: $langName'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              child: const Text('Uygula'),
+              onPressed: _loading ? null : _apply,
+              child: Text(translate('settings.apply')),
             ),
           ),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(24),
-        itemCount: _languages.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final lang = _languages[index];
-          final isSelected = lang['code'] == _selected;
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.separated(
+              padding: const EdgeInsets.all(24),
+              itemCount: _languages.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final lang = _languages[index];
+                final isSelected = lang['code'] == selected;
 
-          return InkWell(
-            onTap: () => setState(() => _selected = lang['code']!),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : Colors.black.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.4)
-                      : isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.06),
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Text(lang['flag']!,
-                      style: const TextStyle(fontSize: 28)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      lang['name']!,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
-                        color: isSelected ? AppColors.primary : null,
+                return InkWell(
+                  onTap: () =>
+                      setState(() => _selected = lang['code']!),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : isDark
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary.withValues(alpha: 0.4)
+                            : isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                        width: isSelected ? 1.5 : 1,
                       ),
                     ),
+                    child: Row(
+                      children: [
+                        Text(lang['flag']!,
+                            style: const TextStyle(fontSize: 28)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            translate(lang['nameKey']!),
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected ? AppColors.primary : null,
+                            ),
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle_rounded,
+                              color: AppColors.primary),
+                      ],
+                    ),
                   ),
-                  if (isSelected)
-                    const Icon(Icons.check_circle_rounded,
-                        color: AppColors.primary),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }
@@ -2592,6 +2672,111 @@ Gizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsi
 
 // ─── Geliştirici: Kitap şikayetleri sayfası ─────────
 
+Future<void> _showWarnAuthorDialog(
+  BuildContext context,
+  WidgetRef ref,
+  BookReport report,
+) async {
+  final theme = Theme.of(context);
+  final controller = TextEditingController(
+    text: '"${report.bookTitle ?? report.bookId}" hakkında alınan şikayetler nedeniyle size uyarı gönderiliyor. Lütfen içeriğinizi gözden geçirin.',
+  );
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Yazara Uyarı Gönder'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Yazar, şikayet edilen kitabın sahibine uyarı bildirimi gönderilecek. Kitap yayındaysa otomatik taslağa alınacak; yazar düzelttikten sonra tekrar yayınlayabilir.',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: controller,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Uyarı mesajı',
+              hintText: 'Yazara gönderilecek metin...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Uyarı Gönder'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true || !context.mounted) return;
+
+  await ref.read(bookReportRepositoryProvider).warnAuthor(
+        bookId: report.bookId,
+        customMessage: controller.text.trim().isEmpty ? null : controller.text.trim(),
+      );
+  ref.invalidate(bookReportsListProvider);
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Yazara uyarı gönderildi')),
+    );
+  }
+}
+
+Future<void> _showRemoveBookDialog(
+  BuildContext context,
+  WidgetRef ref,
+  BookReport report,
+) async {
+  final bookTitle = report.bookTitle ?? report.bookId;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Kitabı Kaldır'),
+      content: Text(
+        '"$bookTitle" kitabını tamamen kaldırmak istiyor musunuz? '
+        'Bu işlem geri alınamaz. Kitap ve tüm bölümleri silinecektir.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Kitabı Kaldır'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true || !context.mounted) return;
+
+  await ref.read(bookRepositoryProvider).deleteBook(report.bookId);
+  ref.invalidate(bookReportsListProvider);
+  ref.invalidate(publishedBooksProvider);
+  ref.invalidate(searchedBooksProvider);
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('"$bookTitle" kaldırıldı')),
+    );
+  }
+}
+
 class _DeveloperReportsPage extends ConsumerWidget {
   const _DeveloperReportsPage();
 
@@ -2655,6 +2840,12 @@ class _DeveloperReportsPage extends ConsumerWidget {
                       );
                   ref.invalidate(bookReportsListProvider);
                 },
+                onWarnAuthor: () async {
+                  await _showWarnAuthorDialog(context, ref, report);
+                },
+                onRemoveBook: () async {
+                  await _showRemoveBookDialog(context, ref, report);
+                },
               );
             },
           );
@@ -2670,12 +2861,16 @@ class _ReportCard extends StatelessWidget {
     required this.isDark,
     required this.currentUserId,
     required this.onMarkRead,
+    required this.onWarnAuthor,
+    required this.onRemoveBook,
   });
 
   final BookReport report;
   final bool isDark;
   final String currentUserId;
   final VoidCallback onMarkRead;
+  final VoidCallback onWarnAuthor;
+  final VoidCallback onRemoveBook;
 
   @override
   Widget build(BuildContext context) {
@@ -2706,10 +2901,14 @@ class _ReportCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Kitap ID: ${report.bookId}',
+                    report.bookTitle != null && report.bookTitle!.isNotEmpty
+                        ? report.bookTitle!
+                        : 'Kitap ID: ${report.bookId}',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (!report.isRead)
@@ -2755,6 +2954,28 @@ class _ReportCard extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onWarnAuthor,
+                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                  label: const Text('Yazara Uyarı'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange.shade700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: onRemoveBook,
+                  icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                  label: const Text('Kitabı Kaldır'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

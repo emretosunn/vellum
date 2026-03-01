@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../constants/app_colors.dart';
 import '../data/book_repository.dart';
+import '../data/read_books_repository.dart';
 import '../data/reading_progress_repository.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../studio/data/chapter_repository.dart';
 import '../domain/chapter.dart';
 
@@ -381,8 +383,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 : Align(
                                     alignment: Alignment.centerRight,
                                     child: FilledButton.icon(
-                                      onPressed: () =>
-                                          Navigator.pop(context),
+                                      onPressed: () async {
+                                        final userId = ref.read(authRepositoryProvider).currentUser?.id;
+                                        if (userId != null) {
+                                          await ref.read(readBooksRepositoryProvider).markBookAsCompleted(
+                                            userId: userId,
+                                            bookId: widget.bookId,
+                                          );
+                                          ref.invalidate(completedBooksProvider(userId));
+                                        }
+                                        await ref.read(readingProgressRepositoryProvider).removeBook(widget.bookId);
+                                        ref.invalidate(continueReadingEntriesProvider);
+                                        ref.invalidate(continueReadingBooksProvider);
+                                        if (context.mounted) Navigator.pop(context);
+                                      },
                                       icon: const Icon(Icons.check,
                                           size: 18),
                                       label: const Text('Bitir'),

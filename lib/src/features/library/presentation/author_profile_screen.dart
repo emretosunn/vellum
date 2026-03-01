@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 
 import '../../../constants/app_assets.dart';
@@ -11,7 +12,18 @@ import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../data/book_like_repository.dart';
 import '../data/book_repository.dart';
+import '../data/read_books_repository.dart';
 import '../domain/book.dart';
+
+String _t(String key, String fallback) {
+  try {
+    final t = translate(key);
+    if (t.isEmpty || t == key) return fallback;
+    return t;
+  } catch (_) {
+    return fallback;
+  }
+}
 
 class AuthorProfileScreen extends ConsumerWidget {
   const AuthorProfileScreen({super.key, required this.authorId});
@@ -21,6 +33,8 @@ class AuthorProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authorAsync = ref.watch(profileByIdProvider(authorId));
     final booksAsync = ref.watch(authorBooksProvider(authorId));
+    final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
+    final isOwnProfile = currentUserId != null && authorId == currentUserId;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -86,6 +100,12 @@ class AuthorProfileScreen extends ConsumerWidget {
                             ),
                           ) ??
                           const SizedBox.shrink(),
+
+                      // Okunan Kitaplar (sadece kendi profilde)
+                      if (isOwnProfile) ...[
+                        const SizedBox(height: 24),
+                        _ReadBooksSection(userId: authorId),
+                      ],
 
                       // Bio bölümü
                       if (author.bio.isNotEmpty) ...[
@@ -561,6 +581,147 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+// ─── Okunan Kitaplar (sadece kendi profilde) ────────
+
+class _ReadBooksSection extends ConsumerWidget {
+  const _ReadBooksSection({required this.userId});
+  final String userId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final async = ref.watch(completedBooksProvider(userId));
+
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (books) {
+        if (books.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _t('library.read_books', 'Okunan Kitaplar'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: books.length,
+                itemBuilder: (context, index) {
+                  final book = books[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < books.length - 1 ? 14 : 0,
+                    ),
+                    child: _ReadBookCard(
+                      book: book,
+                      isDark: isDark,
+                      theme: theme,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ReadBookCard extends StatelessWidget {
+  const _ReadBookCard({
+    required this.book,
+    required this.isDark,
+    required this.theme,
+  });
+  final Book book;
+  final bool isDark;
+  final ThemeData theme;
+
+  static const double _coverWidth = 100;
+  static const double _coverHeight = 150;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/book/${book.id}'),
+      child: SizedBox(
+        width: _coverWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: _coverWidth,
+              height: _coverHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                    ? Image.network(
+                        book.coverImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              book.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Kitap Listesi (Mobil) ─────────────────────────
 
 class _BooksList extends StatelessWidget {
@@ -582,16 +743,19 @@ class _BooksList extends StatelessWidget {
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             final book = books[index];
-            return _BookListItem(
+            return RepaintBoundary(
+              child: _BookListItem(
               book: book,
               isDark: isDark,
               theme: theme,
             )
                 .animate()
                 .fadeIn(delay: Duration(milliseconds: 350 + index * 60))
-                .slideX(begin: 0.03, curve: Curves.easeOutCubic);
+                .slideX(begin: 0.03, curve: Curves.easeOutCubic),
+            );
           },
           childCount: books.length,
+          addRepaintBoundaries: true,
         ),
       ),
     );

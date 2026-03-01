@@ -40,9 +40,6 @@ class Book with _$Book {
 
 /// Uygulama genelinde kullanılan kitap kategorileri.
 const List<String> bookCategories = [
-  'Roman',
-  'Öykü',
-  'Şiir',
   'Korku',
   'Bilim Kurgu',
   'Tarih',

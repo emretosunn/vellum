@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../data/subscription_repository.dart';
 import '../services/subscription_status_service.dart';
+import 'subscription_plan_screen.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -19,9 +20,10 @@ class SubscriptionScreen extends ConsumerWidget {
     final bottomPad = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(title: const Text('Abonelik')),
+      body: ClipRect(
+        child: CustomScrollView(
+          slivers: [
+          SliverAppBar.large(title: Text(translate('subscription.title'))),
           SliverToBoxAdapter(
             child: profileAsync.when(
               loading: () => const Center(
@@ -32,13 +34,13 @@ class SubscriptionScreen extends ConsumerWidget {
               ),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Hata: $err'),
+                child: Text('${translate('common.error')}: $err'),
               ),
               data: (profile) {
                 if (profile == null) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Profil yüklenemedi'),
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(translate('subscription.profile_load_error')),
                   );
                 }
 
@@ -72,44 +74,18 @@ class SubscriptionScreen extends ConsumerWidget {
                         const SizedBox(height: 24),
                       ] else ...[
                         _PaywallButton(
-                          onPressed: () => _handleSubscribe(
-                            context,
-                            ref,
-                            profile.id,
-                            30, // Aylık plan
-                          ),
+                          onPressed: () => _openPlanScreen(context, ref),
                         ),
-                        const SizedBox(height: 16),
-                        _SectionHeader(title: 'veya Manuel Plan Seçin'),
-                        const SizedBox(height: 12),
-                        _buildPlans(context, ref, profile.id),
                         const SizedBox(height: 24),
                       ],
 
-                      const _SectionHeader(
-                          title: 'Vellum Pro ile Neler Kazanırsınız?'),
-                      const SizedBox(height: 12),
-                      ..._features.map(
-                        (f) => _FeatureItem(
-                          icon: f.icon,
-                          title: f.title,
-                          subtitle: f.subtitle,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
                       if (payments.isNotEmpty) ...[
-                        const _SectionHeader(title: 'Ödeme Geçmişi'),
-                        const SizedBox(height: 12),
-                        _PaymentHistoryList(payments: payments),
-                        const SizedBox(height: 16),
+                        _PaymentHistoryExpansion(payments: payments),
+                        const SizedBox(height: 24),
                       ],
-
-                      const _SectionHeader(title: 'Sıkça Sorulan Sorular'),
+                      _SectionHeader(title: translate('subscription.faq')),
                       const SizedBox(height: 12),
                       const _FaqSection(),
-
                       SizedBox(height: navBarSpace + bottomPad),
                     ],
                   ),
@@ -118,132 +94,17 @@ class SubscriptionScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlans(BuildContext context, WidgetRef ref, String userId) {
-    final isMobile = context.isMobile;
-
-    final plans = [
-      _PlanCard(
-        title: 'Aylık',
-        price: '₺49,99',
-        period: '/ay',
-        features: const [
-          'Sınırsız kitap oluşturma',
-          'Yazar rozeti',
-          'Yayınlama yetkisi',
-        ],
-        isPrimary: false,
-        onTap: () => _handleSubscribe(context, ref, userId, 30),
-      ),
-      _PlanCard(
-        title: 'Yıllık',
-        price: '₺399,99',
-        period: '/yıl',
-        features: const [
-          'Tüm aylık özellikler',
-          '%33 tasarruf',
-          'Öncelikli destek',
-        ],
-        isPrimary: true,
-        badge: 'En Popüler',
-        onTap: () => _handleSubscribe(context, ref, userId, 365),
-      ),
-    ];
-
-    if (isMobile) {
-      return Column(
-        children: plans
-            .map((p) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: p,
-                ))
-            .toList(),
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: plans
-          .map((p) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: p,
-                ),
-              ))
-          .toList(),
-    );
-  }
-
-  Future<void> _handleSubscribe(
-    BuildContext context,
-    WidgetRef ref,
-    String userId,
-    int days,
-  ) async {
-    final planName = days == 365 ? 'Yıllık' : 'Aylık';
-    final planType = days == 365 ? 'yearly' : 'monthly';
-    final amount = days == 365 ? 399.99 : 49.99;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Abonelik Onayı'),
-        content: Text(
-          '$planName plana abone olmak istediğinize emin misiniz?',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Abone Ol'),
-          ),
-        ],
       ),
     );
+  }
 
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      // Aboneliği aktifleştir
-      await ref
-          .read(subscriptionRepositoryProvider)
-          .activateSubscription(userId: userId, durationDays: days);
-      
-      // Ödeme kaydı oluştur
-      await ref.read(subscriptionRepositoryProvider).recordPayment(
-            userId: userId,
-            planType: planType,
-            amount: amount,
-          );
-
-      // Provider'ları yenile
+  Future<void> _openPlanScreen(BuildContext context, WidgetRef ref) async {
+    final result = await showSubscriptionPlanModal(context);
+    if (result == true && context.mounted) {
       ref.invalidate(currentProfileProvider);
       ref.invalidate(paymentHistoryProvider);
       ref.invalidate(isProProvider);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Aboneliğiniz başarıyla aktifleştirildi!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Hata: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 
@@ -338,8 +199,8 @@ class _PaywallButton extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: onPressed,
           icon: const Icon(Icons.workspace_premium_rounded, size: 22),
-          label: const Text(
-            'Vellum Pro\'ya Abone Ol',
+          label: Text(
+            translate('subscription.subscribe_cta'),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           style: ElevatedButton.styleFrom(
@@ -697,126 +558,49 @@ class _BenefitRow extends StatelessWidget {
   }
 }
 
-// ─── Plan Kartı ──────────────────────────────────
+// ─── Ödeme Geçmişi ──────────────────────────────
 
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({
-    required this.title,
-    required this.price,
-    required this.period,
-    required this.features,
-    required this.isPrimary,
-    required this.onTap,
-    this.badge,
-  });
-
-  final String title;
-  final String price;
-  final String period;
-  final List<String> features;
-  final bool isPrimary;
-  final VoidCallback onTap;
-  final String? badge;
+class _PaymentHistoryExpansion extends StatelessWidget {
+  const _PaymentHistoryExpansion({required this.payments});
+  final List<PaymentRecord> payments;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final count = payments.length;
+    final countText = count == 1
+        ? translate('subscription.payment_count_one')
+        : translate('subscription.payment_count').replaceAll('{n}', '$count');
 
     return Card(
-      elevation: isPrimary ? 4 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: isPrimary
-            ? const BorderSide(color: AppColors.primary, width: 2)
-            : BorderSide.none,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (badge != null) ...[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  badge!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Text(
-              title,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  price,
-                  style: theme.textTheme.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 4),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    period,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...features.map(
-              (f) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle,
-                        size: 18, color: AppColors.success),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(f, style: theme.textTheme.bodySmall),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: isPrimary
-                  ? FilledButton(
-                      onPressed: onTap,
-                      child: const Text('Abone Ol'),
-                    )
-                  : OutlinedButton(
-                      onPressed: onTap,
-                      child: const Text('Abone Ol'),
-                    ),
-            ),
-          ],
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        leading: Icon(
+          Icons.history_rounded,
+          color: theme.colorScheme.primary,
+          size: 24,
         ),
+        title: Text(
+          translate('subscription.payment_history'),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          countText,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        children: [
+          _PaymentHistoryList(payments: payments),
+        ],
       ),
     );
   }
 }
-
-// ─── Ödeme Geçmişi ──────────────────────────────
 
 class _PaymentHistoryList extends StatelessWidget {
   const _PaymentHistoryList({required this.payments});
@@ -826,10 +610,9 @@ class _PaymentHistoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 0),
+      child: Column(
           children: payments.asMap().entries.map((entry) {
             final p = entry.value;
             final isLast = entry.key == payments.length - 1;
@@ -902,8 +685,7 @@ class _PaymentHistoryList extends StatelessWidget {
             );
           }).toList(),
         ),
-      ),
-    );
+      );
   }
 
   Color _statusColor(String status) {
@@ -1004,95 +786,3 @@ class _FaqSection extends StatelessWidget {
 
 // ─── Özellik Verisi ──────────────────────────────
 
-class _FeatureData {
-  const _FeatureData({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-}
-
-const _features = [
-  _FeatureData(
-    icon: Icons.auto_stories,
-    title: 'Sınırsız Kitap Oluşturma',
-    subtitle: 'Dilediğiniz kadar kitap yazın ve yayınlayın.',
-  ),
-  _FeatureData(
-    icon: Icons.edit_note,
-    title: 'Zengin Metin Editörü',
-    subtitle: 'Gelişmiş formatlama araçları ile profesyonel içerik üretin.',
-  ),
-  _FeatureData(
-    icon: Icons.verified,
-    title: 'Onaylı Yazar Rozeti',
-    subtitle: 'Profilinizde güvenilir yazar rozetini taşıyın.',
-  ),
-  _FeatureData(
-    icon: Icons.bar_chart,
-    title: 'Detaylı İstatistikler',
-    subtitle: 'Okuyucu analizleri ve kitap performansınızı takip edin.',
-  ),
-  _FeatureData(
-    icon: Icons.support_agent,
-    title: 'Öncelikli Destek',
-    subtitle: 'Sorularınıza hızlı yanıt alın.',
-  ),
-];
-
-class _FeatureItem extends StatelessWidget {
-  const _FeatureItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

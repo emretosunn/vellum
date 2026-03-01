@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
@@ -19,11 +20,11 @@ class DashboardScreen extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: const Text('Panel'),
+            title: Text(translate('dashboard.title')),
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout),
-                tooltip: 'Çıkış Yap',
+                tooltip: translate('dashboard.logout'),
                 onPressed: () async {
                   await ref.read(authRepositoryProvider).signOut();
                   ref.invalidate(isProProvider);
@@ -40,13 +41,13 @@ class DashboardScreen extends ConsumerWidget {
               )),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Hata: $err'),
+                child: Text('${translate('common.error')}: $err'),
               ),
               data: (profile) {
                 if (profile == null) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Profil yüklenemedi'),
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(translate('dashboard.profile_error')),
                   );
                 }
 
@@ -101,8 +102,8 @@ class DashboardScreen extends ConsumerWidget {
                                         const SizedBox(width: 4),
                                         Text(
                                           isActive
-                                              ? 'Vellum Pro'
-                                              : 'Ücretsiz Hesap',
+                                              ? translate('dashboard.pro')
+                                              : translate('dashboard.free_account'),
                                           style:
                                               theme.textTheme.bodySmall,
                                         ),
@@ -141,7 +142,7 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              isActive ? 'Vellum Pro' : 'Ücretsiz',
+                              isActive ? translate('dashboard.pro') : translate('dashboard.free'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
@@ -151,8 +152,8 @@ class DashboardScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               isActive
-                                  ? 'Aboneliğiniz aktif'
-                                  : 'Yazarlık için Pro\'ya geçin',
+                                  ? translate('dashboard.subscription_active')
+                                  : translate('dashboard.go_pro_prompt'),
                               style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 13,
@@ -179,7 +180,7 @@ class DashboardScreen extends ConsumerWidget {
 
                       // Hızlı Erişim
                       Text(
-                        'Hızlı Erişim',
+                        translate('dashboard.quick_access'),
                         style: theme.textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -190,7 +191,7 @@ class DashboardScreen extends ConsumerWidget {
                             Expanded(
                               child: _QuickActionCard(
                                 icon: Icons.workspace_premium,
-                                label: 'Pro\'ya Geç',
+                                label: translate('dashboard.go_pro'),
                                 color: AppColors.primary,
                                 onTap: () =>
                                     context.go('/subscription'),
@@ -201,7 +202,7 @@ class DashboardScreen extends ConsumerWidget {
                           Expanded(
                             child: _QuickActionCard(
                               icon: Icons.edit_note,
-                              label: 'Stüdyo',
+                              label: translate('dashboard.studio'),
                               color: Colors.orange,
                               onTap: () => context.go('/studio'),
                             ),
@@ -210,7 +211,7 @@ class DashboardScreen extends ConsumerWidget {
                           Expanded(
                             child: _QuickActionCard(
                               icon: Icons.settings,
-                              label: 'Ayarlar',
+                              label: translate('dashboard.settings'),
                               color: Colors.blueGrey,
                               onTap: () => context.go('/settings'),
                             ),

@@ -1,10 +1,16 @@
+//Cihaz Test
+
 flutter run --release --dart-define-from-file=.env.json
 flutter run --dart-define-from-file=.env.json
 
-flutter run -d chrome --release --dart-define-from-file=.env.json
 
+//Web test
+
+flutter run -d chrome --release --dart-define-from-file=.env.json
 flutter run -d chrome --dart-define-from-file=.env.json
 
-flutter build appbundle --release --dart-define-from-file=.env.json
 
+//Export komutları
+
+flutter build appbundle --release --dart-define-from-file=.env.json
 flutter build apk --release --dart-define-from-file=.env.json

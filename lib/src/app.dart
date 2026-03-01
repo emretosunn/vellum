@@ -1,6 +1,8 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/data/auth_repository.dart';
@@ -29,9 +31,12 @@ class VellumApp extends ConsumerWidget {
       onboardingCompleted: onboardingDone,
     );
     final themeMode = ref.watch(themeModeProvider);
+    final localizationDelegate = LocalizedApp.of(context).delegate;
 
-    return MaterialApp.router(
-      title: 'Vellum',
+    return LocalizationProvider(
+      state: LocalizationProvider.of(context).state,
+      child: MaterialApp.router(
+      title: translate('common.app_name'),
       debugShowCheckedModeBanner: false,
       theme: FlexThemeData.light(
         scheme: FlexScheme.indigo,
@@ -76,6 +81,14 @@ class VellumApp extends ConsumerWidget {
       ),
       themeMode: themeMode,
       routerConfig: router,
+      localizationsDelegates: [
+        localizationDelegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: localizationDelegate.supportedLocales,
+      locale: localizationDelegate.currentLocale,
+      ),
     );
   }
 }

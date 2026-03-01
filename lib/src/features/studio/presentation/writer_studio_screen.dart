@@ -25,11 +25,13 @@ class WriterStudioScreen extends ConsumerWidget {
     final isPro = isProAsync.valueOrNull ?? false;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Özel başlık alanı (gradient + tipografi)
-          SliverToBoxAdapter(
-            child: Container(
+      body: ClipRect(
+        child: CustomScrollView(
+          slivers: [
+            // Özel başlık alanı (gradient + tipografi)
+            SliverToBoxAdapter(
+              child: RepaintBoundary(
+                child: Container(
               width: double.infinity,
               padding: EdgeInsets.only(
                 left: 24,
@@ -81,6 +83,7 @@ class WriterStudioScreen extends ConsumerWidget {
               ),
             ),
           ),
+            ),
 
           SliverToBoxAdapter(
             child: profileAsync.when(
@@ -108,15 +111,18 @@ class WriterStudioScreen extends ConsumerWidget {
 
           // Plan rozeti — özel kart
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _PlanBadge(isPro: isPro),
+            child: RepaintBoundary(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _PlanBadge(isPro: isPro),
+              ),
             ),
           ),
 
           // Kitaplarım başlığı + Yeni Kitap butonu
           SliverToBoxAdapter(
-            child: profileAsync.whenOrNull(
+            child: RepaintBoundary(
+              child: profileAsync.whenOrNull(
               data: (profile) {
                 if (profile == null) return const SizedBox.shrink();
 
@@ -164,6 +170,7 @@ class WriterStudioScreen extends ConsumerWidget {
                 );
               },
             ),
+            ),
           ),
 
           // Kitap listesi
@@ -195,7 +202,9 @@ class WriterStudioScreen extends ConsumerWidget {
                 data: (books) {
                   if (books.isEmpty) {
                     return SliverToBoxAdapter(
-                      child: _EmptyState(theme: theme),
+                      child: RepaintBoundary(
+                        child: _EmptyState(theme: theme),
+                      ),
                     );
                   }
 
@@ -205,12 +214,87 @@ class WriterStudioScreen extends ConsumerWidget {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final book = books[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _BookListItem(book: book, isPro: isPro),
+                          return RepaintBoundary(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Dismissible(
+                              key: ValueKey(book.id),
+                              direction: DismissDirection.horizontal,
+                              background: _BookSlideActionBackground(
+                                icon: Icons.edit_rounded,
+                                label: 'Düzenle',
+                                alignStart: true,
+                              ),
+                              secondaryBackground: _BookSlideActionBackground(
+                                icon: Icons.delete_rounded,
+                                label: 'Sil',
+                                alignStart: false,
+                              ),
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.startToEnd) {
+                                  // Düzenle: ekranı aç, listeyi yenile ama kartı silme.
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CreateBookScreen(
+                                        initialBook: book,
+                                      ),
+                                    ),
+                                  );
+                                  ref.invalidate(myBooksProvider);
+                                  ref.invalidate(publishedBooksProvider);
+                                  ref.invalidate(searchedBooksProvider);
+                                  return false;
+                                } else {
+                                  final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: Text(
+                                            '"${book.title}" kitabını silmek istiyor musunuz?',
+                                          ),
+                                          content: const Text(
+                                            'Bu işlem geri alınamaz. Kitap ve kapağı okuyucular için görünür olmayacaktır.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: const Text('Vazgeç'),
+                                            ),
+                                            FilledButton(
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: Colors.redAccent,
+                                              ),
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              child: const Text('Sil'),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                      false;
+
+                                  if (!confirmed) return false;
+
+                                  await ref.read(bookRepositoryProvider).deleteBook(book.id);
+                                  ref.invalidate(myBooksProvider);
+                                  ref.invalidate(publishedBooksProvider);
+                                  ref.invalidate(searchedBooksProvider);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('"${book.title}" silindi.'),
+                                    ),
+                                  );
+
+                                  return true;
+                                }
+                              },
+                              child: _BookListItem(book: book, isPro: isPro),
+                            ),
+                          ),
                           );
                         },
                         childCount: books.length,
+                        addRepaintBoundaries: true,
                       ),
                     ),
                   );
@@ -221,16 +305,19 @@ class WriterStudioScreen extends ConsumerWidget {
 
           if (!isPro)
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: _ProFeaturesCard(
-                  onUpgrade: () => context.go('/subscription'),
+              child: RepaintBoundary(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                  child: _ProFeaturesCard(
+                    onUpgrade: () => context.go('/subscription'),
+                  ),
                 ),
               ),
             ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
+        ),
       ),
     );
   }
@@ -687,6 +774,58 @@ class _BookListItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BookSlideActionBackground extends StatelessWidget {
+  const _BookSlideActionBackground({
+    required this.icon,
+    required this.label,
+    required this.alignStart,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool alignStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final alignment =
+        alignStart ? Alignment.centerLeft : Alignment.centerRight;
+    final padding = EdgeInsets.symmetric(horizontal: 24);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: alignStart
+            ? AppColors.primary.withValues(alpha: 0.3)
+            : Colors.redAccent.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: padding,
+      alignment: alignment,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment:
+            alignStart ? MainAxisAlignment.start : MainAxisAlignment.end,
+        children: [
+          if (!alignStart) const SizedBox(width: 16),
+          Icon(
+            icon,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (alignStart) const SizedBox(width: 16),
+        ],
       ),
     );
   }

@@ -9,6 +9,22 @@ class ChapterRepository {
   ChapterRepository(this._client);
   final SupabaseClient _client;
 
+  /// Birden fazla kitabın bölüm sayılarını tek sorguda getir (bookId -> count).
+  Future<Map<String, int>> getChapterCountsByBookIds(List<String> bookIds) async {
+    if (bookIds.isEmpty) return {};
+    final data = await _client
+        .from('chapters')
+        .select('book_id')
+        .inFilter('book_id', bookIds);
+    final counts = <String, int>{};
+    for (final id in bookIds) counts[id] = 0;
+    for (final row in data) {
+      final bid = row['book_id'] as String?;
+      if (bid != null) counts[bid] = (counts[bid] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   /// Kitabın bölümlerini listele
   Future<List<Chapter>> getChaptersByBook(String bookId) async {
     final data = await _client
