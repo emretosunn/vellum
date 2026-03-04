@@ -42,12 +42,12 @@ const _pages = [
     subtitleKey: 'onboarding.page1.subtitle',
   ),
   _OnboardingPage(
-    imagePaths: ['assets/image/boy.png'],
+    imagePaths: ['assets/image/Humaaans - 3 Characters.png'],
     titleKey: 'onboarding.page2.title',
     subtitleKey: 'onboarding.page2.subtitle',
   ),
   _OnboardingPage(
-    imagePaths: ['assets/image/pencil.png'],
+    imagePaths: ['assets/image/onboarding3.png'],
     titleKey: 'onboarding.page3.title',
     subtitleKey: 'onboarding.page3.subtitle',
   ),

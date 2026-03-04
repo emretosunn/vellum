@@ -24,6 +24,8 @@ String _timeBasedGreeting() {
   return 'İYİ AKŞAMLAR';
 }
 
+bool _homeVerticalListAnimated = false;
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -452,17 +454,32 @@ class HomeScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 14),
                         ...recentBooks.asMap().entries.map((entry) {
-                          return Padding(
+                          final card = Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 8),
-                            child: _VerticalBookCard(book: entry.value)
-                                .animate()
-                                .fadeIn(
-                                  delay: Duration(
-                                      milliseconds: entry.key * 80),
-                                )
-                                .slideY(begin: 0.05),
+                              horizontal: 24,
+                              vertical: 8,
+                            ),
+                            child: _VerticalBookCard(book: entry.value),
                           );
+
+                          if (_homeVerticalListAnimated) {
+                            return card;
+                          }
+
+                          final animated = card
+                              .animate()
+                              .fadeIn(
+                                delay: Duration(
+                                  milliseconds: entry.key * 80,
+                                ),
+                              )
+                              .slideY(begin: 0.05);
+
+                          if (entry.key == recentBooks.length - 1) {
+                            _homeVerticalListAnimated = true;
+                          }
+
+                          return animated;
                         }),
                         const SizedBox(height: 120),
                       ]),

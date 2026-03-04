@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../settings/data/app_config_repository.dart';
 
 // ─── Bildirim Modeli ───────────────────────────────────
 
@@ -145,6 +146,7 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationsAsync = ref.watch(notificationsListProvider);
+    final appConfigAsync = ref.watch(appConfigProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -193,49 +195,159 @@ class NotificationsScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(notificationsListProvider);
               ref.invalidate(unreadNotificationCountProvider);
+              ref.invalidate(appConfigProvider);
             },
-            child: ListView.builder(
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _NotificationCard(
-                  notification: notification,
-                  isDark: isDark,
-                  onTap: () async {
-                    if (!notification.isRead) {
+              children: [
+                appConfigAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (config) {
+                    if (!config.announcementEnabled ||
+                        config.announcementTitle.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return _SystemAnnouncementCard(config: config);
+                  },
+                ),
+                ...notifications.map(
+                  (notification) => _NotificationCard(
+                    notification: notification,
+                    isDark: isDark,
+                    onTap: () async {
+                      if (!notification.isRead) {
+                        await ref
+                            .read(notificationRepoProvider)
+                            .markAsRead(notification.id);
+                        ref.invalidate(notificationsListProvider);
+                        ref.invalidate(unreadNotificationCountProvider);
+                      }
+                      if (context.mounted &&
+                          notification.refType == 'book' &&
+                          notification.refId != null) {
+                        context.push('/book/${notification.refId}');
+                      }
+                    },
+                    onDismiss: () async {
                       await ref
                           .read(notificationRepoProvider)
-                          .markAsRead(notification.id);
+                          .deleteNotification(notification.id);
                       ref.invalidate(notificationsListProvider);
                       ref.invalidate(unreadNotificationCountProvider);
-                    }
-                    if (context.mounted &&
-                        notification.refType == 'book' &&
-                        notification.refId != null) {
-                      context.push('/book/${notification.refId}');
-                    }
-                  },
-                  onDismiss: () async {
-                    await ref
-                        .read(notificationRepoProvider)
-                        .deleteNotification(notification.id);
-                    ref.invalidate(notificationsListProvider);
-                    ref.invalidate(unreadNotificationCountProvider);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Bildirim silindi'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  },
-                );
-              },
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Bildirim silindi'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SystemAnnouncementCard extends StatelessWidget {
+  const _SystemAnnouncementCard({required this.config});
+
+  final RemoteAppConfig config;
+
+  Color _backgroundForLevel(bool isDark) {
+    switch (config.announcementLevel) {
+      case 'success':
+        return AppColors.success.withValues(alpha: isDark ? 0.16 : 0.10);
+      case 'warning':
+        return AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12);
+      default:
+        return AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.10);
+    }
+  }
+
+  Color _iconColorForLevel() {
+    switch (config.announcementLevel) {
+      case 'success':
+        return AppColors.success;
+      case 'warning':
+        return AppColors.warning;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  IconData _iconForLevel() {
+    switch (config.announcementLevel) {
+      case 'success':
+        return Icons.celebration_rounded;
+      case 'warning':
+        return Icons.warning_amber_rounded;
+      default:
+        return Icons.campaign_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _backgroundForLevel(isDark),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _iconColorForLevel().withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _iconColorForLevel().withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _iconForLevel(),
+              color: _iconColorForLevel(),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  config.announcementTitle,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (config.announcementBody.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    config.announcementBody,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,8 @@ import '../data/reading_progress_repository.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../studio/data/chapter_repository.dart';
 import '../domain/chapter.dart';
+import '../offline/offline_download_manager.dart';
+import '../../subscription/services/subscription_service.dart';
 
 /// Temiz okuma ekranı.
 ///
@@ -33,6 +36,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _isLoading = true;
   bool _showControls = true;
   String _bookTitle = '';
+  bool _usingOffline = false;
 
   @override
   void initState() {
@@ -42,11 +46,66 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Future<void> _loadData() async {
     try {
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasNetwork = connectivity != ConnectivityResult.none;
+
+      final subscriptionService = ref.read(subscriptionServiceProvider);
+      final isPro = await subscriptionService.isPro();
+
+      // İnternet yok ve kullanıcı Pro değilse: erişime izin verme.
+      if (!hasNetwork && !isPro) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bu özellik Vellum Pro üyelerine özeldir.'),
+            ),
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
       final book =
           await ref.read(bookRepositoryProvider).getBookById(widget.bookId);
-      final chapters = await ref
-          .read(chapterRepositoryProvider)
-          .getChaptersByBook(widget.bookId);
+
+      List<Chapter> chapters;
+
+      if (!hasNetwork && isPro) {
+        // Çevrimdışı Pro: Hive üzerinden oku.
+        final offlineManager = ref.read(offlineDownloadManagerProvider);
+        final offlineBook =
+            await offlineManager.getOfflineBook(widget.bookId);
+        if (offlineBook == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Bu kitap çevrimdışı indirilememiş. İnternet bağlantısı ile tekrar deneyin.'),
+              ),
+            );
+            Navigator.pop(context);
+          }
+          return;
+        }
+
+        chapters = List<Chapter>.generate(
+          offlineBook.chapters.length,
+          (index) => Chapter(
+            id: 'offline-${offlineBook.bookId}-$index',
+            bookId: offlineBook.bookId,
+            title: 'Bölüm ${index + 1}',
+            content: {'text': offlineBook.chapters[index]},
+            order: index,
+          ),
+        );
+        _usingOffline = true;
+      } else {
+        // Online okuma (mevcut davranış).
+        chapters = await ref
+            .read(chapterRepositoryProvider)
+            .getChaptersByBook(widget.bookId);
+        _usingOffline = false;
+      }
 
       if (!mounted) return;
 

@@ -13,6 +13,7 @@ import '../features/studio/presentation/book_editor_screen.dart';
 import '../features/studio/presentation/chapter_editor_screen.dart';
 import '../features/studio/presentation/writer_studio_screen.dart';
 import '../features/subscription/presentation/subscription_screen.dart';
+import '../features/subscription/presentation/premium_upgrade_screen.dart';
 
 /// GoRouter yapılandırması.
 ///
@@ -66,6 +67,13 @@ GoRouter createRouter({
           final bookId = state.pathParameters['id'] ?? '';
           return BookDetailScreen(bookId: bookId);
         },
+      ),
+
+      // Vellum Pro yükseltme ekranı
+      GoRoute(
+        path: '/premium-upgrade',
+        name: 'premiumUpgrade',
+        builder: (context, state) => const PremiumUpgradeScreen(),
       ),
 
       // Tüm kitaplar (Tümünü Gör — en fazla 25)

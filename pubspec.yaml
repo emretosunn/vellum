@@ -2,7 +2,7 @@ name: vellum
 description: "Vellum - Digital Publishing Platform by Vexorabyte"
 publish_to: 'none'
 
-version: 0.2.8+6
+version: 0.3.0+7
 
 environment:
   sdk: ^3.9.2
@@ -54,6 +54,9 @@ dependencies:
 
   # Uygulama içi güncelleme (Android, Google Play)
   in_app_update: ^4.2.5
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

@@ -17,6 +17,8 @@ import '../../library/data/book_repository.dart';
 import '../../library/domain/book_report.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import '../../../config/version.dart';
+import '../data/app_config_repository.dart';
+import '../../shared/presentation/maintenance_screen.dart';
 
 // ─── Providers ───────────────────────────────────────
 /// Başlangıç teması her zaman açık (beyaz) ekran; kullanıcı Ayarlar'dan değiştirebilir.
@@ -231,6 +233,17 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsGroup(
                 isDark: isDark,
                 items: [
+                  _SettingsTile(
+                    icon: Icons.settings_applications_rounded,
+                    label: 'Uygulama Konfigürasyonu',
+                    subtitle: 'Bakım modu ve sistem duyuruları',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _DeveloperAppConfigPage(),
+                      ),
+                    ),
+                  ),
                   _SettingsTile(
                     icon: Icons.flag_outlined,
                     label: translate('settings.book_reports'),
@@ -693,7 +706,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 ),
                 padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
                 child: Column(
-                  children: [
+          children: [
                     // Avatar Container
                     GestureDetector(
                       onTap: _uploadingAvatar ? null : _pickAvatar,
@@ -750,7 +763,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                    color: AppColors.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: isDark
@@ -844,10 +857,10 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                           const SizedBox(height: 20),
 
                           // Kullanıcı Adı
-                          TextFormField(
-                            controller: _usernameController,
+            TextFormField(
+              controller: _usernameController,
                             style: theme.textTheme.bodyLarge,
-                            decoration: InputDecoration(
+              decoration: InputDecoration(
                               labelText: 'Kullanıcı Adı',
                               hintText: 'Kullanıcı adınızı girin',
                               prefixIcon: const Icon(Icons.alternate_email_rounded),
@@ -855,8 +868,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               fillColor: isDark
                                   ? Colors.white.withValues(alpha: 0.05)
                                   : Colors.black.withValues(alpha: 0.02),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
@@ -877,36 +890,36 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 16,
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Kullanıcı adı boş olamaz';
-                              }
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Kullanıcı adı boş olamaz';
+                }
                               if (value.trim().length < 3) {
                                 return 'En az 3 karakter olmalı';
                               }
-                              return null;
-                            },
-                          ),
+                return null;
+              },
+            ),
                           const SizedBox(height: 16),
 
-                          // E-posta (salt okunur)
-                          TextFormField(
-                            initialValue: email,
-                            enabled: false,
+            // E-posta (salt okunur)
+            TextFormField(
+              initialValue: email,
+              enabled: false,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
-                            decoration: InputDecoration(
+              decoration: InputDecoration(
                               labelText: 'E-posta',
-                              prefixIcon: const Icon(Icons.email_outlined),
+                prefixIcon: const Icon(Icons.email_outlined),
                               filled: true,
                               fillColor: isDark
                                   ? Colors.white.withValues(alpha: 0.03)
                                   : Colors.black.withValues(alpha: 0.01),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                                 borderSide: BorderSide.none,
                               ),
                               disabledBorder: OutlineInputBorder(
@@ -1938,61 +1951,61 @@ class _LanguagePageState extends State<_LanguagePage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.separated(
-              padding: const EdgeInsets.all(24),
-              itemCount: _languages.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final lang = _languages[index];
+        padding: const EdgeInsets.all(24),
+        itemCount: _languages.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final lang = _languages[index];
                 final isSelected = lang['code'] == selected;
 
-                return InkWell(
+          return InkWell(
                   onTap: () =>
                       setState(() => _selected = lang['code']!),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.1)
-                          : isDark
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : Colors.black.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary.withValues(alpha: 0.4)
-                            : isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.06),
-                        width: isSelected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(lang['flag']!,
-                            style: const TextStyle(fontSize: 28)),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primary.withValues(alpha: 0.1)
+                    : isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primary.withValues(alpha: 0.4)
+                      : isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06),
+                  width: isSelected ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(lang['flag']!,
+                      style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
                             translate(lang['nameKey']!),
-                            style: theme.textTheme.bodyLarge?.copyWith(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                               fontWeight: isSelected
                                   ? FontWeight.w600
                                   : FontWeight.normal,
-                              color: isSelected ? AppColors.primary : null,
-                            ),
-                          ),
-                        ),
-                        if (isSelected)
-                          const Icon(Icons.check_circle_rounded,
-                              color: AppColors.primary),
-                      ],
+                        color: isSelected ? AppColors.primary : null,
+                      ),
                     ),
                   ),
-                );
-              },
+                  if (isSelected)
+                    const Icon(Icons.check_circle_rounded,
+                        color: AppColors.primary),
+                ],
+              ),
             ),
+          );
+        },
+      ),
     );
   }
 }
@@ -2327,14 +2340,14 @@ class _ProfileCard extends StatelessWidget {
                       width: 56,
                       height: 56,
                       errorBuilder: (_, __, ___) => Center(
-                        child: Text(
+              child: Text(
                           username.isNotEmpty
                               ? username[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                           ),
                         ),
                       ),
@@ -2349,8 +2362,8 @@ class _ProfileCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                      ),
-                    ),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -2671,6 +2684,237 @@ Gizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsi
 ''';
 
 // ─── Geliştirici: Kitap şikayetleri sayfası ─────────
+
+class _DeveloperAppConfigPage extends ConsumerStatefulWidget {
+  const _DeveloperAppConfigPage();
+
+  @override
+  ConsumerState<_DeveloperAppConfigPage> createState() =>
+      _DeveloperAppConfigPageState();
+}
+
+class _DeveloperAppConfigPageState
+    extends ConsumerState<_DeveloperAppConfigPage> {
+  bool _maintenanceEnabled = false;
+  final _maintenanceController = TextEditingController();
+  bool _announcementEnabled = false;
+  final _announcementTitleController = TextEditingController();
+  final _announcementBodyController = TextEditingController();
+  String _announcementLevel = 'info';
+  bool _initialized = false;
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _maintenanceController.dispose();
+    _announcementTitleController.dispose();
+    _announcementBodyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configAsync = ref.watch(appConfigProvider);
+    final theme = Theme.of(context);
+
+    if (!_initialized) {
+      configAsync.whenData((config) {
+        _maintenanceEnabled = config.maintenanceEnabled;
+        _maintenanceController.text = config.maintenanceMessage ?? '';
+        _announcementEnabled = config.announcementEnabled;
+        _announcementTitleController.text = config.announcementTitle;
+        _announcementBodyController.text = config.announcementBody;
+        _announcementLevel = config.announcementLevel;
+        _initialized = true;
+      });
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Uygulama Konfigürasyonu'),
+      ),
+      body: configAsync.when(
+        loading: () =>
+            const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Hata: $err')),
+        data: (_) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bakım Modu',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('Bakım modu aktif'),
+                  subtitle: const Text(
+                      'Açık olduğunda herkes bakım ekranını görür.'),
+                  value: _maintenanceEnabled,
+                  onChanged: (v) =>
+                      setState(() => _maintenanceEnabled = v),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _maintenanceController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Bakım mesajı',
+                    hintText:
+                        'Örn: Sunucularımızı güncelliyoruz, kısa süre sonra tekrar deneyin.',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Sistem Duyurusu',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('Duyuru aktif'),
+                  subtitle: const Text(
+                      'Bildirimler ekranının üstünde sistem duyurusu gösterilir.'),
+                  value: _announcementEnabled,
+                  onChanged: (v) =>
+                      setState(() => _announcementEnabled = v),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _announcementTitleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Duyuru başlığı',
+                    hintText: 'Örn: Yeni özellik yayında!',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _announcementBodyController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Duyuru metni',
+                    hintText:
+                        'Kısa açıklama. Örn: Çevrimdışı okuma artık Vellum Pro\'da.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _announcementLevel,
+                  decoration: const InputDecoration(
+                    labelText: 'Duyuru türü',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'info',
+                      child: Text('Bilgi'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'success',
+                      child: Text('Başarı'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'warning',
+                      child: Text('Uyarı'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _announcementLevel = v);
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isSaving
+                        ? null
+                        : () async {
+                            setState(() => _isSaving = true);
+                            try {
+                              final current =
+                                  await ref.read(appConfigRepositoryProvider)
+                                      .fetch();
+                              final updated = current.copyWith(
+                                maintenanceEnabled: _maintenanceEnabled,
+                                maintenanceMessage:
+                                    _maintenanceController.text.trim().isEmpty
+                                        ? null
+                                        : _maintenanceController.text.trim(),
+                                announcementEnabled: _announcementEnabled,
+                                announcementTitle:
+                                    _announcementTitleController.text.trim(),
+                                announcementBody:
+                                    _announcementBodyController.text.trim(),
+                                announcementLevel: _announcementLevel,
+                              );
+                              await ref
+                                  .read(appConfigRepositoryProvider)
+                                  .save(updated);
+                              ref.invalidate(appConfigProvider);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Ayarlar kaydedildi'),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Hata: $e'),
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isSaving = false);
+                              }
+                            }
+                          },
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_rounded, size: 18),
+                    label: const Text('Kaydet'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MaintenanceScreen(
+                            message: _maintenanceController.text.trim().isEmpty
+                                ? null
+                                : _maintenanceController.text.trim(),
+                            showBack: true,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.visibility_rounded, size: 18),
+                    label: const Text('Bakım ekranını test et'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
 Future<void> _showWarnAuthorDialog(
   BuildContext context,

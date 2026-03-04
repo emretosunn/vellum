@@ -8,6 +8,9 @@ import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../subscription/services/subscription_service.dart';
+import '../../subscription/services/subscription_status_service.dart';
+import '../offline/offline_download_manager.dart';
 import '../../auth/domain/profile.dart';
 import '../../library/data/book_like_repository.dart';
 import '../../library/data/book_repository.dart';
@@ -17,6 +20,7 @@ import '../../library/domain/book.dart';
 import '../../library/domain/chapter.dart';
 import '../../library/domain/review.dart';
 import '../../studio/data/chapter_repository.dart';
+import '../../shared/widgets/vellum_button.dart';
 
 class BookDetailScreen extends ConsumerWidget {
   const BookDetailScreen({super.key, required this.bookId});
@@ -165,7 +169,7 @@ class BookDetailScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  // Bölüm listesi
+                  // Bölüm listesi (ilk 4 + Tümünü Gör)
                   chaptersAsync.when(
                     loading: () => const SliverToBoxAdapter(
                       child: Center(
@@ -188,6 +192,10 @@ class BookDetailScreen extends ConsumerWidget {
                         );
                       }
 
+                      final visibleCount =
+                          chapters.length > 4 ? 4 : chapters.length;
+                      final visible = chapters.take(visibleCount).toList();
+
                       return SliverPadding(
                         padding: EdgeInsets.symmetric(
                           horizontal: context.responsive(
@@ -196,32 +204,66 @@ class BookDetailScreen extends ConsumerWidget {
                             desktop: 64,
                           ),
                         ),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final chapter = chapters[index];
-                              return RepaintBoundary(
-                                child: _ChapterCard(
-                                chapter: chapter,
-                                index: index,
-                                bookId: book.id,
-                                isDark: isDark,
-                                theme: theme,
-                              )
-                                  .animate()
-                                  .fadeIn(
-                                    delay: Duration(
-                                      milliseconds: 450 + index * 60,
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            children: [
+                              ...visible.asMap().entries.map(
+                                (entry) {
+                                  final index = entry.key;
+                                  final chapter = entry.value;
+                                  return RepaintBoundary(
+                                    child: _ChapterCard(
+                                      chapter: chapter,
+                                      index: index,
+                                      bookId: book.id,
+                                      isDark: isDark,
+                                      theme: theme,
+                                    )
+                                        .animate()
+                                        .fadeIn(
+                                          delay: Duration(
+                                            milliseconds: 450 + index * 60,
+                                          ),
+                                        )
+                                        .slideX(
+                                          begin: 0.03,
+                                          curve: Curves.easeOutCubic,
+                                        ),
+                                  );
+                                },
+                              ),
+                              if (chapters.length > visibleCount) ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.tonal(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => _AllChaptersPage(
+                                            bookId: book.id,
+                                            chapters: chapters,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                      ),
                                     ),
-                                  )
-                                  .slideX(
-                                    begin: 0.03,
-                                    curve: Curves.easeOutCubic,
+                                    child: Text(
+                                      'Tüm bölümleri gör (${chapters.length})',
+                                    ),
                                   ),
-                              );
-                            },
-                            childCount: chapters.length,
-                            addRepaintBoundaries: true,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       );
@@ -465,6 +507,7 @@ class _HeroCoverSliver extends StatelessWidget {
         ),
       ),
       actions: [
+        _OfflineDownloadAction(book: book),
         if (onReport != null)
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -483,89 +526,50 @@ class _HeroCoverSliver extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Arka plan görseli veya varsayılan kapak
-            (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
-                ? Image.network(
-                    book.coverImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Image.asset(
-                      AppAssets.defaultBookCover,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Image.asset(
-                    AppAssets.defaultBookCover,
-                    fit: BoxFit.cover,
-                  ),
-
-            // Gradient overlay (metin okunabilirliği için)
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.7),
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-            ),
-
-            // Kitap bilgisi (alt kısım)
+            _buildGradientBackground(),
             Positioned(
-              left: 20,
-              right: 20,
-              bottom: 24,
+              left: 0,
+              right: 0,
+              bottom: 32,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Durum badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _statusColor.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _statusIcon,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _statusText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 140,
+                      height: 200,
+                      child: (book.coverImageUrl != null &&
+                              book.coverImageUrl!.isNotEmpty)
+                          ? Image.network(
+                              book.coverImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                AppAssets.defaultBookCover,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              AppAssets.defaultBookCover,
+                              fit: BoxFit.cover,
+                            ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Kitap başlığı
-                  Text(
-                    book.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
+                  const SizedBox(height: 18),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      book.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -599,37 +603,73 @@ class _HeroCoverSliver extends StatelessWidget {
     );
   }
 
-  Color get _statusColor {
-    switch (book.status) {
-      case BookStatus.published:
-        return AppColors.success;
-      case BookStatus.draft:
-        return AppColors.warning;
-      case BookStatus.archived:
-        return AppColors.textSecondaryDark;
-    }
-  }
+}
 
-  IconData get _statusIcon {
-    switch (book.status) {
-      case BookStatus.published:
-        return Icons.check_circle_outline;
-      case BookStatus.draft:
-        return Icons.edit_outlined;
-      case BookStatus.archived:
-        return Icons.archive_outlined;
-    }
-  }
+/// Çevrimdışı indirme butonu (Vellum Pro için).
+class _OfflineDownloadAction extends ConsumerWidget {
+  const _OfflineDownloadAction({required this.book});
 
-  String get _statusText {
-    switch (book.status) {
-      case BookStatus.published:
-        return 'Yayında';
-      case BookStatus.draft:
-        return 'Taslak';
-      case BookStatus.archived:
-        return 'Arşivlendi';
-    }
+  final Book book;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isProAsync = ref.watch(isProProvider);
+
+    final isPro = isProAsync.when(
+      data: (v) => v,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
+    final icon = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.download_for_offline_rounded, color: Colors.white),
+        if (!isPro)
+          const Positioned(
+            right: -2,
+            bottom: -2,
+            child: Icon(
+              Icons.lock_outline,
+              size: 14,
+              color: Colors.white,
+            ),
+          ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        tooltip: 'Çevrimdışı oku',
+        icon: icon,
+        onPressed: () async {
+          final subscriptionService = ref.read(subscriptionServiceProvider);
+          final allowed = await subscriptionService.ensurePro(context);
+          if (!allowed) return;
+
+          final manager = ref.read(offlineDownloadManagerProvider);
+          try {
+            await manager.downloadBook(bookId: book.id);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Kitap çevrimdışı okumak için indirildi.'),
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('İndirme hatası: $e'),
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 }
 
@@ -1215,19 +1255,11 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
 
         // Yorum yazma butonu
         if (currentUser != null && !_showForm)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _showForm = true),
-              icon: const Icon(Icons.rate_review_outlined, size: 18),
-              label: const Text('Değerlendirme Yaz'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+          VellumButton(
+            label: 'Değerlendirme Yaz',
+            icon: Icons.rate_review_outlined,
+            variant: VellumButtonVariant.outlined,
+            onPressed: () => setState(() => _showForm = true),
           ),
 
         // Yorum formu
@@ -1471,10 +1503,10 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
             decoration: InputDecoration(
               hintText: 'Yorumunuzu yazın (isteğe bağlı)',
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
               ),
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
             maxLines: 3,
             maxLength: 500,
@@ -1482,21 +1514,11 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
           const SizedBox(height: 8),
 
           // Gönder butonu
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _isSubmitting ? null : _submit,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Gönder'),
-            ),
+          VellumButton(
+            label: 'Gönder',
+            icon: Icons.send_rounded,
+            isLoading: _isSubmitting,
+            onPressed: _isSubmitting ? null : _submit,
           ),
         ],
       ),
@@ -1660,6 +1682,43 @@ class _ReviewCard extends StatelessWidget {
     return '${date.day.toString().padLeft(2, '0')}.'
         '${date.month.toString().padLeft(2, '0')}.'
         '${date.year}';
+  }
+}
+
+class _AllChaptersPage extends ConsumerWidget {
+  const _AllChaptersPage({
+    required this.bookId,
+    required this.chapters,
+  });
+
+  final String bookId;
+  final List<Chapter> chapters;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bölümler'),
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        itemCount: chapters.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
+        itemBuilder: (context, index) {
+          final chapter = chapters[index];
+          return _ChapterCard(
+            chapter: chapter,
+            index: index,
+            bookId: bookId,
+            isDark: isDark,
+            theme: theme,
+          );
+        },
+      ),
+    );
   }
 }
 

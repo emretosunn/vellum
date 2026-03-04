@@ -7,7 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/data/auth_repository.dart';
 import 'features/settings/presentation/settings_screen.dart';
+import 'features/settings/data/app_config_repository.dart';
 import 'routing/app_router.dart';
+import 'features/shared/presentation/maintenance_screen.dart';
 
 /// Reaktif onboarding durumu — main.dart'ta başlangıç değeri atanır,
 /// onboarding tamamlanınca true'ya çekilir.
@@ -25,6 +27,8 @@ class VellumApp extends ConsumerWidget {
         false;
 
     final onboardingDone = ref.watch(onboardingCompletedProvider);
+    final appConfigAsync = ref.watch(appConfigProvider);
+    final profileAsync = ref.watch(currentProfileProvider);
 
     final router = createRouter(
       isLoggedIn: isLoggedIn,
@@ -81,6 +85,21 @@ class VellumApp extends ConsumerWidget {
       ),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) {
+        return appConfigAsync.when(
+          loading: () => child ?? const SizedBox.shrink(),
+          error: (_, __) => child ?? const SizedBox.shrink(),
+          data: (config) {
+            final isDeveloper =
+                profileAsync.valueOrNull?.isDeveloper == true;
+
+            if (config.maintenanceEnabled && !isDeveloper) {
+              return MaintenanceScreen(message: config.maintenanceMessage);
+            }
+            return child ?? const SizedBox.shrink();
+          },
+        );
+      },
       localizationsDelegates: [
         localizationDelegate,
         GlobalMaterialLocalizations.delegate,

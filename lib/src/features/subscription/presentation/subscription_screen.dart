@@ -51,9 +51,10 @@ class SubscriptionScreen extends ConsumerWidget {
 
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  child: RepaintBoundary(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       _SubscriptionStatusCard(
                         isActive: isActive,
                         subEndDate: profile.subEndDate,
@@ -87,7 +88,8 @@ class SubscriptionScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       const _FaqSection(),
                       SizedBox(height: navBarSpace + bottomPad),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
