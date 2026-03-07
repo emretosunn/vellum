@@ -7,6 +7,7 @@ import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
+import '../../library/presentation/create_post_sheet.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import 'create_book_screen.dart';
 
@@ -85,14 +86,10 @@ class WriterStudioScreen extends ConsumerWidget {
           ),
             ),
 
+          // Profil yükleme alanı — yükseklik sabit (0) bırakılıyor ki Vellum Pro kartı kaymasın
           SliverToBoxAdapter(
             child: profileAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-              ),
+              loading: () => const SizedBox.shrink(),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text('Hata: $err'),
@@ -109,13 +106,30 @@ class WriterStudioScreen extends ConsumerWidget {
             ),
           ),
 
-          // Plan rozeti — özel kart
+          // Plan rozeti — özel kart (kayma olmaması için sabit sliver)
           SliverToBoxAdapter(
             child: RepaintBoundary(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _PlanBadge(isPro: isPro),
               ),
+            ),
+          ),
+
+          // Paylaşım yap — ekranın ortasında özel hero kartı
+          SliverToBoxAdapter(
+            child: profileAsync.whenOrNull(
+              data: (profile) {
+                if (profile == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                  child: _SharePostHero(
+                    isDark: isDark,
+                    theme: theme,
+                    onTap: () => showCreatePostSheet(context, ref, profile.id),
+                  ),
+                );
+              },
             ),
           ),
 
@@ -509,6 +523,107 @@ class _PlanBadge extends StatelessWidget {
               child: const Text('Yükselt'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Paylaşım yap hero (ekran ortası, özel tasarım) ─────────────────────
+
+class _SharePostHero extends StatelessWidget {
+  const _SharePostHero({
+    required this.isDark,
+    required this.theme,
+    required this.onTap,
+  });
+
+  final bool isDark;
+  final ThemeData theme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      AppColors.primary.withValues(alpha: 0.3),
+                      AppColors.secondary.withValues(alpha: 0.2),
+                    ]
+                  : [
+                      AppColors.primary.withValues(alpha: 0.14),
+                      AppColors.secondary.withValues(alpha: 0.08),
+                    ],
+            ),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: isDark ? 0.1 : 0.2),
+                ),
+                child: Icon(
+                  Icons.edit_note_rounded,
+                  size: 24,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Paylaşım yap',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Takipçilerine kısa yazı paylaş',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.primary.withValues(alpha: 0.8),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

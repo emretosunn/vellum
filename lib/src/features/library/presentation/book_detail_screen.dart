@@ -651,6 +651,8 @@ class _OfflineDownloadAction extends ConsumerWidget {
           final manager = ref.read(offlineDownloadManagerProvider);
           try {
             await manager.downloadBook(bookId: book.id);
+            // İndirilenler listesi ana ekranda hemen güncellensin
+            ref.invalidate(offlineBooksListProvider);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

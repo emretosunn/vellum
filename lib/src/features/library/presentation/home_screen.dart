@@ -9,11 +9,17 @@ import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/in_app_update_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../library/data/author_post_repository.dart';
 import '../../library/data/book_like_repository.dart';
+import '../../library/data/follow_repository.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/data/connectivity_provider.dart';
+import '../../library/domain/author_post.dart';
 import '../../library/data/reading_progress_repository.dart';
 import '../../library/data/review_repository.dart';
 import '../../library/domain/book.dart';
+import '../../library/offline/offline_book.dart';
+import '../../library/offline/offline_download_manager.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 
 /// Saate göre selamlama (referans tasarım: GOOD MORNING / EVENING)
@@ -26,162 +32,220 @@ String _timeBasedGreeting() {
 
 bool _homeVerticalListAnimated = false;
 
+enum HomeTab {
+  explore,
+  following,
+}
+
+final homeTabProvider = StateProvider<HomeTab>((ref) => HomeTab.explore);
+
+/// Ana sayfa üst başlık: selamlama + avatar + bildirim.
+class _HomeHeader extends ConsumerWidget {
+  const _HomeHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(currentProfileProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+      child: Row(
+        children: [
+          profileAsync.when(
+            data: (profile) {
+              final avatarUrl = profile?.avatarUrl;
+              return GestureDetector(
+                onTap: () {
+                  if (profile != null) context.push('/author/${profile.id}');
+                },
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  onBackgroundImageError: (avatarUrl != null && avatarUrl.isNotEmpty) ? (_, __) {} : null,
+                  child: avatarUrl == null || avatarUrl.isEmpty
+                      ? Text(
+                          (profile?.username.isNotEmpty == true ? profile!.username[0] : 'O').toUpperCase(),
+                          style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                        )
+                      : null,
+                ),
+              );
+            },
+            loading: () => const CircleAvatar(radius: 20, child: SizedBox()),
+            error: (_, __) => CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+              child: Text('O', style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _timeBasedGreeting(),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
+                ),
+                profileAsync.when(
+                  data: (profile) => Text(
+                    profile?.username ?? 'Okuyucu',
+                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  loading: () => const SizedBox(height: 26),
+                  error: (_, __) => Text('Okuyucu', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final count = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+                return IconButton(
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                    ref.invalidate(unreadNotificationCountProvider);
+                  },
+                  icon: Badge(
+                    isLabelVisible: count > 0,
+                    label: Text('$count'),
+                    child: Icon(Icons.notifications_outlined, color: theme.colorScheme.onSurface, size: 24),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final booksAsync = ref.watch(searchedBooksProvider);
-    final recentAsync = ref.watch(recentBooksProvider);
-    final profileAsync = ref.watch(currentProfileProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
       body: Stack(
         children: [
           const Positioned(left: 0, top: 0, right: 0, bottom: 0, child: InAppUpdateTrigger()),
           SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(searchedBooksProvider);
-                ref.invalidate(publishedBooksProvider);
-                ref.invalidate(featuredBooksProvider);
-                ref.invalidate(recentBooksProvider);
-                ref.invalidate(unreadNotificationCountProvider);
-                ref.invalidate(continueReadingEntriesProvider);
-                ref.invalidate(continueReadingBooksProvider);
-                ref.invalidate(likedBooksProvider);
-              },
-              child: ClipRect(
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                  // ─── Zaman selamı + Avatar + Bildirim ─────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
-                      child: Row(
-                        children: [
-                          // Avatar (profil fotoğrafı) — tıklanınca kendi profil sayfasına git
-                          profileAsync.when(
-                            data: (profile) {
-                              final avatarUrl = profile?.avatarUrl;
-                              return GestureDetector(
-                                onTap: () {
-                                  if (profile != null) {
-                                    context.push('/author/${profile.id}');
-                                  }
-                                },
-                                child: CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                                      ? NetworkImage(avatarUrl)
-                                      : null,
-                                  onBackgroundImageError: (avatarUrl != null && avatarUrl.isNotEmpty)
-                                      ? (_, __) {}
-                                      : null,
-                                  child: avatarUrl == null || avatarUrl.isEmpty
-                                      ? Text(
-                                          (profile?.username.isNotEmpty == true
-                                                  ? profile!.username[0]
-                                                  : 'O')
-                                              .toUpperCase(),
-                                          style: theme.textTheme.titleLarge?.copyWith(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              );
-                            },
-                            loading: () => const CircleAvatar(radius: 20, child: SizedBox()),
-                            error: (_, __) => CircleAvatar(
-                              radius: 20,
-                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                              child: Text(
-                                'O',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _HomeHeader(),
+                Expanded(
+                  child: DefaultTabController(
+                    length: 2,
+                    child: Column(
+                      children: [
+                        Material(
+                          color: theme.scaffoldBackgroundColor,
+                          child: TabBar(
+                            labelColor: AppColors.primary,
+                            unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                            indicatorColor: AppColors.primary,
+                            tabs: const [
+                              Tab(text: 'Keşfet'),
+                              Tab(text: 'Takip Edilenler'),
+                            ],
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _timeBasedGreeting(),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.65),
-                                  ),
-                                ),
-                                profileAsync.when(
-                                  data: (profile) => Text(
-                                    profile?.username ?? 'Okuyucu',
-                                    style: theme.textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  loading: () => const SizedBox(height: 26),
-                                  error: (_, __) => Text(
-                                    'Okuyucu',
-                                    style: theme.textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _DiscoverTab(),
+                              _FollowingFeedTab(),
+                            ],
                           ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.black.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Consumer(
-                              builder: (context, ref, _) {
-                                final unreadAsync = ref.watch(
-                                    unreadNotificationCountProvider);
-                                final count = unreadAsync.valueOrNull ?? 0;
-                                return IconButton(
-                                  onPressed: () async {
-                                    await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const NotificationsScreen(),
-                                      ),
-                                    );
-                                    ref.invalidate(
-                                        unreadNotificationCountProvider);
-                                  },
-                                  icon: Badge(
-                                    isLabelVisible: count > 0,
-                                    label: Text('$count'),
-                                    child: Icon(
-                                      Icons.notifications_outlined,
-                                      color: theme.colorScheme.onSurface,
-                                      size: 24,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _GrainOverlay(isDark: isDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+/// Keşfet sekmesi: mevcut ana sayfa içeriği (arama, hero, kitaplar, indirilenler).
+class _DiscoverTab extends ConsumerWidget {
+  const _DiscoverTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final booksAsync = ref.watch(searchedBooksProvider);
+    final recentAsync = ref.watch(recentBooksProvider);
+    final connectivityAsync = ref.watch(connectivityProvider);
+    final offlineBooksAsync = ref.watch(offlineBooksListProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    // Bağlantı bilinene kadar Keşfet içeriğini göster (beyaz ekran olmasın)
+    final isOffline = connectivityAsync.when(
+      data: isOfflineFromConnectivity,
+      loading: () => false,
+      error: (_, __) => false,
+    );
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(connectivityProvider);
+        ref.invalidate(offlineBooksListProvider);
+        ref.invalidate(searchedBooksProvider);
+        ref.invalidate(publishedBooksProvider);
+        ref.invalidate(featuredBooksProvider);
+        ref.invalidate(recentBooksProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+        ref.invalidate(continueReadingEntriesProvider);
+        ref.invalidate(continueReadingBooksProvider);
+        ref.invalidate(likedBooksProvider);
+      },
+      child: ClipRect(
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+                  if (isOffline) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.cloud_off_rounded, size: 20, color: theme.colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Çevrimdışısınız. İndirdiğiniz kitaplar aşağıda.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _IndirilenlerSliver(offlineBooksAsync: offlineBooksAsync, theme: theme, isDark: isDark),
+                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  ] else ...[
                   // ─── Arama ─────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
@@ -273,6 +337,14 @@ class HomeScreen extends ConsumerWidget {
                         );
                       },
                     ),
+                  ),
+
+                  // ─── İndirilenler (online iken de listele) ─────────────────
+                  _IndirilenlerSliver(
+                    offlineBooksAsync: offlineBooksAsync,
+                    theme: theme,
+                    isDark: isDark,
+                    showWhenEmpty: false,
                   ),
 
                   // ─── Kitaplar İçeriği ─────────────────────
@@ -488,20 +560,164 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
+                  ], // else branch (online content)
                 ],
               ),
             ),
+          );
+  }
+}
+
+/// Takip Edilenler sekmesi: takip ettiğin yazarların metin paylaşımları.
+class _FollowingFeedTab extends ConsumerWidget {
+  const _FollowingFeedTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(followingFeedProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(followingFeedProvider);
+        ref.invalidate(followingIdsProvider);
+      },
+      child: feedAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 16),
+                Text('Paylaşımlar yüklenemedi', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                FilledButton.tonal(
+                  onPressed: () => ref.invalidate(followingFeedProvider),
+                  child: const Text('Tekrar Dene'),
+                ),
+              ],
             ),
           ),
-          // Hafif grain dokusu (parşömen hissi)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _GrainOverlay(isDark: isDark),
-            ),
-          ),
-        ],
+        ),
+        data: (posts) {
+          if (posts.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
+              children: [
+                Icon(Icons.people_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(height: 16),
+                Text(
+                  'Takip ettiğin yazarların paylaşımları burada',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Yazar profillerinden takip et butonuna basarak yazarları takip edebilirsin.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              return _FeedPostCard(post: post, isDark: isDark);
+            },
+          );
+        },
       ),
     );
+  }
+}
+
+/// Tek bir post kartı (yazar adı + metin).
+class _FeedPostCard extends ConsumerWidget {
+  const _FeedPostCard({required this.post, required this.isDark});
+  final AuthorPost post;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authorAsync = ref.watch(profileByIdProvider(post.authorId));
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: isDark ? const Color(0xFF181824) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        child: InkWell(
+          onTap: () => context.push('/author/${post.authorId}'),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                authorAsync.when(
+                  data: (profile) => Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                        backgroundImage: profile?.avatarUrl != null && profile!.avatarUrl!.isNotEmpty
+                            ? NetworkImage(profile.avatarUrl!)
+                            : null,
+                        child: (profile?.avatarUrl == null || (profile?.avatarUrl ?? '').isEmpty)
+                            ? Text(
+                                (profile?.username.isNotEmpty == true ? profile!.username[0] : '?').toUpperCase(),
+                                style: theme.textTheme.titleSmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        profile?.username ?? 'Yazar',
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  loading: () => const SizedBox(height: 36),
+                  error: (_, __) => Text('Yazar', style: theme.textTheme.titleSmall),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  post.content,
+                  style: theme.textTheme.bodyMedium,
+                  maxLines: 10,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatPostDate(post.createdAt),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _formatPostDate(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inMinutes < 1) return 'Az önce';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
+    if (diff.inHours < 24) return '${diff.inHours} sa önce';
+    if (diff.inDays < 7) return '${diff.inDays} gün önce';
+    return '${d.day}.${d.month}.${d.year}';
   }
 }
 
@@ -571,80 +787,394 @@ class _HeroShowcase extends StatelessWidget {
   }
 }
 
-class _HeroBookCard extends StatelessWidget {
+// ─── Home Tab Switcher (Keşfet / Takip Edilenler) ──────────────────────
+
+class _HomeTabSwitcher extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final current = ref.watch(homeTabProvider);
+
+    Widget buildChip(HomeTab tab, String label) {
+      final selected = current == tab;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => ref.read(homeTabProvider.notifier).state = tab,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? (isDark ? AppColors.primary : AppColors.primary)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? Colors.white
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          buildChip(HomeTab.explore, 'Keşfet'),
+          buildChip(HomeTab.following, 'Takip Edilenler'),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Takip Edilenler Feed Sliver ───────────────────────────────────────
+
+class _FollowingFeedSliver extends ConsumerWidget {
+  const _FollowingFeedSliver({required this.theme, required this.isDark});
+
+  final ThemeData theme;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(followingFeedProvider);
+
+    return feedAsync.when(
+      loading: () => const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Takip edilen yazarların paylaşımları yüklenemedi.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return SliverFillRemaining(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.people_outline_rounded,
+                    size: 56,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Henüz takip ettiğin yazar yok ya da hiç paylaşım yok.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Yazar profillerinden \"Takip Et\" diyerek akışını doldurabilirsin.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final post = posts[index];
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                child: _AuthorPostCard(post: post, isDark: isDark),
+              );
+            },
+            childCount: posts.length,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AuthorPostCard extends ConsumerWidget {
+  const _AuthorPostCard({required this.post, required this.isDark});
+
+  final AuthorPost post;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profileAsync = ref.watch(profileByIdProvider(post.authorId));
+
+    final date = post.createdAt;
+    final dateText =
+        '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF181824) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : Colors.black.withValues(alpha: 0.04),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              profileAsync.when(
+                data: (profile) {
+                  final avatarUrl = profile?.avatarUrl;
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.15),
+                    backgroundImage:
+                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                    onBackgroundImageError:
+                        avatarUrl != null ? (_, __) {} : null,
+                    child: avatarUrl == null
+                        ? Text(
+                            (profile?.username.isNotEmpty == true
+                                    ? profile!.username[0]
+                                    : 'Y')
+                                .toUpperCase(),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
+                  );
+                },
+                loading: () => const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey,
+                ),
+                error: (_, __) => const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    profileAsync.when(
+                      data: (profile) => Text(
+                        profile?.username ?? 'Yazar',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      loading: () => Container(
+                        width: 80,
+                        height: 12,
+                        color: Colors.grey.withValues(alpha: 0.3),
+                      ),
+                      error: (_, __) => Text(
+                        'Yazar',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dateText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            post.content,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBookCard extends ConsumerWidget {
   const _HeroBookCard({required this.book, required this.isDark});
   final Book book;
   final bool isDark;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final baseColor = isDark ? const Color(0xFF10101A) : Colors.white;
+
+    // Yazar ismini profilden çek (varsa)
+    final authorAsync = ref.watch(profileByIdProvider(book.authorId));
+    final authorName = authorAsync.maybeWhen(
+      data: (p) => p?.username ?? 'Bilinmeyen Yazar',
+      orElse: () => 'Bilinmeyen Yazar',
+    );
+
+    final category = (book.category != null && book.category!.isNotEmpty)
+        ? book.category!
+        : 'Tür belirtilmemiş';
 
     return GestureDetector(
       onTap: () => context.push('/book/${book.id}'),
       child: Container(
         width: double.infinity,
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+                    baseColor,
+                    const Color(0xFF181824),
+                  ]
+                : [
+                    Colors.white,
+                    Colors.white,
+                    AppColors.primary.withValues(alpha: 0.04),
+                  ],
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.2),
+              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 10),
             ),
           ],
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : AppColors.primary.withValues(alpha: 0.10),
+          ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
-                  ? Image.network(
-                      book.coverImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Kapak
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 3 / 4,
+                child: (book.coverImageUrl != null &&
+                        book.coverImageUrl!.isNotEmpty)
+                    ? Image.network(
+                        book.coverImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
                         AppAssets.defaultBookCover,
                         fit: BoxFit.cover,
                       ),
-                    )
-                  : Image.asset(
-                      AppAssets.defaultBookCover,
-                      fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Metin alanı
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    book.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
                     ),
-              // Karartma overlay
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.3),
-                      Colors.black.withValues(alpha: 0.85),
-                    ],
-                    stops: const [0.2, 0.6, 1.0],
                   ),
-                ),
-              ),
-              // Başlık (Serif)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 24,
-                child: Text(
-                  book.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.2,
+                  const SizedBox(height: 6),
+                  Text(
+                    authorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -718,6 +1248,197 @@ class _GrainPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─── İndirilenler (çevrimdışı kitaplar) ───────────────────────────────────
+
+class _IndirilenlerSliver extends StatelessWidget {
+  const _IndirilenlerSliver({
+    required this.offlineBooksAsync,
+    required this.theme,
+    required this.isDark,
+    this.showWhenEmpty = true,
+  });
+  final AsyncValue<List<OfflineBook>> offlineBooksAsync;
+  final ThemeData theme;
+  final bool isDark;
+  /// Çevrimdışı modda true (boşken de mesaj göster). Online modda false (boşken satır gösterme).
+  final bool showWhenEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: offlineBooksAsync.when(
+        loading: () => showWhenEmpty
+            ? const Padding(
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+                child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+              )
+            : const SizedBox.shrink(),
+        error: (_, __) => showWhenEmpty
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                child: Text(
+                  'İndirilen kitaplar yüklenemedi.',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              )
+            : const SizedBox.shrink(),
+        data: (list) {
+          if (list.isEmpty) {
+            if (!showWhenEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 80),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'İndirilenler',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Henüz indirilmiş kitabınız yok. İnternet bağlantısı varken kitapları indirebilirsiniz.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
+                child: Text(
+                  'İndirilenler',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 302,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final offlineBook = list[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: _OfflineBookCard(
+                        offlineBook: offlineBook,
+                        theme: theme,
+                        isDark: isDark,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OfflineBookCard extends StatelessWidget {
+  const _OfflineBookCard({
+    required this.offlineBook,
+    required this.theme,
+    required this.isDark,
+  });
+  final OfflineBook offlineBook;
+  final ThemeData theme;
+  final bool isDark;
+
+  static const double _coverWidth = 120;
+  static const double _coverHeight = 180;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/reader/${offlineBook.bookId}'),
+      child: SizedBox(
+        width: _coverWidth,
+        height: 298,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: _coverWidth,
+              height: _coverHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: (offlineBook.coverImage.isNotEmpty)
+                    ? Image.network(
+                        offlineBook.coverImage,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppAssets.defaultBookCover,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      )
+                    : Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              offlineBook.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              offlineBook.authorName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ─── Bölüm Başlığı (Serif + Tümünü Gör) ──────────────────────────────────

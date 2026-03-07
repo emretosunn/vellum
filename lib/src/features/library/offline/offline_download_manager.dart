@@ -67,6 +67,12 @@ class OfflineDownloadManager {
     return box.get(bookId);
   }
 
+  /// Tüm indirilmiş kitapları döndürür (ana sayfa İndirilenler satırı için).
+  Future<List<OfflineBook>> getAllOfflineBooks() async {
+    final box = await _openBox();
+    return box.values.toList();
+  }
+
   Future<void> removeOfflineBook(String bookId) async {
     final box = await _openBox();
     await box.delete(bookId);
@@ -81,4 +87,11 @@ class OfflineDownloadManager {
 
 final offlineDownloadManagerProvider =
     Provider<OfflineDownloadManager>((ref) => OfflineDownloadManager(ref));
+
+/// Ana sayfada "İndirilenler" satırı için tüm çevrimdışı kitaplar.
+final offlineBooksListProvider =
+    FutureProvider.autoDispose<List<OfflineBook>>((ref) async {
+  final manager = ref.read(offlineDownloadManagerProvider);
+  return manager.getAllOfflineBooks();
+});
 

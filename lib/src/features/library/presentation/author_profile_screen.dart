@@ -10,8 +10,10 @@ import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
+import '../data/author_post_repository.dart';
 import '../data/book_like_repository.dart';
 import '../data/book_repository.dart';
+import '../data/follow_repository.dart';
 import '../data/read_books_repository.dart';
 import '../domain/book.dart';
 
@@ -50,7 +52,9 @@ class AuthorProfileScreen extends ConsumerWidget {
               // Profil Header
               _ProfileHeaderSliver(
                 author: author,
+                authorId: authorId,
                 isDark: isDark,
+                isOwnProfile: isOwnProfile,
               ),
 
               // İstatistik satırı
@@ -68,29 +72,69 @@ class AuthorProfileScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 20),
 
-                      // İstatistikler (kitap sayısı, toplam beğeni, üyelik)
+                      // İstatistikler (kitap, beğeni, takipçi, üyelik)
                       booksAsync.whenOrNull(
                             data: (books) => Consumer(
                               builder: (context, ref, _) {
                                 final totalLikesAsync = ref.watch(authorTotalLikesProvider(authorId));
+                                final followerCountAsync = ref.watch(followerCountProvider(authorId));
                                 return totalLikesAsync.when(
-                                  data: (totalLikes) => _StatsRow(
-                                    bookCount: books.length,
-                                    totalLikes: totalLikes,
-                                    isDark: isDark,
-                                    theme: theme,
-                                    memberSince: author.createdAt,
+                                  data: (totalLikes) => followerCountAsync.when(
+                                    data: (followerCount) => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: totalLikes,
+                                      followerCount: followerCount,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
+                                    loading: () => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: totalLikes,
+                                      followerCount: 0,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
+                                    error: (_, __) => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: totalLikes,
+                                      followerCount: 0,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
                                   ),
-                                  loading: () => _StatsRow(
-                                    bookCount: books.length,
-                                    totalLikes: 0,
-                                    isDark: isDark,
-                                    theme: theme,
-                                    memberSince: author.createdAt,
+                                  loading: () => followerCountAsync.when(
+                                    data: (followerCount) => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: 0,
+                                      followerCount: followerCount,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
+                                    loading: () => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: 0,
+                                      followerCount: 0,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
+                                    error: (_, __) => _StatsRow(
+                                      bookCount: books.length,
+                                      totalLikes: 0,
+                                      followerCount: 0,
+                                      isDark: isDark,
+                                      theme: theme,
+                                      memberSince: author.createdAt,
+                                    ),
                                   ),
                                   error: (_, __) => _StatsRow(
                                     bookCount: books.length,
                                     totalLikes: 0,
+                                    followerCount: followerCountAsync.valueOrNull ?? 0,
                                     isDark: isDark,
                                     theme: theme,
                                     memberSince: author.createdAt,
@@ -106,6 +150,10 @@ class AuthorProfileScreen extends ConsumerWidget {
                         const SizedBox(height: 24),
                         _ReadBooksSection(userId: authorId),
                       ],
+
+                      // Paylaşımlar (yazarın metin postları)
+                      const SizedBox(height: 20),
+                      _AuthorPostsSection(authorId: authorId, isDark: isDark, theme: theme),
 
                       // Bio bölümü
                       if (author.bio.isNotEmpty) ...[
@@ -239,19 +287,30 @@ class AuthorProfileScreen extends ConsumerWidget {
 
 // ─── Profil Header Sliver ─────────────────────────
 
-class _ProfileHeaderSliver extends StatelessWidget {
+class _ProfileHeaderSliver extends ConsumerWidget {
   const _ProfileHeaderSliver({
     required this.author,
+    required this.authorId,
     required this.isDark,
+    required this.isOwnProfile,
   });
 
   final Profile author;
+  final String authorId;
   final bool isDark;
+  final bool isOwnProfile;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
+    final isFollowingAsync = currentUserId != null && !isOwnProfile
+        ? ref.watch(isFollowingProvider((followerId: currentUserId, followingId: authorId)))
+        : null;
+
+    // Yükseklik: avatar + isim + rozet + (Takip et butonu) — taşmayı önlemek için yeterli
+    const double expandedHeight = 320;
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: expandedHeight,
       pinned: true,
       stretch: true,
       backgroundColor: isDark ? AppColors.cardDark : AppColors.primary,
@@ -328,12 +387,12 @@ class _ProfileHeaderSliver extends StatelessWidget {
               ),
             ),
 
-            // Profil içeriği
+            // Profil içeriği (sabit yükseklikte taşma olmaması için sıkı boşluklar)
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
 
                   // Avatar
                   Container(
@@ -426,6 +485,44 @@ class _ProfileHeaderSliver extends StatelessWidget {
                           begin: const Offset(0.8, 0.8),
                           curve: Curves.easeOutBack,
                         ),
+
+                  // Takip et / Takipten çık — PRO Yazar'ın hemen altında, aksiyonlu buton
+                  if (!isOwnProfile && currentUserId != null && isFollowingAsync != null)
+                    isFollowingAsync.when(
+                      data: (following) => Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: _FollowActionButton(
+                          isFollowing: following,
+                          onPressed: () async {
+                            final repo = ref.read(followRepositoryProvider);
+                            if (following) {
+                              await repo.unfollow(followerId: currentUserId, followingId: authorId);
+                            } else {
+                              await repo.follow(followerId: currentUserId, followingId: authorId);
+                            }
+                            ref.invalidate(isFollowingProvider((followerId: currentUserId, followingId: authorId)));
+                            ref.invalidate(followingIdsProvider);
+                            ref.invalidate(followingFeedProvider);
+                            ref.invalidate(followerCountProvider(authorId));
+                          },
+                        ),
+                      ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: SizedBox(
+                          width: 140,
+                          height: 44,
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
                 ],
               ),
             ),
@@ -436,12 +533,148 @@ class _ProfileHeaderSliver extends StatelessWidget {
   }
 }
 
+/// Profil header'da kullanılan Takip et / Takipten çık aksiyon butonu (PRO Yazar altında).
+class _FollowActionButton extends StatelessWidget {
+  const _FollowActionButton({
+    required this.isFollowing,
+    required this.onPressed,
+  });
+  final bool isFollowing;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isFollowing
+                  ? Colors.white.withValues(alpha: 0.18)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: isFollowing ? 0.4 : 0.9),
+                width: 1.6,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isFollowing ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                  color: isFollowing ? Colors.white : AppColors.primary,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  isFollowing ? 'Takipten çık' : 'Takip et',
+                  style: TextStyle(
+                    color: isFollowing ? Colors.white : AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.2, curve: Curves.easeOut);
+  }
+}
+
+// ─── Yazar paylaşımları bölümü ─────────────────────────
+
+class _AuthorPostsSection extends ConsumerWidget {
+  const _AuthorPostsSection({required this.authorId, required this.isDark, required this.theme});
+  final String authorId;
+  final bool isDark;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final postsAsync = ref.watch(authorPostsProvider(authorId));
+    return postsAsync.when(
+      loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (posts) {
+        if (posts.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.primary, AppColors.secondary]),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text('Paylaşımlar', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...posts.map((post) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(post.content, style: theme.textTheme.bodyMedium, maxLines: 10, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 6),
+                    Text(_formatPostDate(post.createdAt), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            )),
+          ],
+        );
+      },
+    );
+  }
+
+  static String _formatPostDate(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inMinutes < 1) return 'Az önce';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
+    if (diff.inHours < 24) return '${diff.inHours} sa önce';
+    if (diff.inDays < 7) return '${diff.inDays} gün önce';
+    return '${d.day}.${d.month}.${d.year}';
+  }
+}
+
 // ─── İstatistik Satırı ─────────────────────────────
 
 class _StatsRow extends StatelessWidget {
   const _StatsRow({
     required this.bookCount,
     required this.totalLikes,
+    required this.followerCount,
     required this.isDark,
     required this.theme,
     this.memberSince,
@@ -449,6 +682,7 @@ class _StatsRow extends StatelessWidget {
 
   final int bookCount;
   final int totalLikes;
+  final int followerCount;
   final bool isDark;
   final ThemeData theme;
   final DateTime? memberSince;
@@ -472,6 +706,16 @@ class _StatsRow extends StatelessWidget {
             icon: Icons.favorite_rounded,
             label: 'Beğeni',
             value: _formatCount(totalLikes),
+            isDark: isDark,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.people_rounded,
+            label: 'Takipçi',
+            value: _formatCount(followerCount),
             isDark: isDark,
             theme: theme,
           ),
@@ -531,10 +775,14 @@ class _StatCard extends StatelessWidget {
   final bool isDark;
   final ThemeData theme;
 
+  /// Kartlar aynı yükseklikte olsun; dar ekranda etiket yatay kalsın.
+  static const double _minCardHeight = 72;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      constraints: const BoxConstraints(minHeight: _minCardHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.06)
@@ -546,34 +794,37 @@ class _StatCard extends StatelessWidget {
               : AppColors.primary.withValues(alpha: 0.12),
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(
             icon,
             color: AppColors.primary,
-            size: 22,
+            size: 20,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
