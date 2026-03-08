@@ -150,7 +150,7 @@ class BookDetailScreen extends ConsumerWidget {
                                             BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        '${chapters.length} bölüm',
+                                        translate('library.chapters_count', args: {'n': '${chapters.length}'}),
                                         style: theme.textTheme.bodySmall
                                             ?.copyWith(
                                           color: AppColors.primary,
@@ -258,7 +258,7 @@ class BookDetailScreen extends ConsumerWidget {
                                       ),
                                     ),
                                     child: Text(
-                                      'Tüm bölümleri gör (${chapters.length})',
+                                      translate('library.view_all_chapters', args: {'n': '${chapters.length}'}),
                                     ),
                                   ),
                                 ),
@@ -415,7 +415,7 @@ class _BookViewLikeRow extends ConsumerWidget {
         Icon(Icons.visibility_outlined, size: 20, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 6),
         Text(
-          '${_formatCount(book.viewCount)} görüntülenme',
+          translate('library.views_count', args: {'n': _formatCount(book.viewCount)}),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -641,7 +641,7 @@ class _OfflineDownloadAction extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 4),
       child: IconButton(
-        tooltip: 'Çevrimdışı oku',
+        tooltip: translate('library.read_offline'),
         icon: icon,
         onPressed: () async {
           final subscriptionService = ref.read(subscriptionServiceProvider);
@@ -655,16 +655,14 @@ class _OfflineDownloadAction extends ConsumerWidget {
             ref.invalidate(offlineBooksListProvider);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Kitap çevrimdışı okumak için indirildi.'),
-                ),
+                SnackBar(content: Text(translate('library.book_downloaded_offline'))),
               );
             }
           } catch (e) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('İndirme hatası: $e'),
+                  content: Text(translate('library.download_error', args: {'error': e.toString()})),
                 ),
               );
             }
@@ -769,9 +767,9 @@ class _AuthorCard extends StatelessWidget {
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text(
-                                'PRO',
-                                style: TextStyle(
+                              child: Text(
+                                translate('subscription.pro_badge'),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -783,7 +781,7 @@ class _AuthorCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Profili Gör',
+                        translate('library.view_profile'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w500,
@@ -894,7 +892,7 @@ class _BookInfoSection extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              'Hakkında',
+              translate('library.about'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1024,7 +1022,7 @@ class _ChapterCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Bölüm ${index + 1}',
+                        translate('library.chapter_n', args: {'n': '${index + 1}'}),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isDark
                               ? AppColors.textSecondaryDark
@@ -1070,7 +1068,7 @@ class _EmptyChaptersWidget extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Henüz bölüm eklenmemiş',
+              translate('library.no_chapters'),
               style: TextStyle(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 15,
@@ -1158,8 +1156,8 @@ class _ReadCtaButton extends StatelessWidget {
                       const SizedBox(width: 10),
                       Text(
                         hasChapters
-                            ? 'Okumaya Başla'
-                            : 'Henüz okunacak bölüm yok',
+                            ? translate('library.start_reading')
+                            : translate('library.no_chapters_to_read'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -1221,7 +1219,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
             ),
             const SizedBox(width: 10),
             Text(
-              'Değerlendirmeler',
+              translate('library.reviews_title'),
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.bold),
             ),
@@ -1258,7 +1256,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
         // Yorum yazma butonu
         if (currentUser != null && !_showForm)
           VellumButton(
-            label: 'Değerlendirme Yaz',
+            label: translate('library.write_review'),
             icon: Icons.rate_review_outlined,
             variant: VellumButtonVariant.outlined,
             onPressed: () => setState(() => _showForm = true),
@@ -1288,9 +1286,9 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
               child: CircularProgressIndicator(),
             ),
           ),
-          error: (_, __) => const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('Yorumlar yüklenemedi'),
+          error: (_, __) => Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(translate('library.reviews_load_error')),
           ),
           data: (reviews) {
             if (reviews.isEmpty) {
@@ -1310,14 +1308,14 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
                         color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(height: 8),
                     Text(
-                      'Henüz değerlendirme yok',
+                      translate('library.no_reviews'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'İlk değerlendirmeyi siz yazın!',
+                      translate('library.first_review'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1399,7 +1397,7 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
   Future<void> _submit() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen bir puan seçin')),
+        SnackBar(content: Text(translate('library.select_rating'))),
       );
       return;
     }
@@ -1416,14 +1414,14 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Değerlendirmeniz kaydedildi')),
+          SnackBar(content: Text(translate('library.review_saved'))),
         );
         widget.onSubmitted();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e')),
+          SnackBar(content: Text(translate('library.error_with', args: {'error': e.toString()}))),
         );
       }
     } finally {
@@ -1462,7 +1460,7 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Değerlendirmeniz',
+                translate('library.your_review'),
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
@@ -1503,7 +1501,7 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
           TextField(
             controller: _commentController,
             decoration: InputDecoration(
-              hintText: 'Yorumunuzu yazın (isteğe bağlı)',
+              hintText: translate('library.comment_hint'),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -1517,7 +1515,7 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
 
           // Gönder butonu
           VellumButton(
-            label: 'Gönder',
+            label: translate('library.send'),
             icon: Icons.send_rounded,
             isLoading: _isSubmitting,
             onPressed: _isSubmitting ? null : _submit,
@@ -1595,7 +1593,7 @@ class _ReviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      review.username ?? 'Anonim',
+                      review.username ?? translate('library.anonymous'),
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
@@ -1636,7 +1634,7 @@ class _ReviewCard extends StatelessWidget {
                       size: 18, color: theme.colorScheme.error),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  tooltip: 'Yorumu Sil',
+                  tooltip: translate('library.delete_review'),
                 ),
               ],
             ],
@@ -1658,12 +1656,12 @@ class _ReviewCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Yorumu Sil'),
-        content: const Text('Bu değerlendirmenizi silmek istiyor musunuz?'),
+        title: Text(translate('library.delete_review')),
+        content: Text(translate('library.delete_review_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
+            child: Text(translate('common.cancel')),
           ),
           FilledButton(
             onPressed: () {
@@ -1673,7 +1671,7 @@ class _ReviewCard extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Sil'),
+            child: Text(translate('common.delete')),
           ),
         ],
       ),
@@ -1703,7 +1701,7 @@ class _AllChaptersPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bölümler'),
+        title: Text(translate('library.chapters')),
       ),
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -1775,7 +1773,7 @@ class _ReportBookSheetState extends State<_ReportBookSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Kitabı şikayet et',
+                translate('library.report_book'),
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -1788,7 +1786,7 @@ class _ReportBookSheetState extends State<_ReportBookSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            '"${widget.book.title}" hakkında şikayetinizi yazın.',
+            translate('library.report_book_message', args: {'title': widget.book.title}),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -1799,7 +1797,7 @@ class _ReportBookSheetState extends State<_ReportBookSheet> {
             maxLines: 4,
             maxLength: 500,
             decoration: InputDecoration(
-              hintText: 'Şikayet gerekçenizi kısaca açıklayın...',
+              hintText: translate('library.report_hint'),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1817,8 +1815,8 @@ class _ReportBookSheetState extends State<_ReportBookSheet> {
                     final msg = _controller.text.trim();
                     if (msg.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Lütfen şikayet gerekçenizi yazın')),
+                        SnackBar(
+                            content: Text(translate('library.report_required'))),
                       );
                       return;
                     }
@@ -1839,7 +1837,7 @@ class _ReportBookSheetState extends State<_ReportBookSheet> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Gönder'),
+                : Text(translate('library.send')),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../constants/app_colors.dart';
@@ -11,6 +12,25 @@ import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
 import '../data/image_upload_service.dart';
+
+/// Kategori değerinden çeviri anahtarı.
+const Map<String, String> _categoryKeys = {
+  'Korku': 'studio.cat_korku',
+  'Bilim Kurgu': 'studio.cat_bilim_kurgu',
+  'Tarih': 'studio.cat_tarih',
+  'Kişisel Gelişim': 'studio.cat_kisisel_gelisim',
+  'Çocuk': 'studio.cat_cocuk',
+  'Diğer': 'studio.cat_diger',
+};
+
+/// İçerik uyarısı etiketinden çeviri anahtarı.
+const Map<String, String> _contentWarningKeys = {
+  'Cinsellik': 'studio.cw_cinsellik',
+  'Şiddet': 'studio.cw_siddet',
+  'Küfür': 'studio.cw_kufur',
+  'Olgun temalar': 'studio.cw_olgun_temalar',
+  'Diğer hassas içerik': 'studio.cw_diger_hassas',
+};
 
 /// Yeni kitap oluşturma / düzenleme sayfası (kapak resmi + başlık + özet).
 class CreateBookScreen extends ConsumerStatefulWidget {
@@ -50,6 +70,12 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     }
   }
 
+  String _categoryDisplayName(String value) =>
+      translate(_categoryKeys[value] ?? 'studio.cat_diger');
+
+  String _contentWarningDisplayName(String label) =>
+      translate(_contentWarningKeys[label] ?? label);
+
   Future<void> _pickCoverImage() async {
     final service = ref.read(imageUploadServiceProvider);
     final file = await service.pickImage();
@@ -66,7 +92,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kitap adı gerekli')),
+        SnackBar(content: Text(translate('studio.book_title_required'))),
       );
       return;
     }
@@ -108,7 +134,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kitap güncellendi ✓')),
+            SnackBar(content: Text(translate('studio.book_updated'))),
           );
           Navigator.pop(context);
         }
@@ -129,7 +155,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kitap oluşturuldu ✓')),
+            SnackBar(content: Text(translate('studio.book_created'))),
           );
           Navigator.pop(context);
         }
@@ -137,7 +163,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e')),
+          SnackBar(content: Text(translate('subscription.error', args: {'error': e.toString()}))),
         );
       }
     } finally {
@@ -169,32 +195,32 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle(theme, 'Kapak Resmi'),
+                    _buildSectionTitle(theme, translate('studio.cover_image')),
                     const SizedBox(height: 12),
                     _buildCoverPicker(context, theme, isDark),
                     const SizedBox(height: 28),
-                    _buildSectionTitle(theme, 'Kitap Bilgileri'),
+                    _buildSectionTitle(theme, translate('studio.book_info')),
                     const SizedBox(height: 14),
                     _buildStyledTextField(
                       theme,
                       controller: _titleController,
-                      hint: 'Kitabınızın başlığını girin',
+                      hint: translate('studio.book_title_hint'),
                       icon: Icons.title_rounded,
-                      label: 'Kitap Adı',
+                      label: translate('studio.book_title_label'),
                       maxLines: 1,
                     ),
                     const SizedBox(height: 16),
                     _buildStyledTextField(
                       theme,
                       controller: _summaryController,
-                      hint: 'Kitabınızın kısa bir özetini yazın...',
+                      hint: translate('studio.summary_hint'),
                       icon: Icons.description_rounded,
-                      label: 'Özet',
+                      label: translate('studio.summary_label'),
                       maxLines: 5,
                       maxLength: 500,
                     ),
                     const SizedBox(height: 26),
-                    _buildSectionTitle(theme, 'Kategori'),
+                    _buildSectionTitle(theme, translate('studio.category_section')),
                     const SizedBox(height: 10),
                     _buildCategorySelector(theme, isDark),
                     const SizedBox(height: 22),
@@ -258,7 +284,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isEditMode ? 'Kitabı Düzenle' : 'Yeni Kitap Oluştur',
+                  _isEditMode ? translate('studio.create_book_edit_title') : translate('studio.create_book_title'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -313,7 +339,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                       const Icon(Icons.check_rounded, color: Colors.white, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        _isEditMode ? 'Kaydet' : 'Oluştur',
+                        _isEditMode ? translate('studio.create_book_save') : translate('studio.create_book_btn'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -553,7 +579,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  _selectedCategory ?? 'Seçiniz',
+                  _selectedCategory == null ? translate('studio.select_placeholder') : _categoryDisplayName(_selectedCategory!),
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: _selectedCategory != null
                         ? theme.colorScheme.onSurface
@@ -635,7 +661,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Kategori seçin',
+                              translate('studio.category_select_title'),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
@@ -758,14 +784,14 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '18+ içerik (olgun)',
+                  translate('studio.adult_content_title'),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Bu kitap yetişkinlere yönelik içerik içeriyorsa işaretleyin.',
+                  translate('studio.adult_content_body'),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -831,7 +857,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    label,
+                    _contentWarningDisplayName(label),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: selected ? FontWeight.w600 : null,
                       color: selected ? AppColors.primary : null,

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
@@ -25,9 +26,9 @@ import '../../notifications/presentation/notifications_screen.dart';
 /// Saate göre selamlama (referans tasarım: GOOD MORNING / EVENING)
 String _timeBasedGreeting() {
   final hour = DateTime.now().hour;
-  if (hour < 12) return 'İYİ SABAHLAR';
-  if (hour < 18) return 'İYİ GÜNLER';
-  return 'İYİ AKŞAMLAR';
+  if (hour < 12) return translate('home.greeting_morning');
+  if (hour < 18) return translate('home.greeting_day');
+  return translate('home.greeting_evening');
 }
 
 bool _homeVerticalListAnimated = false;
@@ -93,11 +94,11 @@ class _HomeHeader extends ConsumerWidget {
                 ),
                 profileAsync.when(
                   data: (profile) => Text(
-                    profile?.username ?? 'Okuyucu',
+                    profile?.username ?? translate('home.reader_fallback'),
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   loading: () => const SizedBox(height: 26),
-                  error: (_, __) => Text('Okuyucu', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  error: (_, __) => Text(translate('home.reader_fallback'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -157,9 +158,9 @@ class HomeScreen extends ConsumerWidget {
                             labelColor: AppColors.primary,
                             unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                             indicatorColor: AppColors.primary,
-                            tabs: const [
-                              Tab(text: 'Keşfet'),
-                              Tab(text: 'Takip Edilenler'),
+                            tabs: [
+                              Tab(text: translate('home.tab_explore')),
+                              Tab(text: translate('home.tab_following')),
                             ],
                           ),
                         ),
@@ -234,7 +235,7 @@ class _DiscoverTab extends ConsumerWidget {
                             Icon(Icons.cloud_off_rounded, size: 20, color: theme.colorScheme.onSurfaceVariant),
                             const SizedBox(width: 8),
                             Text(
-                              'Çevrimdışısınız. İndirdiğiniz kitaplar aşağıda.',
+                              translate('home.offline_banner'),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -276,7 +277,7 @@ class _DiscoverTab extends ConsumerWidget {
                             Expanded(
                               child: TextField(
                                 decoration: InputDecoration(
-                                  hintText: 'Binlerce dünyayı keşfet...',
+                                  hintText: translate('home.search_hint'),
                                   hintStyle: TextStyle(
                                     fontSize: 15,
                                     color: theme.colorScheme.onSurface
@@ -360,13 +361,13 @@ class _DiscoverTab extends ConsumerWidget {
                       Icon(Icons.error_outline,
                           size: 48, color: theme.colorScheme.error),
                       const SizedBox(height: 16),
-                      Text('Bir hata oluştu',
+                      Text(translate('home.error_generic'),
                           style: theme.textTheme.titleMedium),
                       const SizedBox(height: 8),
                       FilledButton.tonal(
                         onPressed: () =>
                             ref.invalidate(publishedBooksProvider),
-                        child: const Text('Tekrar Dene'),
+                        child: Text(translate('common.retry')),
                       ),
                     ],
                   ),
@@ -384,14 +385,14 @@ class _DiscoverTab extends ConsumerWidget {
                               color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(height: 16),
                           Text(
-                            'Henüz yayınlanmış kitap yok',
+                            translate('home.no_published_books'),
                             style: theme.textTheme.titleMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'İlk kitabı yazmaya ne dersin?',
+                            translate('home.first_write_prompt'),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -407,7 +408,7 @@ class _DiscoverTab extends ConsumerWidget {
                   loading: () => SliverList(
                     delegate: SliverChildListDelegate([
                       _SectionHeader(
-                        title: 'Popüler Kitaplar',
+                        title: translate('home.popular'),
                         onSeeAll: null,
                       ),
                       SizedBox(
@@ -432,7 +433,7 @@ class _DiscoverTab extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       _SectionHeader(
-                        title: 'Yeni Eklenenler',
+                        title: translate('library.new_additions'),
                         onSeeAll: null,
                       ),
                       const Padding(
@@ -451,7 +452,7 @@ class _DiscoverTab extends ConsumerWidget {
                   error: (_, __) => SliverList(
                     delegate: SliverChildListDelegate([
                       _SectionHeader(
-                        title: 'Popüler Kitaplar',
+                        title: translate('home.popular'),
                         onSeeAll: null,
                       ),
                       SizedBox(
@@ -476,7 +477,7 @@ class _DiscoverTab extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       _SectionHeader(
-                        title: 'Yeni Eklenenler',
+                        title: translate('library.new_additions'),
                         onSeeAll: () => context.push('/books'),
                       ),
                       const SizedBox(height: 100),
@@ -490,7 +491,7 @@ class _DiscoverTab extends ConsumerWidget {
                         const SizedBox(height: 28),
                         // ─── Popüler Kitaplar (Yatay, en fazla 5) ──────
                         _SectionHeader(
-                          title: 'Popüler Kitaplar',
+                          title: translate('home.popular'),
                           onSeeAll: null,
                         ),
                         const SizedBox(height: 14),
@@ -521,7 +522,7 @@ class _DiscoverTab extends ConsumerWidget {
                         const SizedBox(height: 28),
                         // ─── Sizin İçin Seçilenler (son 5, görüntülenme + beğeni) ──────
                         _SectionHeader(
-                          title: 'Sizin İçin Seçilenler',
+                          title: translate('home.recommended'),
                           onSeeAll: () => context.push('/books'),
                         ),
                         const SizedBox(height: 14),
@@ -593,11 +594,11 @@ class _FollowingFeedTab extends ConsumerWidget {
               children: [
                 Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
                 const SizedBox(height: 16),
-                Text('Paylaşımlar yüklenemedi', style: theme.textTheme.titleMedium),
+                Text(translate('home.following_error'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(followingFeedProvider),
-                  child: const Text('Tekrar Dene'),
+                  child: Text(translate('common.retry')),
                 ),
               ],
             ),
@@ -611,13 +612,13 @@ class _FollowingFeedTab extends ConsumerWidget {
                 Icon(Icons.people_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(height: 16),
                 Text(
-                  'Takip ettiğin yazarların paylaşımları burada',
+                  translate('home.following_empty_title'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Yazar profillerinden takip et butonuna basarak yazarları takip edebilirsin.',
+                  translate('home.following_empty_body'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
@@ -650,59 +651,105 @@ class _FeedPostCard extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Material(
-        color: isDark ? const Color(0xFF181824) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
         elevation: 0,
-        shadowColor: Colors.black.withValues(alpha: 0.08),
         child: InkWell(
           onTap: () => context.push('/author/${post.authorId}'),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                authorAsync.when(
-                  data: (profile) => Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                        backgroundImage: profile?.avatarUrl != null && profile!.avatarUrl!.isNotEmpty
-                            ? NetworkImage(profile.avatarUrl!)
-                            : null,
-                        child: (profile?.avatarUrl == null || (profile?.avatarUrl ?? '').isEmpty)
-                            ? Text(
-                                (profile?.username.isNotEmpty == true ? profile!.username[0] : '?').toUpperCase(),
-                                style: theme.textTheme.titleSmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        profile?.username ?? 'Yazar',
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  loading: () => const SizedBox(height: 36),
-                  error: (_, __) => Text('Yazar', style: theme.textTheme.titleSmall),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  post.content,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 10,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatPostDate(post.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: isDark ? const Color(0xFF15151F) : Colors.white,
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.08),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      Colors.black.withValues(alpha: isDark ? 0.26 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  authorAsync.when(
+                    data: (profile) => Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.18),
+                          backgroundImage: profile?.avatarUrl != null &&
+                                  profile!.avatarUrl!.isNotEmpty
+                              ? NetworkImage(profile.avatarUrl!)
+                              : null,
+                          child: (profile?.avatarUrl == null ||
+                                  (profile?.avatarUrl ?? '').isEmpty)
+                              ? Text(
+                                  (profile?.username.isNotEmpty == true
+                                          ? profile!.username[0]
+                                          : '?')
+                                      .toUpperCase(),
+                                  style:
+                                      theme.textTheme.titleSmall?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile?.username ?? 'Yazar',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _formatPostDate(post.createdAt),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    loading: () => const SizedBox(height: 36),
+                    error: (_, __) =>
+                        Text('Yazar', style: theme.textTheme.titleSmall),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    post.content,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.5,
+                    ),
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -742,7 +789,7 @@ class _HeroShowcase extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Günün Hikayesi',
+                  translate('home.story_of_day'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: theme.colorScheme.onSurface,
@@ -756,7 +803,7 @@ class _HeroShowcase extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'ÖNE ÇIKAN',
+                    translate('home.featured_badge'),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
@@ -836,8 +883,8 @@ class _HomeTabSwitcher extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          buildChip(HomeTab.explore, 'Keşfet'),
-          buildChip(HomeTab.following, 'Takip Edilenler'),
+          buildChip(HomeTab.explore, translate('home.tab_explore')),
+          buildChip(HomeTab.following, translate('home.tab_following')),
         ],
       ),
     );
@@ -864,7 +911,7 @@ class _FollowingFeedSliver extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Takip edilen yazarların paylaşımları yüklenemedi.',
+            translate('home.following_error'),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -886,7 +933,7 @@ class _FollowingFeedSliver extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Henüz takip ettiğin yazar yok ya da hiç paylaşım yok.',
+                    translate('home.following_empty_subtitle'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -894,7 +941,7 @@ class _FollowingFeedSliver extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Yazar profillerinden \"Takip Et\" diyerek akışını doldurabilirsin.',
+                    translate('home.following_empty_body'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color:
@@ -1279,7 +1326,7 @@ class _IndirilenlerSliver extends StatelessWidget {
             ? Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 child: Text(
-                  'İndirilen kitaplar yüklenemedi.',
+                  translate('home.downloads_error'),
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               )
@@ -1295,7 +1342,7 @@ class _IndirilenlerSliver extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                      'İndirilenler',
+                      translate('home.downloads_title'),
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: theme.colorScheme.onSurface,
@@ -1303,7 +1350,7 @@ class _IndirilenlerSliver extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Henüz indirilmiş kitabınız yok. İnternet bağlantısı varken kitapları indirebilirsiniz.',
+                    translate('home.downloads_empty_body'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -1320,7 +1367,7 @@ class _IndirilenlerSliver extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
                 child: Text(
-                  'İndirilenler',
+                  translate('home.downloads_title'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: theme.colorScheme.onSurface,
@@ -1472,7 +1519,7 @@ class _SectionHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               ),
               child: Text(
-                'Tümünü Gör',
+                translate('home.see_all'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -1504,7 +1551,7 @@ class _ContinueReadingSection extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _SectionHeader(title: 'Devam Et', onSeeAll: null),
+              child: _SectionHeader(title: translate('home.continue_reading'), onSeeAll: null),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -1551,7 +1598,7 @@ class _LikedBooksSection extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _SectionHeader(title: 'Beğenilenler', onSeeAll: null),
+              child: _SectionHeader(title: translate('home.liked'), onSeeAll: null),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -2004,121 +2051,103 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isDark
-              ? [
-                  AppColors.primary.withValues(alpha: 0.12),
-                  theme.scaffoldBackgroundColor,
-                  theme.scaffoldBackgroundColor,
-                ]
-              : [
-                  AppColors.primary.withValues(alpha: 0.06),
-                  theme.scaffoldBackgroundColor,
-                  theme.scaffoldBackgroundColor,
-                ],
-          stops: const [0.0, 0.25, 1.0],
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 28,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Özel sürükleme çubuğu
-          Center(
-            child: Container(
-              width: 48,
-              height: 5,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.onSurface.withValues(alpha: 0.15),
-                    theme.colorScheme.onSurface.withValues(alpha: 0.35),
-                    theme.colorScheme.onSurface.withValues(alpha: 0.15),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(2.5),
-              ),
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.88;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + 24;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxSheetHeight),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
             ),
-          ),
-          // Başlık + kapatma
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Filtrele ve sırala',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: 32,
-                      height: 3,
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Başlık alanı (sabit)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      margin: const EdgeInsets.only(bottom: 24),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.secondary],
-                        ),
-                        borderRadius: BorderRadius.circular(2),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(2.5),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.onClose,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 22,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
-                ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Filtrele ve sırala',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                height: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              width: 32,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: widget.onClose,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 22,
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // Sıralama — segmentli özel görünüm
-          Text(
+            ),
+            // İçerik — scroll
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(24, 32, 24, bottomPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Sıralama — segmentli özel görünüm
+                    Text(
             'Sıralama',
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
@@ -2262,57 +2291,34 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
           ),
           const SizedBox(height: 32),
 
-          // Özel gradient Uygula butonu
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onApply,
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primaryDark,
-                      AppColors.secondary,
-                    ],
-                    stops: [0.0, 0.5, 1.0],
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Filtreleri uygula',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
+          // Filtreleri uygula butonu (düz)
+          FilledButton.icon(
+            onPressed: widget.onApply,
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              elevation: 0,
+              shadowColor: Colors.transparent,
+            ),
+            icon: const Icon(Icons.check_rounded, size: 22),
+            label: Text(
+              'Filtreleri uygula',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
                   ],
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2345,27 +2351,10 @@ class _SortSegment extends StatelessWidget {
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primary,
-                      AppColors.secondary,
-                    ],
-                  )
-                : null,
-            color: isSelected ? null : Colors.transparent,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
           ),
           child: Center(
             child: Row(

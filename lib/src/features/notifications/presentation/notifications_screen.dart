@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -152,7 +153,7 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bildirimler'),
+        title: Text(translate('notifications.title')),
         actions: [
           notificationsAsync.whenOrNull(
                 data: (notifications) {
@@ -168,15 +169,15 @@ class NotificationsScreen extends ConsumerWidget {
                       ref.invalidate(unreadNotificationCountProvider);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Tümü okundu olarak işaretlendi'),
+                          SnackBar(
+                            content: Text(translate('notifications.mark_all_read_snackbar')),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       }
                     },
                     icon: const Icon(Icons.done_all_rounded, size: 18),
-                    label: const Text('Tümünü Oku'),
+                    label: Text(translate('notifications.mark_all_read')),
                   );
                 },
               ) ??
@@ -185,7 +186,7 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: notificationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Hata: $err')),
+        error: (err, _) => Center(child: Text(translate('subscription.error', args: {'error': err.toString()}))),
         data: (notifications) {
           if (notifications.isEmpty) {
             return _EmptyNotifications(theme: theme);
@@ -237,8 +238,8 @@ class NotificationsScreen extends ConsumerWidget {
                       ref.invalidate(unreadNotificationCountProvider);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Bildirim silindi'),
+                          SnackBar(
+                            content: Text(translate('notifications.deleted_snackbar')),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -387,12 +388,12 @@ class _NotificationCard extends StatelessWidget {
     }
   }
 
-  String get _timeAgo {
+  String _timeAgo(BuildContext context) {
     final diff = DateTime.now().difference(notification.createdAt);
-    if (diff.inMinutes < 1) return 'Az önce';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}dk önce';
-    if (diff.inHours < 24) return '${diff.inHours}sa önce';
-    if (diff.inDays < 7) return '${diff.inDays}g önce';
+    if (diff.inMinutes < 1) return translate('profile.time_just_now');
+    if (diff.inMinutes < 60) return translate('profile.time_minutes_ago', args: {'n': '${diff.inMinutes}'});
+    if (diff.inHours < 24) return translate('profile.time_hours_ago', args: {'n': '${diff.inHours}'});
+    if (diff.inDays < 7) return translate('profile.time_days_ago', args: {'n': '${diff.inDays}'});
     return '${notification.createdAt.day}.${notification.createdAt.month}.${notification.createdAt.year}';
   }
 
@@ -489,7 +490,7 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _timeAgo,
+                      _timeAgo(context),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurface
                             .withValues(alpha: 0.35),
@@ -533,14 +534,14 @@ class _EmptyNotifications extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Bildirim Yok',
+            translate('notifications.empty_title'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Yeni bildirimleriniz burada görünecek.',
+            translate('notifications.empty_body'),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),

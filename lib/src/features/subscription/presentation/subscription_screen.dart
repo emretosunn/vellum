@@ -118,22 +118,19 @@ class SubscriptionScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Aboneliği İptal Et'),
-        content: const Text(
-          'Aboneliğinizi iptal etmek istediğinize emin misiniz? '
-          'İptal edildikten sonra Pro özelliklere erişiminiz sona erecek.',
-        ),
+        title: Text(translate('subscription.cancel_title')),
+        content: Text(translate('subscription.cancel_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç'),
+            child: Text(translate('subscription.give_up')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('İptal Et'),
+            child: Text(translate('subscription.cancel_btn')),
           ),
         ],
       ),
@@ -153,8 +150,8 @@ class SubscriptionScreen extends ConsumerWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Aboneliğiniz iptal edildi.'),
+          SnackBar(
+            content: Text(translate('subscription.cancelled')),
             backgroundColor: AppColors.success,
           ),
         );
@@ -163,7 +160,8 @@ class SubscriptionScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hata: $e'),
+            content:
+                Text(translate('subscription.error', args: {'error': '$e'})),
             backgroundColor: AppColors.error,
           ),
         );
@@ -270,7 +268,9 @@ class _SubscriptionStatusCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isActive ? 'Aktif Abonelik' : 'Abonelik Yok',
+                isActive
+                    ? translate('subscription.active_sub')
+                    : translate('subscription.no_sub'),
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
               Container(
@@ -281,7 +281,9 @@ class _SubscriptionStatusCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  isActive ? 'PRO' : 'FREE',
+                  isActive
+                      ? translate('subscription.pro_badge')
+                      : translate('subscription.free'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -293,7 +295,9 @@ class _SubscriptionStatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            isActive ? 'Vellum Pro' : 'Ücretsiz Hesap',
+            isActive
+                ? 'Vellum Pro'
+                : translate('subscription.free_account'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
@@ -304,18 +308,24 @@ class _SubscriptionStatusCard extends StatelessWidget {
           const SizedBox(height: 4),
           if (isActive && subEndDate != null)
             Text(
-              'Bitiş: ${subEndDate!.day}.${subEndDate!.month}.${subEndDate!.year}',
+              translate(
+                'subscription.ends_on',
+                args: {
+                  'date':
+                      '${subEndDate!.day}.${subEndDate!.month}.${subEndDate!.year}',
+                },
+              ),
               style: const TextStyle(color: Colors.white60, fontSize: 14),
             )
           else if (isActive)
-            const Text(
-              'Aboneliğiniz aktif',
-              style: TextStyle(color: Colors.white60, fontSize: 14),
+            Text(
+              translate('subscription.sub_active'),
+              style: const TextStyle(color: Colors.white60, fontSize: 14),
             )
           else
-            const Text(
-              'Yazarlık özelliklerini açmak için abone olun',
-              style: TextStyle(color: Colors.white60, fontSize: 14),
+            Text(
+              translate('subscription.subscribe_prompt'),
+              style: const TextStyle(color: Colors.white60, fontSize: 14),
             ),
         ],
       ),
@@ -353,7 +363,7 @@ class _SubscriptionDetails extends StatelessWidget {
                     color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Abonelik Detayları',
+                  translate('subscription.details'),
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
@@ -362,22 +372,22 @@ class _SubscriptionDetails extends StatelessWidget {
             const SizedBox(height: 16),
 
             _DetailRow(
-              label: 'Plan',
+              label: translate('subscription.plan'),
               value: 'Vellum Pro',
               icon: Icons.workspace_premium_rounded,
             ),
             if (endDate != null) ...[
               _DetailRow(
-                label: 'Bitiş Tarihi',
+                label: translate('subscription.end_date'),
                 value:
                     '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year}',
                 icon: Icons.calendar_today_rounded,
               ),
               _DetailRow(
-                label: 'Kalan Gün',
+                label: translate('subscription.days_left'),
                 value: daysLeft != null && daysLeft > 0
-                    ? '$daysLeft gün'
-                    : 'Yenileme bekleniyor',
+                    ? '$daysLeft'
+                    : translate('subscription.renewal_pending'),
                 icon: Icons.timelapse_rounded,
                 valueColor: daysLeft != null && daysLeft > 7
                     ? AppColors.success
@@ -385,15 +395,15 @@ class _SubscriptionDetails extends StatelessWidget {
               ),
             ] else ...[
               _DetailRow(
-                label: 'Süre',
-                value: 'Aktif',
+                label: translate('subscription.duration'),
+                value: translate('subscription.status_active'),
                 icon: Icons.timelapse_rounded,
                 valueColor: AppColors.success,
               ),
             ],
-            const _DetailRow(
-              label: 'Durum',
-              value: 'Aktif',
+            _DetailRow(
+              label: translate('subscription.status'),
+              value: translate('subscription.status_active'),
               icon: Icons.check_circle_outline_rounded,
               valueColor: AppColors.success,
             ),
@@ -407,7 +417,7 @@ class _SubscriptionDetails extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onCancel,
                 icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Aboneliği İptal Et'),
+                label: Text(translate('subscription.cancel_sub_btn')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error, width: 1.5),
@@ -501,12 +511,12 @@ class _ActiveBenefitsCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Aboneliğiniz Aktif',
+                        translate('subscription.you_have_access'),
                         style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Tüm Pro özelliklere erişiminiz var',
+                        translate('subscription.all_pro_access'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -519,18 +529,22 @@ class _ActiveBenefitsCard extends StatelessWidget {
             const SizedBox(height: 14),
             const Divider(),
             const SizedBox(height: 6),
-            const _BenefitRow(
-                icon: Icons.auto_stories,
-                text: 'Sınırsız kitap oluşturma ve yayınlama'),
-            const _BenefitRow(
-                icon: Icons.edit_note,
-                text: 'Yazı Stüdyosu tam erişim'),
-            const _BenefitRow(
-                icon: Icons.verified_user,
-                text: 'Onaylı yazar rozeti'),
-            const _BenefitRow(
-                icon: Icons.support_agent,
-                text: 'Öncelikli destek'),
+            _BenefitRow(
+              icon: Icons.auto_stories,
+              text: translate('subscription.feature_unlimited'),
+            ),
+            _BenefitRow(
+              icon: Icons.edit_note,
+              text: translate('subscription.feature_studio'),
+            ),
+            _BenefitRow(
+              icon: Icons.verified_user,
+              text: translate('subscription.feature_badge'),
+            ),
+            _BenefitRow(
+              icon: Icons.support_agent,
+              text: translate('subscription.feature_support'),
+            ),
           ],
         ),
       ),
@@ -727,22 +741,10 @@ class _FaqSection extends StatelessWidget {
   const _FaqSection();
 
   static const _faqs = [
-    (
-      'Aboneliğimi nasıl yönetebilirim?',
-      '"Aboneliği Yönet" butonuna tıklayarak plan değişikliği, iptal veya geri yükleme işlemlerini kolayca yapabilirsiniz.',
-    ),
-    (
-      'İptal ettikten sonra ne olur?',
-      'Aboneliğiniz dönem sonuna kadar aktif kalır. Dönem bitiminde Pro özelliklerinize erişim sona erer. Mevcut kitaplarınız yayında kalır.',
-    ),
-    (
-      'Tekrar abone olabilir miyim?',
-      'Evet, istediğiniz zaman tekrar abone olabilirsiniz. Aylık veya yıllık plan seçeneklerinden birini tercih edebilirsiniz.',
-    ),
-    (
-      'İade politikası nedir?',
-      'İade talepleri ilgili mağaza (App Store veya Google Play) üzerinden işlenir. Detaylar için Aboneliği Yönet ekranını kullanabilirsiniz.',
-    ),
+    ('subscription.faq_manage', 'subscription.faq_manage_a'),
+    ('subscription.faq_after_cancel', 'subscription.faq_after_cancel_a'),
+    ('subscription.faq_resubscribe', 'subscription.faq_resubscribe_a'),
+    ('subscription.faq_refund', 'subscription.faq_refund_a'),
   ];
 
   @override
@@ -753,7 +755,7 @@ class _FaqSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Column(
-          children: _faqs
+            children: _faqs
               .map((faq) => ExpansionTile(
                     tilePadding:
                         const EdgeInsets.symmetric(horizontal: 16),
@@ -765,13 +767,13 @@ class _FaqSection extends StatelessWidget {
                       color: AppColors.primary,
                     ),
                     title: Text(
-                      faq.$1,
+                      translate(faq.$1),
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     children: [
                       Text(
-                        faq.$2,
+                        translate(faq.$2),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                           height: 1.5,

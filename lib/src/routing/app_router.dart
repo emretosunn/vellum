@@ -9,6 +9,7 @@ import '../features/library/presentation/reader_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shared/widgets/scaffold_with_nav.dart';
+import '../features/shared/presentation/splash_screen.dart';
 import '../features/studio/presentation/book_editor_screen.dart';
 import '../features/studio/presentation/chapter_editor_screen.dart';
 import '../features/studio/presentation/writer_studio_screen.dart';
@@ -24,12 +25,17 @@ GoRouter createRouter({
   bool onboardingCompleted = true,
 }) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final location = state.matchedLocation;
+      final isSplash = location == '/splash';
       final isOnboarding = location == '/onboarding';
       final isLogin = location == '/login';
+
+      // Splash ekranı her zaman ilk açılışta bir kere gösterilsin.
+      // Sonraki yönlendirmeler splash üzerinden root'a atlayacak.
+      if (isSplash) return null;
 
       // Onboarding henüz tamamlanmadıysa oraya yönlendir
       if (!onboardingCompleted && !isOnboarding) return '/onboarding';
@@ -45,6 +51,13 @@ GoRouter createRouter({
       return null;
     },
     routes: [
+      // Splash ekranı (ilk açılışta kısa V animasyonu)
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Onboarding ekranı (ilk açılış)
       GoRoute(
         path: '/onboarding',

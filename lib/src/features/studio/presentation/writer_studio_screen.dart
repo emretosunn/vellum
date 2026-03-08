@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
@@ -25,10 +26,14 @@ class WriterStudioScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final isPro = isProAsync.valueOrNull ?? false;
 
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + 98;
+
     return Scaffold(
-      body: ClipRect(
-        child: CustomScrollView(
-          slivers: [
+      body: Stack(
+        children: [
+          ClipRect(
+            child: CustomScrollView(
+              slivers: [
             // Özel başlık alanı (gradient + tipografi)
             SliverToBoxAdapter(
               child: RepaintBoundary(
@@ -62,7 +67,7 @@ class WriterStudioScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Yazı Stüdyosu',
+                    translate('studio.writer_studio_title'),
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
@@ -92,13 +97,13 @@ class WriterStudioScreen extends ConsumerWidget {
               loading: () => const SizedBox.shrink(),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Hata: $err'),
+                child: Text(translate('studio.load_error', args: {'error': '$err'})),
               ),
               data: (profile) {
                 if (profile == null) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Profil yüklenemedi'),
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(translate('settings.profile_not_found')),
                   );
                 }
                 return const SizedBox.shrink();
@@ -116,74 +121,38 @@ class WriterStudioScreen extends ConsumerWidget {
             ),
           ),
 
-          // Paylaşım yap — ekranın ortasında özel hero kartı
-          SliverToBoxAdapter(
-            child: profileAsync.whenOrNull(
-              data: (profile) {
-                if (profile == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                  child: _SharePostHero(
-                    isDark: isDark,
-                    theme: theme,
-                    onTap: () => showCreatePostSheet(context, ref, profile.id),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Kitaplarım başlığı + Yeni Kitap butonu
+          // Kitaplarım başlığı (Yeni Kitap + Paylaşım sağ alttaki FAB’dan)
           SliverToBoxAdapter(
             child: RepaintBoundary(
               child: profileAsync.whenOrNull(
-              data: (profile) {
-                if (profile == null) return const SizedBox.shrink();
-
-                final bookCount = myBooksAsync.valueOrNull?.length ?? 0;
-                final canCreate = isPro || bookCount < _freeBookLimit;
-
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Kitaplarım',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
+                data: (profile) {
+                  if (profile == null) return const SizedBox.shrink();
+                  final bookCount = myBooksAsync.valueOrNull?.length ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          translate('studio.my_books_title'),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${bookCount.toString()} kitap',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          translate('studio.my_books_count',
+                              args: {'n': bookCount.toString()}),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        ],
-                      ),
-                      _NewBookButton(
-                        canCreate: canCreate,
-                        onTap: canCreate
-                            ? () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const CreateBookScreen(),
-                                  ),
-                                )
-                            : () => _showUpgradeDialog(context),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
 
@@ -210,7 +179,9 @@ class WriterStudioScreen extends ConsumerWidget {
                 error: (err, _) => SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text('Hata: $err'),
+                    child: Text(
+                      translate('studio.load_error', args: {'error': '$err'}),
+                    ),
                   ),
                 ),
                 data: (books) {
@@ -236,12 +207,12 @@ class WriterStudioScreen extends ConsumerWidget {
                               direction: DismissDirection.horizontal,
                               background: _BookSlideActionBackground(
                                 icon: Icons.edit_rounded,
-                                label: 'Düzenle',
+                                label: translate('common.edit'),
                                 alignStart: true,
                               ),
                               secondaryBackground: _BookSlideActionBackground(
                                 icon: Icons.delete_rounded,
-                                label: 'Sil',
+                                label: translate('common.delete'),
                                 alignStart: false,
                               ),
                               confirmDismiss: (direction) async {
@@ -264,22 +235,25 @@ class WriterStudioScreen extends ConsumerWidget {
                                         context: context,
                                         builder: (ctx) => AlertDialog(
                                           title: Text(
-                                            '"${book.title}" kitabını silmek istiyor musunuz?',
+                                            translate(
+                                              'studio.delete_book_title',
+                                              args: {'title': book.title},
+                                            ),
                                           ),
-                                          content: const Text(
-                                            'Bu işlem geri alınamaz. Kitap ve kapağı okuyucular için görünür olmayacaktır.',
+                                          content: Text(
+                                            translate('studio.delete_book_confirm'),
                                           ),
                                           actions: [
                                             TextButton(
                                               onPressed: () => Navigator.pop(ctx, false),
-                                              child: const Text('Vazgeç'),
+                                              child: Text(translate('common.cancel')),
                                             ),
                                             FilledButton(
                                               style: FilledButton.styleFrom(
                                                 backgroundColor: Colors.redAccent,
                                               ),
                                               onPressed: () => Navigator.pop(ctx, true),
-                                              child: const Text('Sil'),
+                                              child: Text(translate('common.delete')),
                                             ),
                                           ],
                                         ),
@@ -295,7 +269,12 @@ class WriterStudioScreen extends ConsumerWidget {
 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('"${book.title}" silindi.'),
+                                      content: Text(
+                                        translate(
+                                          'studio.book_deleted',
+                                          args: {'title': book.title},
+                                        ),
+                                      ),
                                     ),
                                   );
 
@@ -331,7 +310,27 @@ class WriterStudioScreen extends ConsumerWidget {
 
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
-        ),
+            ),
+          ),
+          Positioned(
+            right: 32,
+            bottom: bottomPadding,
+            child: _StudioFAB(
+              canCreate: isPro || (myBooksAsync.valueOrNull?.length ?? 0) < _freeBookLimit,
+              onNewBook: () {
+                if (isPro || (myBooksAsync.valueOrNull?.length ?? 0) < _freeBookLimit) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateBookScreen()));
+                } else {
+                  _showUpgradeDialog(context);
+                }
+              },
+              onCreatePost: () {
+                final profile = profileAsync.valueOrNull;
+                if (profile != null) showCreatePostSheet(context, ref, profile.id);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -340,22 +339,22 @@ class WriterStudioScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kitap Limiti'),
-        content: const Text(
-          'Ücretsiz planda en fazla $_freeBookLimit kitap oluşturabilirsiniz. '
-          'Sınırsız kitap ve yayınlama için Vellum Pro\'ya geçin.',
+        title: Text(translate('studio.free_limit_title')),
+        content: Text(
+          translate('studio.free_limit_message',
+              args: {'limit': '$_freeBookLimit'}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tamam'),
+            child: Text(translate('common.ok')),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
               context.go('/subscription');
             },
-            child: const Text('Pro\'ya Geç'),
+            child: Text(translate('subscription.subscribe_cta')),
           ),
         ],
       ),
@@ -363,27 +362,154 @@ class WriterStudioScreen extends ConsumerWidget {
   }
 }
 
-// ─── Yeni Kitap butonu (özel stil) ─────────────────
+// ─── Stüdyo FAB: sağ altta mor +, tıklanınca Yeni Kitap + Paylaşım yap ─────
 
-class _NewBookButton extends StatelessWidget {
-  const _NewBookButton({
+class _StudioFAB extends StatefulWidget {
+  const _StudioFAB({
+    required this.canCreate,
+    required this.onNewBook,
+    required this.onCreatePost,
+  });
+
+  final bool canCreate;
+  final VoidCallback onNewBook;
+  final VoidCallback onCreatePost;
+
+  @override
+  State<_StudioFAB> createState() => _StudioFABState();
+}
+
+class _StudioFABState extends State<_StudioFAB> {
+  bool _expanded = false;
+
+  Widget _buildFabButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _expanded = !_expanded),
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, AppColors.primaryDark],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Icon(Icons.add_rounded, color: Colors.white, size: 28),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_expanded) ...[
+          _CreatePostFABOption(
+            onTap: () {
+              widget.onCreatePost();
+              setState(() => _expanded = false);
+            },
+          ),
+          const SizedBox(height: 12),
+          _NewBookFABOption(
+            canCreate: widget.canCreate,
+            onTap: () {
+              widget.onNewBook();
+              setState(() => _expanded = false);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        _buildFabButton(),
+      ],
+    );
+  }
+}
+
+/// Paylaşım yap seçeneği: Yeni Kitap ile aynı stil — mor, beyaz ikon + metin.
+class _CreatePostFABOption extends StatelessWidget {
+  const _CreatePostFABOption({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.edit_note_rounded, size: 20, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                translate('studio.share_post_title'),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Yeni Kitap seçeneği: mor yuvarlak buton, beyaz + ve metin.
+class _NewBookFABOption extends StatelessWidget {
+  const _NewBookFABOption({
     required this.canCreate,
     required this.onTap,
   });
+
   final bool canCreate;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(28),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             gradient: canCreate
                 ? const LinearGradient(
@@ -391,7 +517,7 @@ class _NewBookButton extends StatelessWidget {
                   )
                 : null,
             color: canCreate ? null : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: canCreate
                 ? [
                     BoxShadow(
@@ -414,7 +540,7 @@ class _NewBookButton extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Yeni Kitap',
+                translate('studio.new_book'),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: canCreate
@@ -491,7 +617,9 @@ class _PlanBadge extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPro ? 'Vellum Pro' : 'Ücretsiz Plan',
+                  isPro
+                      ? 'Vellum Pro'
+                      : translate('subscription.free_plan'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: isPro
@@ -502,8 +630,11 @@ class _PlanBadge extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   isPro
-                      ? 'Sınırsız kitap · Yayınlama · İstatistikler'
-                      : '$_freeBookLimit kitap · Sadece taslak',
+                      ? translate('subscription.pro_plan_description')
+                      : translate(
+                          'studio.free_plan_summary',
+                          args: {'limit': '$_freeBookLimit'},
+                        ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isPro
                         ? Colors.white.withValues(alpha: 0.85)
@@ -518,112 +649,12 @@ class _PlanBadge extends StatelessWidget {
               onPressed: () => context.go('/subscription'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
-              child: const Text('Yükselt'),
+              child: Text(translate('subscription.subscribe_cta')),
             ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── Paylaşım yap hero (ekran ortası, özel tasarım) ─────────────────────
-
-class _SharePostHero extends StatelessWidget {
-  const _SharePostHero({
-    required this.isDark,
-    required this.theme,
-    required this.onTap,
-  });
-
-  final bool isDark;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      AppColors.primary.withValues(alpha: 0.3),
-                      AppColors.secondary.withValues(alpha: 0.2),
-                    ]
-                  : [
-                      AppColors.primary.withValues(alpha: 0.14),
-                      AppColors.secondary.withValues(alpha: 0.08),
-                    ],
-            ),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.2),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: isDark ? 0.1 : 0.2),
-                ),
-                child: Icon(
-                  Icons.edit_note_rounded,
-                  size: 24,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Paylaşım yap',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Takipçilerine kısa yazı paylaş',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: AppColors.primary.withValues(alpha: 0.8),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -673,7 +704,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             Text(
-              'Henüz kitabınız yok',
+              translate('studio.empty_state_title'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,
@@ -682,7 +713,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'İlk kitabınızı oluşturarak yazmaya başlayın.',
+              translate('studio.empty_state_subtitle'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -720,7 +751,7 @@ class _EmptyState extends StatelessWidget {
                       const Icon(Icons.add_rounded, color: Colors.white, size: 22),
                       const SizedBox(width: 10),
                       Text(
-                        'İlk kitabı oluştur',
+                        translate('studio.empty_state_cta'),
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -847,10 +878,10 @@ class _BookListItem extends StatelessWidget {
                               const SizedBox(width: 6),
                               Text(
                                 book.status == BookStatus.published
-                                    ? 'Yayında'
+                                    ? translate('library.published')
                                     : book.status == BookStatus.draft
-                                        ? 'Taslak'
-                                        : 'Arşivlendi',
+                                        ? translate('library.draft')
+                                        : translate('library.archived'),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: isPublished
@@ -870,7 +901,7 @@ class _BookListItem extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Pro',
+                            translate('subscription.pro_badge'),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -1000,7 +1031,7 @@ class _ProFeaturesCard extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Text(
-                'Pro ile Daha Fazlası',
+                translate('studio.pro_more_title'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -1008,10 +1039,16 @@ class _ProFeaturesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          _proFeature(theme, Icons.all_inclusive_rounded, 'Sınırsız kitap oluşturma'),
-          _proFeature(theme, Icons.publish_rounded, 'Kitaplarını yayınlama'),
-          _proFeature(theme, Icons.bar_chart_rounded, 'Okuyucu istatistikleri'),
-          _proFeature(theme, Icons.verified_rounded, 'Onaylı yazar rozeti'),
+          _proFeature(
+              theme,
+              Icons.all_inclusive_rounded,
+              translate('subscription.feature_unlimited')),
+          _proFeature(theme, Icons.publish_rounded,
+              translate('subscription.feature_studio')),
+          _proFeature(theme, Icons.bar_chart_rounded,
+              translate('subscription.feature4_title')),
+          _proFeature(theme, Icons.verified_rounded,
+              translate('subscription.feature_badge')),
           const SizedBox(height: 22),
           Material(
             color: Colors.transparent,
@@ -1034,10 +1071,10 @@ class _ProFeaturesCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    'Vellum Pro\'ya Geç',
-                    style: TextStyle(
+                    translate('subscription.subscribe_cta'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 16,

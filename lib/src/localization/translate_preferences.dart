@@ -44,4 +44,21 @@ class VellumTranslatePreferences implements ITranslatePreferences {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_useSystemLocaleKey) ?? false;
   }
+
+  /// İlk açılışta kayıtlı dil yoksa cihaz dilini kaydet; böylece delegate doğru
+  /// çeviri dosyasını (tr.json / en.json) yükler. create() öncesi main() içinde çağrılmalı.
+  static Future<void> ensureInitialLocale({
+    required List<String> supportedLocales,
+    required String fallbackLocale,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_selectedLocaleKey) != null) return;
+    final languageCode =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    final chosen = supportedLocales.contains(languageCode)
+        ? languageCode
+        : fallbackLocale;
+    await prefs.setString(_selectedLocaleKey, chosen);
+    await prefs.setBool(_useSystemLocaleKey, false);
+  }
 }

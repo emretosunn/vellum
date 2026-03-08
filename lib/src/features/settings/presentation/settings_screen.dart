@@ -212,15 +212,6 @@ class SettingsScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const _LanguagePage()),
                   ).then((_) => ref.invalidate(useSystemLocaleProvider)),
                 ),
-                _SettingsTile(
-                  icon: Icons.text_fields_rounded,
-                  label: translate('settings.font_size'),
-                  subtitle: ref.watch(fontSizeProvider),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const _FontSizePage()),
-                  ),
-                ),
               ],
             ),
 
@@ -235,8 +226,8 @@ class SettingsScreen extends ConsumerWidget {
                 items: [
                   _SettingsTile(
                     icon: Icons.settings_applications_rounded,
-                    label: 'Uygulama Konfigürasyonu',
-                    subtitle: 'Bakım modu ve sistem duyuruları',
+                    label: translate('settings.app_config_title'),
+                    subtitle: translate('settings.app_config_subtitle'),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -445,7 +436,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Avatar yüklenemedi: $e'),
+            content: Text(
+              translate('settings.avatar_failed', args: {'error': '$e'}),
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -484,7 +477,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Text('Yeni Link Ekle'),
+            Text(translate('settings.add_link')),
           ],
         ),
         content: Form(
@@ -497,8 +490,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 autofocus: true,
                 style: theme.textTheme.bodyLarge,
                 decoration: InputDecoration(
-                  labelText: 'Başlık',
-                  hintText: 'Ör: Twitter, Instagram, Web Sitesi',
+                  labelText: translate('settings.link_title'),
+                  hintText: translate('settings.link_title_hint'),
                   prefixIcon: const Icon(Icons.label_outline_rounded),
                   filled: true,
                   fillColor: isDark
@@ -530,7 +523,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Başlık gerekli';
+                    return translate('settings.link_title_required');
                   }
                   return null;
                 },
@@ -574,11 +567,11 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'URL gerekli';
+                    return translate('settings.url_required');
                   }
                   if (!value.trim().startsWith('http://') &&
                       !value.trim().startsWith('https://')) {
-                    return 'Geçerli bir URL girin (http:// veya https://)';
+                    return translate('settings.url_invalid');
                   }
                   return null;
                 },
@@ -603,7 +596,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
               }
             },
             icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Ekle'),
+            label: Text(translate('common.add')),
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -666,7 +659,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil Düzenle'),
+        title: Text(translate('settings.edit_profile')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -682,7 +675,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                       ),
                     )
                   : const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Kaydet'),
+              label: Text(translate('common.save')),
             ),
           ),
         ],
@@ -799,7 +792,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Fotoğrafı değiştirmek için dokunun',
+                      translate('settings.tap_to_change_photo'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w500,
@@ -847,7 +840,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                'Kişisel Bilgiler',
+                                translate('settings.personal_info'),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -861,8 +854,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
               controller: _usernameController,
                             style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
-                              labelText: 'Kullanıcı Adı',
-                              hintText: 'Kullanıcı adınızı girin',
+                              labelText: translate('settings.username_hint'),
+                              hintText: translate('settings.username_hint'),
                               prefixIcon: const Icon(Icons.alternate_email_rounded),
                               filled: true,
                               fillColor: isDark
@@ -894,10 +887,10 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Kullanıcı adı boş olamaz';
+                  return translate('settings.username_empty');
                 }
                               if (value.trim().length < 3) {
-                                return 'En az 3 karakter olmalı';
+                                return translate('settings.username_min');
                               }
                 return null;
               },
@@ -912,7 +905,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
               decoration: InputDecoration(
-                              labelText: 'E-posta',
+                              labelText: translate('auth.email'),
                 prefixIcon: const Icon(Icons.email_outlined),
                               filled: true,
                               fillColor: isDark
@@ -975,7 +968,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                'Hakkımda',
+                                translate('settings.about_me'),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -989,7 +982,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                             maxLength: 300,
                             style: theme.textTheme.bodyLarge,
                             decoration: InputDecoration(
-                              hintText: 'Kendinizden bahsedin...',
+                              hintText: translate('settings.about_hint'),
                               hintStyle: TextStyle(
                                 color: theme.colorScheme.onSurfaceVariant
                                     .withValues(alpha: 0.5),
@@ -1060,7 +1053,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Sosyal Medya & Linkler',
+                                  translate('settings.social_links'),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -1069,7 +1062,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               FilledButton.icon(
                                 onPressed: _addLink,
                                 icon: const Icon(Icons.add_rounded, size: 18),
-                                label: const Text('Ekle'),
+                                label: Text(translate('common.add')),
                                 style: FilledButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -1104,17 +1097,19 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'Henüz link eklenmemiş',
+                                    translate('settings.no_links'),
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Sosyal medya hesaplarınızı ekleyin',
+                                    translate('settings.social_links_hint'),
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant
+                                      color: theme
+                                          .colorScheme.onSurfaceVariant
                                           .withValues(alpha: 0.6),
                                     ),
                                   ),
@@ -1320,7 +1315,9 @@ class _SecurityPageState extends State<_SecurityPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Güvenlik')),
+      appBar: AppBar(
+        title: Text(translate('settings.security_title')),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -1339,13 +1336,13 @@ class _SecurityPageState extends State<_SecurityPage> {
                       color: AppColors.primary, size: 28),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Güvenliğiniz için şifrenizi düzenli olarak değiştirin.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.7),
+                      child: Text(
+                        translate('settings.security_hint'),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.7),
+                        ),
                       ),
-                    ),
                   ),
                 ],
               ),
@@ -1353,9 +1350,11 @@ class _SecurityPageState extends State<_SecurityPage> {
             const SizedBox(height: 28),
 
             // Mevcut şifre
-            Text('Mevcut Şifre',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              translate('settings.current_password'),
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _currentPw,
@@ -1371,15 +1370,18 @@ class _SecurityPageState extends State<_SecurityPage> {
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Bu alan zorunlu' : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? translate('settings.field_required')
+                  : null,
             ),
             const SizedBox(height: 20),
 
             // Yeni şifre
-            Text('Yeni Şifre',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              translate('settings.new_password'),
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _newPw,
@@ -1395,16 +1397,20 @@ class _SecurityPageState extends State<_SecurityPage> {
                     borderRadius: BorderRadius.circular(14)),
               ),
               validator: (v) {
-                if (v == null || v.length < 6) return 'En az 6 karakter';
+                if (v == null || v.length < 6) {
+                  return translate('settings.password_min');
+                }
                 return null;
               },
             ),
             const SizedBox(height: 20),
 
             // Tekrar
-            Text('Yeni Şifre (Tekrar)',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              translate('settings.new_password_again'),
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _confirmPw,
@@ -1421,7 +1427,9 @@ class _SecurityPageState extends State<_SecurityPage> {
                     borderRadius: BorderRadius.circular(14)),
               ),
               validator: (v) {
-                if (v != _newPw.text) return 'Şifreler eşleşmiyor';
+                if (v != _newPw.text) {
+                  return translate('settings.password_mismatch');
+                }
                 return null;
               },
             ),
@@ -1441,9 +1449,13 @@ class _SecurityPageState extends State<_SecurityPage> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.check_rounded),
-                label: const Text('Şifreyi Güncelle',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                label: Text(
+                  translate('settings.update_password'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1487,13 +1499,19 @@ class _NotificationsPage extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bildirim Ayarları')),
+      appBar: AppBar(
+        title: Text(translate('settings.notification_settings')),
+      ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Hata: $err')),
+        error: (err, _) => Center(
+          child: Text('${translate('common.error')}: $err'),
+        ),
         data: (profile) {
           if (profile == null) {
-            return const Center(child: Text('Profil bulunamadı'));
+            return Center(
+              child: Text(translate('settings.profile_not_found')),
+            );
           }
 
           final backendPrefs = profile.notificationPreferences;
@@ -1538,7 +1556,7 @@ class _NotificationsPage extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Hangi bildirimleri almak istediğinizi seçin.',
+                        translate('settings.notification_hint'),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface
                               .withValues(alpha: 0.7),
@@ -1551,43 +1569,43 @@ class _NotificationsPage extends ConsumerWidget {
               const SizedBox(height: 24),
               _NotificationTile(
                 icon: Icons.menu_book_rounded,
-                title: 'Yeni Bölüm',
-                subtitle: 'Takip ettiğin kitaplara yeni bölüm eklendiğinde',
+                title: translate('settings.new_chapter'),
+                subtitle: translate('settings.new_chapter_sub'),
                 value: prefs['newChapter'] ?? true,
                 onChanged: (v) => _toggle(ref, prefs, 'newChapter', v),
               ),
               _NotificationTile(
                 icon: Icons.chat_bubble_outline_rounded,
-                title: 'Yorumlar',
-                subtitle: 'Kitaplarına yorum yapıldığında',
+                title: translate('settings.comments'),
+                subtitle: translate('settings.comments_sub'),
                 value: prefs['comments'] ?? true,
                 onChanged: (v) => _toggle(ref, prefs, 'comments', v),
               ),
               _NotificationTile(
                 icon: Icons.favorite_rounded,
-                title: 'Beğeniler',
-                subtitle: 'Kitapların beğenildiğinde',
+                title: translate('settings.likes'),
+                subtitle: translate('settings.likes_sub'),
                 value: prefs['bookLike'] ?? true,
                 onChanged: (v) => _toggle(ref, prefs, 'bookLike', v),
               ),
               _NotificationTile(
                 icon: Icons.star_rounded,
-                title: 'Değerlendirmeler',
-                subtitle: 'Kitaplarına puan veya inceleme eklendiğinde',
+                title: translate('settings.reviews'),
+                subtitle: translate('settings.reviews_sub'),
                 value: prefs['reviews'] ?? true,
                 onChanged: (v) => _toggle(ref, prefs, 'reviews', v),
               ),
               _NotificationTile(
                 icon: Icons.local_offer_outlined,
-                title: 'Promosyonlar',
-                subtitle: 'Kampanya ve indirimlerden haberdar ol',
+                title: translate('settings.promotions'),
+                subtitle: translate('settings.promotions_sub'),
                 value: prefs['promotions'] ?? false,
                 onChanged: (v) => _toggle(ref, prefs, 'promotions', v),
               ),
               _NotificationTile(
                 icon: Icons.summarize_outlined,
-                title: 'Haftalık Özet',
-                subtitle: 'Her hafta okuma özetini al',
+                title: translate('settings.weekly_digest'),
+                subtitle: translate('settings.weekly_digest_sub'),
                 value: prefs['weeklyDigest'] ?? true,
                 onChanged: (v) => _toggle(ref, prefs, 'weeklyDigest', v),
               ),
@@ -1615,7 +1633,7 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
         isDark: isDark,
         icon: Icons.notifications_outlined,
         iconColor: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-        title: 'Bildirim izni kontrol ediliyor...',
+        title: translate('settings.checking_permission'),
         body: null,
         actions: const [],
       ),
@@ -1624,11 +1642,11 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
         isDark: isDark,
         icon: Icons.notifications_off_outlined,
         iconColor: AppColors.warning,
-        title: 'Bildirim izni bilinemedi',
-        body: 'Cihaz ayarlarından bildirimlere izin verebilirsiniz.',
+        title: translate('settings.permission_unknown'),
+        body: translate('settings.permission_unknown_body'),
         actions: [
           _PermissionButton(
-            label: 'Ayarlara git',
+            label: translate('settings.open_settings'),
             onPressed: () async {
               await NotificationPermissionService.openSettings();
               ref.invalidate(notificationPermissionStatusProvider);
@@ -1643,8 +1661,8 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
             isDark: isDark,
             icon: Icons.notifications_active_rounded,
             iconColor: AppColors.success,
-            title: 'Bildirimler açık',
-            body: 'Bu cihazda bildirim alacaksınız.',
+            title: translate('settings.notifications_on'),
+            body: translate('settings.notifications_on_body'),
             actions: const [],
           );
         }
@@ -1655,15 +1673,15 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
           icon: Icons.notifications_off_rounded,
           iconColor: isPermanentlyDenied ? AppColors.warning : AppColors.primary,
           title: isPermanentlyDenied
-              ? 'Bildirimler kapalı'
-              : 'Bildirimlere izin verin',
+              ? translate('settings.notifications_off')
+              : translate('settings.notifications_off_prompt'),
           body: isPermanentlyDenied
-              ? 'Bildirim almak için uygulama ayarlarından izin açın.'
-              : 'Yeni bölüm, beğeni ve yorum gibi bildirimleri almak için izin verin.',
+              ? translate('settings.notifications_off_body')
+              : translate('settings.notifications_request_body'),
           actions: [
             if (isPermanentlyDenied)
               _PermissionButton(
-                label: 'Ayarlara git',
+                label: translate('settings.open_settings'),
                 onPressed: () async {
                   await NotificationPermissionService.openSettings();
                   ref.invalidate(notificationPermissionStatusProvider);
@@ -1671,7 +1689,7 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
               )
             else
               _PermissionButton(
-                label: 'İzin ver',
+                label: translate('settings.allow'),
                 onPressed: () async {
                   await NotificationPermissionService.request();
                   ref.invalidate(notificationPermissionStatusProvider);
@@ -2146,29 +2164,24 @@ class _HelpPage extends StatelessWidget {
 
   static const _faqItems = [
     {
-      'q': 'Vellum nedir?',
-      'a':
-          'Vellum, yazarların bölüm bazlı içerik yayınladığı ve okuyucuların ücretsiz keşfettiği dijital bir kitap platformudur.',
+      'qKey': 'settings.faq_what_is',
+      'aKey': 'settings.faq_what_is',
     },
     {
-      'q': 'Nasıl yazar olurum?',
-      'a':
-          'Vellum Pro aboneliğine geçerek yazarlık özelliklerini aktifleştirebilirsiniz. Abonelik sekmesinden planları inceleyebilirsiniz.',
+      'qKey': 'settings.faq_how_author',
+      'aKey': 'settings.faq_how_author',
     },
     {
-      'q': 'Abonelik nasıl çalışır?',
-      'a':
-          'Aylık veya yıllık plan seçerek abone olabilirsiniz. Abonelik süresince sınırsız kitap oluşturma ve yayınlama hakkına sahip olursunuz.',
+      'qKey': 'settings.faq_subscription',
+      'aKey': 'settings.faq_subscription',
     },
     {
-      'q': 'Aboneliğimi nasıl iptal ederim?',
-      'a':
-          'Abonelik sekmesinden veya uygulama mağazanızın abonelik yönetimi bölümünden aboneliğinizi iptal edebilirsiniz.',
+      'qKey': 'settings.faq_cancel_sub',
+      'aKey': 'settings.faq_cancel_sub',
     },
     {
-      'q': 'Hesabımı nasıl silerim?',
-      'a':
-          'Ayarlar → Güvenlik bölümünden destek ekibimizle iletişime geçerek hesap silme talebi oluşturabilirsiniz.',
+      'qKey': 'settings.faq_delete_account',
+      'aKey': 'settings.faq_delete_account',
     },
   ];
 
@@ -2177,7 +2190,9 @@ class _HelpPage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Yardım & SSS')),
+      appBar: AppBar(
+        title: Text(translate('settings.help_faq_title')),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -2194,7 +2209,7 @@ class _HelpPage extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Sıkça sorulan sorular ve cevapları',
+                    translate('settings.help_faq_subtitle'),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface
                           .withValues(alpha: 0.7),
@@ -2226,7 +2241,7 @@ class _HelpPage extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  item['q']!,
+                  translate(item['qKey']!),
                   style: const TextStyle(
                       fontWeight: FontWeight.w600, fontSize: 14),
                 ),
@@ -2237,7 +2252,7 @@ class _HelpPage extends StatelessWidget {
                     const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
                   Text(
-                    item['a']!,
+                    translate(item['aKey']!),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface
                           .withValues(alpha: 0.7),
@@ -2731,7 +2746,7 @@ class _DeveloperAppConfigPageState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Uygulama Konfigürasyonu'),
+        title: Text(translate('settings.app_config_title')),
       ),
       body: configAsync.when(
         loading: () =>
@@ -2744,15 +2759,15 @@ class _DeveloperAppConfigPageState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bakım Modu',
+                  translate('settings.maintenance_title'),
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
-                  title: const Text('Bakım modu aktif'),
-                  subtitle: const Text(
-                      'Açık olduğunda herkes bakım ekranını görür.'),
+                  title: Text(translate('settings.maintenance_active')),
+                  subtitle: Text(
+                      translate('settings.maintenance_subtitle')),
                   value: _maintenanceEnabled,
                   onChanged: (v) =>
                       setState(() => _maintenanceEnabled = v),
@@ -2761,23 +2776,24 @@ class _DeveloperAppConfigPageState
                 TextField(
                   controller: _maintenanceController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Bakım mesajı',
+                  decoration: InputDecoration(
+                    labelText:
+                        translate('settings.maintenance_message_label'),
                     hintText:
-                        'Örn: Sunucularımızı güncelliyoruz, kısa süre sonra tekrar deneyin.',
+                        translate('settings.maintenance_message_hint'),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Sistem Duyurusu',
+                  translate('settings.announcement_title'),
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
-                  title: const Text('Duyuru aktif'),
-                  subtitle: const Text(
-                      'Bildirimler ekranının üstünde sistem duyurusu gösterilir.'),
+                  title: Text(translate('settings.announcement_active')),
+                  subtitle: Text(
+                      translate('settings.announcement_subtitle')),
                   value: _announcementEnabled,
                   onChanged: (v) =>
                       setState(() => _announcementEnabled = v),
@@ -2785,39 +2801,45 @@ class _DeveloperAppConfigPageState
                 const SizedBox(height: 8),
                 TextField(
                   controller: _announcementTitleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Duyuru başlığı',
-                    hintText: 'Örn: Yeni özellik yayında!',
+                  decoration: InputDecoration(
+                    labelText:
+                        translate('settings.announcement_heading_label'),
+                    hintText:
+                        translate('settings.announcement_heading_hint'),
                   ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _announcementBodyController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Duyuru metni',
+                  decoration: InputDecoration(
+                    labelText:
+                        translate('settings.announcement_body_label'),
                     hintText:
-                        'Kısa açıklama. Örn: Çevrimdışı okuma artık Vellum Pro\'da.',
+                        translate('settings.announcement_body_hint'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _announcementLevel,
-                  decoration: const InputDecoration(
-                    labelText: 'Duyuru türü',
+                  decoration: InputDecoration(
+                    labelText: translate('settings.announcement_type_label'),
                   ),
-                  items: const [
+                  items: [
                     DropdownMenuItem(
                       value: 'info',
-                      child: Text('Bilgi'),
+                      child: Text(
+                          translate('settings.announcement_type_info')),
                     ),
                     DropdownMenuItem(
                       value: 'success',
-                      child: Text('Başarı'),
+                      child: Text(
+                          translate('settings.announcement_type_success')),
                     ),
                     DropdownMenuItem(
                       value: 'warning',
-                      child: Text('Uyarı'),
+                      child: Text(
+                          translate('settings.announcement_type_warning')),
                     ),
                   ],
                   onChanged: (v) {
@@ -2856,8 +2878,11 @@ class _DeveloperAppConfigPageState
                               ref.invalidate(appConfigProvider);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Ayarlar kaydedildi'),
+                                  SnackBar(
+                                    content: Text(
+                                      translate(
+                                          'settings.app_config_saved'),
+                                    ),
                                   ),
                                 );
                               }
@@ -2865,7 +2890,10 @@ class _DeveloperAppConfigPageState
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Hata: $e'),
+                                    content: Text(
+                                      translate(
+                                          'settings.app_config_save_failed'),
+                                    ),
                                   ),
                                 );
                               }
@@ -2883,7 +2911,7 @@ class _DeveloperAppConfigPageState
                                 CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_rounded, size: 18),
-                    label: const Text('Kaydet'),
+                    label: Text(translate('common.save')),
                   ),
                 ),
                 const SizedBox(height: 16),

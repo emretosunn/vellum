@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
@@ -149,43 +151,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildHeaderSection(BuildContext context, {bool compact = false}) {
     final theme = Theme.of(context);
+    final isLogin = _isLogin;
+
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, compact ? 28 : 48, 24, compact ? 32 : 48),
+      // Üst boşluğu daha da artır: tüm içerik ekranın ortasına doğru insin.
+      padding: EdgeInsets.fromLTRB(28, compact ? 88 : 116, 28, compact ? 32 : 40),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _buildLogoBox(
-            size: compact ? 88 : 104,
-            borderRadius: compact ? 22 : 26,
-            iconSize: compact ? 44 : 52,
-          ),
-          SizedBox(height: compact ? 18 : 22),
           Text(
-            _auth('common.app_name', 'Vellum'),
-            style: (compact ? theme.textTheme.headlineLarge : theme.textTheme.headlineMedium)?.copyWith(
+            isLogin
+                ? _auth('auth.hello_title', 'Merhaba,')
+                : _auth('auth.welcome_title', 'Hoş geldin,'),
+            style: GoogleFonts.inter(
+              fontSize: compact ? 32 : 36,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,
               letterSpacing: -0.5,
-              fontSize: compact ? 28 : 32,
             ),
+            textAlign: TextAlign.center,
           ),
-          SizedBox(height: compact ? 12 : 16),
+          const SizedBox(height: 4),
           Text(
-            _isLogin ? _auth('auth.welcome', 'Hoş Geldiniz') : _auth('auth.create_account', 'Hesap Oluşturun'),
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+            isLogin
+                ? _auth('auth.welcome_back', 'Tekrar Hoş Geldin')
+                : _auth('auth.signup_title', 'Kayıt Ol'),
+            style: GoogleFonts.inter(
+              fontSize: compact ? 26 : 30,
+              fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
-              fontSize: compact ? 20 : 22,
+              letterSpacing: -0.2,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Text(
-            _isLogin
-                ? _auth('auth.login_subtitle', 'Hesabınıza giriş yaparak devam edin')
-                : _auth('auth.signup_subtitle', 'Vellum dünyasına katılın'),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              fontSize: compact ? 15 : 16,
+            isLogin
+                ? _auth('auth.login_subtitle', 'E‑posta ve şifrenle devam et.')
+                : _auth('auth.signup_subtitle',
+                    'Hesabını oluştur, hikâyelerini dünyayla paylaş.'),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              height: 1.4,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -275,27 +286,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildFormCard(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C24) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -503,62 +495,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // Google ile giriş — ileride bağlanabilir
-                  },
-                  icon: Icon(Icons.g_mobiledata_rounded,
-                      size: 20, color: theme.colorScheme.onSurface),
-                  label: Text(
-                    _auth('auth.continue_google', 'Google ile devam et'),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
+              Text(
+                _auth('auth.ok_login_with', 'Diğer giriş seçenekleri'),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // Apple ile giriş — ileride bağlanabilir
-                  },
-                  icon: Icon(Icons.apple_rounded,
-                      size: 20, color: theme.colorScheme.onSurface),
-                  label: Text(
-                    _auth('auth.continue_apple', 'Apple ile devam et'),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _SocialCircleIcon(
+                    icon: Icons.apple_rounded,
+                    onTap: () {
+                      // Apple ile giriş – ileride bağlanacak
+                    },
                   ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    side: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                  const SizedBox(width: 12),
+                  _SocialCircleIcon(
+                    icon: Icons.g_mobiledata_rounded,
+                    assetSvg: 'assets/image/google_login.svg',
+                    onTap: () {
+                      // Google ile giriş – ileride bağlanacak
+                    },
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  _SocialCircleIcon(
+                    icon: Icons.facebook_rounded,
+                    onTap: () {
+                      // Facebook ile giriş – ileride bağlanabilir
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -600,6 +571,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+class _SocialCircleIcon extends StatelessWidget {
+  const _SocialCircleIcon({
+    required this.icon,
+    required this.onTap,
+    this.assetSvg,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? assetSvg;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: theme.colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: assetSvg != null
+              ? SvgPicture.asset(
+                  assetSvg!,
+                  width: 22,
+                  height: 22,
+                )
+              : Icon(
+                  icon,
+                  size: 22,
+                  color: theme.colorScheme.onSurface,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Styled TextField ────────────────────────────────
 
 class _StyledTextField extends StatelessWidget {
@@ -630,7 +650,6 @@ class _StyledTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,58 +662,35 @@ class _StyledTextField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color:
-                isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              width: 1.5,
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.20)
-                  : Colors.black.withValues(alpha: 0.10),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          validator: validator,
+          onFieldSubmitted: onFieldSubmitted,
+          style: theme.textTheme.bodyLarge,
+          decoration: InputDecoration(
+            hintText: hint,
+            suffixIcon: suffixIcon,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 0,
+              vertical: 10,
             ),
-            boxShadow: [
-              if (!isDark)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
-                ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 14),
-              Icon(
-                icon,
-                size: 20,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            border: const UnderlineInputBorder(),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                width: 1,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextFormField(
-                  controller: controller,
-                  obscureText: obscureText,
-                  keyboardType: keyboardType,
-                  textInputAction: textInputAction,
-                  validator: validator,
-                  onFieldSubmitted: onFieldSubmitted,
-                  style: theme.textTheme.bodyLarge,
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    border: InputBorder.none,
-                    suffixIcon: suffixIcon,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 0,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
               ),
-              const SizedBox(width: 8),
-            ],
+            ),
           ),
         ),
       ],

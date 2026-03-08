@@ -23,8 +23,14 @@ Future<void> main() async {
     anonKey: Env.supabaseAnonKey,
   );
 
+  await VellumTranslatePreferences.ensureInitialLocale(
+    supportedLocales: ['tr', 'en'],
+    fallbackLocale: 'en',
+  );
+
   final delegate = await LocalizationDelegate.create(
-    fallbackLocale: 'tr',
+    // Sistem dili tr veya en değilse varsayılan olarak İngilizceye düş.
+    fallbackLocale: 'en',
     supportedLocales: ['tr', 'en'],
     basePath: 'assets/i18n/',
     preferences: VellumTranslatePreferences(),

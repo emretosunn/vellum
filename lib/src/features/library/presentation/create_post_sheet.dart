@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../shared/widgets/vellum_button.dart';
@@ -57,12 +58,12 @@ class _CreatePostDialogState extends State<_CreatePostDialog> {
       widget.ref.invalidate(authorPostsProvider(widget.authorId));
       widget.ref.invalidate(followingFeedProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Paylaşım yayınlandı')),
+        SnackBar(content: Text(translate('studio.post_published'))),
       );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gönderilemedi.')),
+          SnackBar(content: Text(translate('studio.post_failed'))),
         );
       }
     } finally {
@@ -117,7 +118,7 @@ class _CreatePostDialogState extends State<_CreatePostDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Paylaşım yap',
+                      translate('studio.share_post_title'),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -139,7 +140,7 @@ class _CreatePostDialogState extends State<_CreatePostDialog> {
                 minLines: 3,
                 style: theme.textTheme.bodyLarge,
                 decoration: InputDecoration(
-                  hintText: 'Ne düşünüyorsun?',
+                  hintText: translate('studio.post_hint'),
                   hintStyle: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
@@ -169,7 +170,7 @@ class _CreatePostDialogState extends State<_CreatePostDialog> {
               ),
               const SizedBox(height: 20),
               VellumButton(
-                label: 'Yayınla',
+                label: translate('studio.publish'),
                 isLoading: _loading,
                 onPressed: _loading ? null : _publish,
               ),

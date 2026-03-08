@@ -197,7 +197,7 @@ class AuthorProfileScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'Yayınlanan Kitaplar',
+                            translate('profile.published_books'),
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -221,10 +221,10 @@ class AuthorProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                error: (_, __) => const SliverToBoxAdapter(
+                error: (_, __) => SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Kitaplar yüklenemedi'),
+                    padding: const EdgeInsets.all(16),
+                    child: Text(translate('library.books_load_error')),
                   ),
                 ),
                 data: (books) {
@@ -273,11 +273,11 @@ class AuthorProfileScreen extends ConsumerWidget {
           Icon(Icons.person_off_outlined,
               size: 48, color: theme.colorScheme.error),
           const SizedBox(height: 16),
-          Text('Yazar bulunamadı', style: theme.textTheme.titleMedium),
+          Text(translate('profile.author_not_found'), style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: () => context.pop(),
-            child: const Text('Geri Dön'),
+            child: Text(translate('common.back')),
           ),
         ],
       ),
@@ -473,9 +473,9 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'PRO Yazar',
-                        style: TextStyle(
+                      child: Text(
+                        translate('profile.pro_author'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -582,7 +582,7 @@ class _FollowActionButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  isFollowing ? 'Takipten çık' : 'Takip et',
+                  isFollowing ? translate('profile.unfollow') : translate('profile.follow'),
                   style: TextStyle(
                     color: isFollowing ? Colors.white : AppColors.primary,
                     fontWeight: FontWeight.w700,
@@ -628,7 +628,7 @@ class _AuthorPostsSection extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('Paylaşımlar', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(translate('profile.posts'), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
@@ -660,10 +660,10 @@ class _AuthorPostsSection extends ConsumerWidget {
   static String _formatPostDate(DateTime d) {
     final now = DateTime.now();
     final diff = now.difference(d);
-    if (diff.inMinutes < 1) return 'Az önce';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
-    if (diff.inHours < 24) return '${diff.inHours} sa önce';
-    if (diff.inDays < 7) return '${diff.inDays} gün önce';
+    if (diff.inMinutes < 1) return translate('profile.time_just_now');
+    if (diff.inMinutes < 60) return translate('profile.time_minutes_ago', args: {'n': '${diff.inMinutes}'});
+    if (diff.inHours < 24) return translate('profile.time_hours_ago', args: {'n': '${diff.inHours}'});
+    if (diff.inDays < 7) return translate('profile.time_days_ago', args: {'n': '${diff.inDays}'});
     return '${d.day}.${d.month}.${d.year}';
   }
 }
@@ -689,46 +689,38 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.auto_stories_rounded,
-            label: 'Kitap',
-            value: '$bookCount',
-            isDark: isDark,
-            theme: theme,
-          ),
+        _StatCard(
+          icon: Icons.auto_stories_rounded,
+          label: translate('profile.stat_books'),
+          value: '$bookCount',
+          isDark: isDark,
+          theme: theme,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.favorite_rounded,
-            label: 'Beğeni',
-            value: _formatCount(totalLikes),
-            isDark: isDark,
-            theme: theme,
-          ),
+        const SizedBox(height: 8),
+        _StatCard(
+          icon: Icons.favorite_rounded,
+          label: translate('profile.stat_likes'),
+          value: _formatCount(totalLikes),
+          isDark: isDark,
+          theme: theme,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.people_rounded,
-            label: 'Takipçi',
-            value: _formatCount(followerCount),
-            isDark: isDark,
-            theme: theme,
-          ),
+        const SizedBox(height: 8),
+        _StatCard(
+          icon: Icons.people_rounded,
+          label: translate('profile.stat_followers'),
+          value: _formatCount(followerCount),
+          isDark: isDark,
+          theme: theme,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.calendar_today_rounded,
-            label: 'Üyelik',
-            value: _formatMemberSince(),
-            isDark: isDark,
-            theme: theme,
-          ),
+        const SizedBox(height: 8),
+        _StatCard(
+          icon: Icons.calendar_today_rounded,
+          label: translate('profile.stat_membership'),
+          value: _formatMemberSince(),
+          isDark: isDark,
+          theme: theme,
         ),
       ],
     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1);
@@ -742,21 +734,8 @@ class _StatsRow extends StatelessWidget {
 
   String _formatMemberSince() {
     if (memberSince == null) return '-';
-    final months = [
-      'Oca',
-      'Şub',
-      'Mar',
-      'Nis',
-      'May',
-      'Haz',
-      'Tem',
-      'Ağu',
-      'Eyl',
-      'Eki',
-      'Kas',
-      'Ara',
-    ];
-    return '${months[memberSince!.month - 1]} ${memberSince!.year}';
+    final monthKey = 'profile.month_${memberSince!.month}';
+    return '${translate(monthKey)} ${memberSince!.year}';
   }
 }
 
@@ -775,36 +754,34 @@ class _StatCard extends StatelessWidget {
   final bool isDark;
   final ThemeData theme;
 
-  /// Kartlar aynı yükseklikte olsun; dar ekranda etiket yatay kalsın.
-  static const double _minCardHeight = 72;
+  /// İnce uzun yatay çubuk: icon | değer | etiket.
+  static const double _barHeight = 52;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: _minCardHeight),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      height: _barHeight,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.06)
             : AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: 0.1)
               : AppColors.primary.withValues(alpha: 0.12),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Row(
         children: [
           Icon(
             icon,
             color: AppColors.primary,
-            size: 20,
+            size: 22,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(width: 12),
           Text(
             value,
             style: theme.textTheme.titleMedium?.copyWith(
@@ -812,19 +789,20 @@ class _StatCard extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-              fontSize: 11,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -1300,7 +1278,7 @@ class _BookGridItem extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Oku',
+                            translate('library.read'),
                             style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 12,
@@ -1384,7 +1362,7 @@ class _BioSection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Hakkinda',
+                translate('library.about'),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -1522,7 +1500,7 @@ class _EmptyBooksWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Henüz yayınlanmış kitap yok',
+              translate('profile.no_books_yet'),
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
