@@ -11,6 +11,7 @@ import '../../../config/theme_preferences.dart';
 import '../../../localization/translate_preferences.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/profile.dart';
 import '../services/notification_permission_service.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/data/book_repository.dart';
@@ -232,6 +233,28 @@ class SettingsScreen extends ConsumerWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const _DeveloperAppConfigPage(),
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.workspace_premium_rounded,
+                    label: translate('settings.exclusive_title'),
+                    subtitle: translate('settings.exclusive_subtitle'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _DeveloperExclusivePage(),
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.verified_outlined,
+                    label: translate('settings.author_badges_title'),
+                    subtitle: translate('settings.author_badges_subtitle'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _DeveloperAuthorBadgesPage(),
                       ),
                     ),
                   ),
@@ -2939,6 +2962,346 @@ class _DeveloperAppConfigPageState
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─── Geliştirici: Vellum Exclusive yönetimi ─────────────
+
+class _DeveloperExclusivePage extends ConsumerStatefulWidget {
+  const _DeveloperExclusivePage();
+
+  @override
+  ConsumerState<_DeveloperExclusivePage> createState() =>
+      _DeveloperExclusivePageState();
+}
+
+class _DeveloperExclusivePageState
+    extends ConsumerState<_DeveloperExclusivePage> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
+  List<_ExclusiveBookEntry> _books = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExclusive();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadExclusive() async {
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(bookRepositoryProvider);
+      final books = await repo.getExclusiveBooks(limit: 50);
+      setState(() {
+        _books = books
+            .map((b) => _ExclusiveBookEntry(
+                  id: b.id,
+                  title: b.title,
+                  isExclusive: true,
+                ))
+            .toList();
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _search(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      await _loadExclusive();
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(bookRepositoryProvider);
+      final books = await repo.searchBooks(trimmed);
+      // Exclusive bilgisi modelde yok, varsayılan false, toggle edildiğinde güncellenecek.
+      setState(() {
+        _books = books
+            .map((b) => _ExclusiveBookEntry(
+                  id: b.id,
+                  title: b.title,
+                  isExclusive: false,
+                ))
+            .toList();
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleExclusive(_ExclusiveBookEntry entry, bool value) async {
+    setState(() {
+      _books = _books
+          .map((b) =>
+              b.id == entry.id ? b.copyWith(isExclusive: value) : b)
+          .toList();
+    });
+    await ref.read(bookRepositoryProvider).setExclusive(entry.id, value);
+    ref.invalidate(exclusiveBooksProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(translate('settings.exclusive_title')),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translate('settings.exclusive_subtitle'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: 'Kitap ara',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              textInputAction: TextInputAction.search,
+              onSubmitted: _search,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _books.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Hiç kitap bulunamadı.',
+                            style:
+                                theme.textTheme.bodyMedium?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _books.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final entry = _books[index];
+                            return ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 4),
+                              title: Text(
+                                entry.title,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              trailing: Switch(
+                                value: entry.isExclusive,
+                                onChanged: (value) =>
+                                    _toggleExclusive(entry, value),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExclusiveBookEntry {
+  const _ExclusiveBookEntry({
+    required this.id,
+    required this.title,
+    required this.isExclusive,
+  });
+
+  final String id;
+  final String title;
+  final bool isExclusive;
+
+  _ExclusiveBookEntry copyWith({bool? isExclusive}) => _ExclusiveBookEntry(
+        id: id,
+        title: title,
+        isExclusive: isExclusive ?? this.isExclusive,
+      );
+}
+
+// ─── Geliştirici: Yazar Rozetleri yönetimi ─────────────
+
+class _DeveloperAuthorBadgesPage extends ConsumerStatefulWidget {
+  const _DeveloperAuthorBadgesPage();
+
+  @override
+  ConsumerState<_DeveloperAuthorBadgesPage> createState() =>
+      _DeveloperAuthorBadgesPageState();
+}
+
+class _DeveloperAuthorBadgesPageState
+    extends ConsumerState<_DeveloperAuthorBadgesPage> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
+  List<Profile> _authors = [];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _authors = []);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final results = await repo.searchAuthors(trimmed);
+      setState(() => _authors = results);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleBadge(Profile author, bool value) async {
+    final previous = author.isVerifiedAuthor;
+    setState(() {
+      _authors = _authors
+          .map(
+            (a) => a.id == author.id
+                ? a.copyWith(isVerifiedAuthor: value)
+                : a,
+          )
+          .toList();
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).setVerifiedAuthor(
+            targetUserId: author.id,
+            value: value,
+          );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _authors = _authors
+              .map(
+                (a) => a.id == author.id
+                    ? a.copyWith(isVerifiedAuthor: previous)
+                    : a,
+              )
+              .toList();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(translate('settings.author_badges_title')),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translate('settings.author_badges_subtitle'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: translate('home.search_hint'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              textInputAction: TextInputAction.search,
+              onSubmitted: _search,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _authors.isEmpty
+                      ? Center(
+                          child: Text(
+                            translate('home.following_empty_body'),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _authors.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final author = _authors[index];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
+                              ),
+                              leading: CircleAvatar(
+                                child: Text(
+                                  author.username.isNotEmpty
+                                      ? author.username[0].toUpperCase()
+                                      : '?',
+                                ),
+                              ),
+                              title: Text(
+                                author.username,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              subtitle: Text(
+                                author.isVerifiedAuthor
+                                    ? translate('profile.pro_author')
+                                    : '',
+                              ),
+                              trailing: Switch(
+                                value: author.isVerifiedAuthor,
+                                onChanged: (value) =>
+                                    _toggleBadge(author, value),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

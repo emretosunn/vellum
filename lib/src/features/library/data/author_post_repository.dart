@@ -42,11 +42,15 @@ class AuthorPostRepository {
   Future<AuthorPost> createPost({required String authorId, required String content}) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) throw Exception('İçerik boş olamaz.');
-    final data = await _client.from('author_posts').insert({
-      'author_id': authorId,
-      'content': trimmed,
-    }).select().single();
-    return AuthorPost.fromJson(data as Map<String, dynamic>);
+    final data = await _client
+        .from('author_posts')
+        .insert({
+          'author_id': authorId,
+          'content': trimmed,
+        })
+        .select()
+        .single() as Map<String, dynamic>;
+    return AuthorPost.fromJson(data);
   }
 
   /// Post sil (sadece kendi postu).

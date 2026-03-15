@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +8,7 @@ import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/in_app_update_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/profile.dart';
 import '../../library/data/author_post_repository.dart';
 import '../../library/data/book_like_repository.dart';
 import '../../library/data/follow_repository.dart';
@@ -197,6 +196,7 @@ class _DiscoverTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final booksAsync = ref.watch(searchedBooksProvider);
+    final authorsAsync = ref.watch(searchAuthorsProvider);
     final recentAsync = ref.watch(recentBooksProvider);
     final connectivityAsync = ref.watch(connectivityProvider);
     final offlineBooksAsync = ref.watch(offlineBooksListProvider);
@@ -314,27 +314,117 @@ class _DiscoverTab extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  // Yazar sonuçları (varsa)
+                  SliverToBoxAdapter(
+                    child: authorsAsync.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                      data: (authors) {
+                        if (authors.isEmpty) return const SizedBox.shrink();
+                        return Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Yazarlar',
+                                style: theme.textTheme.titleMedium
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Column(
+                                children: authors
+                                    .take(5)
+                                    .map(
+                                      (author) => _AuthorSearchTile(
+                                        profile: author,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
 
-                  // ─── Hero / Vitrin: Editörün Seçimi ─────────────────
+                  // ─── Hero / Vitrin: Önce Vellum Exclusive, yoksa editörün seçimi ─────────
                   SliverToBoxAdapter(
                     child: Consumer(
                       builder: (context, ref, _) {
-                        final featuredAsync = ref.watch(featuredBooksProvider);
-                        return featuredAsync.when(
-                          data: (featured) {
-                            if (featured.isEmpty) return const SizedBox.shrink();
-                            return _HeroShowcase(books: featured);
+                        final exclusiveAsync =
+                            ref.watch(exclusiveBooksProvider);
+                        final featuredAsync =
+                            ref.watch(featuredBooksProvider);
+
+                        return exclusiveAsync.when(
+                          data: (exclusive) {
+                            if (exclusive.isNotEmpty) {
+                              return _HeroShowcase(books: exclusive);
+                            }
+                            // Exclusive yoksa eski featured mantığına düş
+                            return featuredAsync.when(
+                              data: (featured) {
+                                if (featured.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return _HeroShowcase(books: featured);
+                              },
+                              loading: () => const SizedBox(
+                                height: 200,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              error: (_, __) => const SizedBox.shrink(),
+                            );
                           },
                           loading: () => const SizedBox(
                             height: 200,
                             child: Center(
-                                child: SizedBox(
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          error: (_, __) {
+                            // Exclusive hata verirse featured'a düş
+                            return featuredAsync.when(
+                              data: (featured) {
+                                if (featured.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return _HeroShowcase(books: featured);
+                              },
+                              loading: () => const SizedBox(
+                                height: 200,
+                                child: Center(
+                                  child: SizedBox(
                                     width: 28,
                                     height: 28,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2))),
-                          ),
-                          error: (_, __) => const SizedBox.shrink(),
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              error: (_, __) => const SizedBox.shrink(),
+                            );
+                          },
                         );
                       },
                     ),
@@ -566,6 +656,56 @@ class _DiscoverTab extends ConsumerWidget {
               ),
             ),
           );
+  }
+}
+
+class _AuthorSearchTile extends StatelessWidget {
+  const _AuthorSearchTile({required this.profile});
+
+  final Profile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => context.push('/author/${profile.id}'),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.2),
+              child: Text(
+                profile.username.isNotEmpty
+                    ? profile.username[0].toUpperCase()
+                    : '?',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                profile.username,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+          ],
+        ),
+      ),
+    );
   }
 }
 

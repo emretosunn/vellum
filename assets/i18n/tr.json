@@ -130,6 +130,8 @@
     "language_english": "İngilizce",
     "font_size": "Font Boyutu",
     "developer": "Geliştirici",
+    "author_badges_title": "Yazar rozetleri",
+    "author_badges_subtitle": "Yazarlara rozet ver veya kaldır",
     "book_reports": "Kitap şikayetleri",
     "book_reports_subtitle": "Şikayetleri görüntüle ve okundu işaretle",
     "about": "Hakkında",
@@ -232,6 +234,8 @@
     "announcement_type_warning": "Uyarı",
     "app_config_saved": "Ayarlar kaydedildi",
     "app_config_save_failed": "Ayarlar kaydedilemedi",
+    "exclusive_title": "Vellum Exclusive",
+    "exclusive_subtitle": "Seçili kitapları öne çıkar ve yönet",
     "profile_not_found": "Profil bulunamadı",
     "reports_title": "Kitap şikayetleri",
     "reports_load_error": "Yüklenemedi: {error}",
@@ -298,7 +302,11 @@
     "report_book_message": "\"{title}\" hakkında şikayetinizi yazın.",
     "report_hint": "Şikayet gerekçenizi kısaca açıklayın...",
     "report_required": "Lütfen şikayet gerekçenizi yazın",
-    "error_with": "Hata: {error}"
+    "error_with": "Hata: {error}",
+    "remove_book": "Kitabı kaldır",
+    "remove_book_dialog_title": "Kitabı Kaldır",
+    "remove_book_dialog_body": "\"{title}\" kitabını tamamen kaldırmak istiyor musunuz? Bu işlem geri alınamaz. Kitap ve tüm bölümleri silinecektir.",
+    "book_removed_snackbar": "\"{title}\" kaldırıldı"
   },
   "studio": {
     "load_error": "Yükleme hatası: {error}",
@@ -404,7 +412,9 @@
     "mark_all_read_snackbar": "Tümü okundu olarak işaretlendi",
     "deleted_snackbar": "Bildirim silindi",
     "empty_title": "Bildirim Yok",
-    "empty_body": "Yeni bildirimleriniz burada görünecek."
+    "empty_body": "Yeni bildirimleriniz burada görünecek.",
+    "book_removed_title": "Kitabınız kaldırıldı",
+    "book_removed_body": "\"{title}\" kitabı platformdan kaldırıldı."
   },
   "subscription": {
     "title": "Abonelik",
@@ -427,6 +437,7 @@
     "confirm_title": "Abonelik Onayı",
     "subscribe_btn": "Abone Ol",
     "activated": "Aboneliğiniz başarıyla aktifleştirildi!",
+    "already_subscribed": "Zaten abonesiniz",
     "cancel_title": "Aboneliği İptal Et",
     "cancel_confirm": "Aboneliğinizi iptal etmek istediğinize emin misiniz? İptal edildikten sonra Pro özelliklere erişiminiz sona erecek.",
     "give_up": "Vazgeç",
@@ -437,6 +448,7 @@
     "no_sub": "Abonelik Yok",
     "free": "FREE",
     "pro_badge": "PRO",
+    "premium_badge": "Premium",
     "free_account": "Ücretsiz Hesap",
     "ends_on": "Bitiş: {date}",
     "sub_active": "Aboneliğiniz aktif",
@@ -455,7 +467,7 @@
     "all_pro_access": "Tüm Pro özelliklere erişiminiz var",
     "feature_unlimited": "Sınırsız kitap oluşturma ve yayınlama",
     "feature_studio": "Yazı Stüdyosu tam erişim",
-    "feature_badge": "Onaylı yazar rozeti",
+    "feature_badge": "Premium rozeti",
     "feature_support": "Öncelikli destek",
     "faq_manage": "Aboneliğimi nasıl yönetebilirim?",
     "faq_manage_a": "\"Aboneliği Yönet\" butonuna tıklayarak plan değişikliği, iptal veya geri yükleme işlemlerini kolayca yapabilirsiniz.",

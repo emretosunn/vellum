@@ -5,7 +5,6 @@ import '../../auth/data/auth_repository.dart';
 import '../../subscription/services/subscription_service.dart';
 import '../data/book_repository.dart';
 import '../../studio/data/chapter_repository.dart';
-import '../domain/book.dart';
 import '../domain/chapter.dart';
 import 'offline_book.dart';
 

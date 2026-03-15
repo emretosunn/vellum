@@ -130,6 +130,8 @@
     "language_english": "English",
     "font_size": "Font Size",
     "developer": "Developer",
+    "author_badges_title": "Author badges",
+    "author_badges_subtitle": "Grant or remove author badges",
     "book_reports": "Book reports",
     "book_reports_subtitle": "View reports and mark as read",
     "about": "About",
@@ -232,6 +234,8 @@
     "announcement_type_warning": "Warning",
     "app_config_saved": "Settings saved",
     "app_config_save_failed": "Failed to save settings",
+    "exclusive_title": "Vellum Exclusive",
+    "exclusive_subtitle": "Highlight and manage selected books",
     "profile_not_found": "Profile not found",
     "reports_title": "Book reports",
     "reports_load_error": "Failed to load: {error}",
@@ -298,7 +302,11 @@
     "report_book_message": "Write your report about \"{title}\".",
     "report_hint": "Briefly describe the reason for your report...",
     "report_required": "Please write the reason for your report",
-    "error_with": "Error: {error}"
+    "error_with": "Error: {error}",
+    "remove_book": "Remove book",
+    "remove_book_dialog_title": "Remove Book",
+    "remove_book_dialog_body": "Are you sure you want to remove \"{title}\" permanently? This cannot be undone. The book and all chapters will be deleted.",
+    "book_removed_snackbar": "\"{title}\" has been removed"
   },
   "studio": {
     "load_error": "Load error: {error}",
@@ -404,7 +412,9 @@
     "mark_all_read_snackbar": "All marked as read",
     "deleted_snackbar": "Notification deleted",
     "empty_title": "No Notifications",
-    "empty_body": "Your new notifications will appear here."
+    "empty_body": "Your new notifications will appear here.",
+    "book_removed_title": "Your book was removed",
+    "book_removed_body": "The book \"{title}\" has been removed from the platform."
   },
   "subscription": {
     "title": "Subscription",
@@ -427,6 +437,7 @@
     "confirm_title": "Confirm Subscription",
     "subscribe_btn": "Subscribe",
     "activated": "Your subscription has been activated!",
+    "already_subscribed": "You are already subscribed",
     "cancel_title": "Cancel Subscription",
     "cancel_confirm": "Are you sure you want to cancel? After cancellation you will lose access to Pro features.",
     "give_up": "Cancel",
@@ -437,6 +448,7 @@
     "no_sub": "No Subscription",
     "free": "FREE",
     "pro_badge": "PRO",
+    "premium_badge": "Premium",
     "free_account": "Free Account",
     "ends_on": "Ends: {date}",
     "sub_active": "Your subscription is active",
@@ -455,7 +467,7 @@
     "all_pro_access": "You have access to all Pro features",
     "feature_unlimited": "Unlimited book creation and publishing",
     "feature_studio": "Full Studio access",
-    "feature_badge": "Verified author badge",
+    "feature_badge": "Premium badge",
     "feature_support": "Priority support",
     "faq_manage": "How do I manage my subscription?",
     "faq_manage_a": "Tap \"Manage Subscription\" to change plan, cancel or restore easily.",

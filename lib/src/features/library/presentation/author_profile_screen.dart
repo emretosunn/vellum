@@ -460,33 +460,69 @@ class _ProfileHeaderSliver extends ConsumerWidget {
 
                   const SizedBox(height: 6),
 
-                  // PRO rozeti
-                  if (author.isPro)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.accent, AppColors.accentDark],
+                  // Rozetler: Pro Yazar (sadece geliştirici verir), Premium (abonelik)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (author.isVerifiedAuthor)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.verified,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                translate('profile.pro_author'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        translate('profile.pro_author'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                      if (author.isPro)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [AppColors.accent, AppColors.accentDark],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            translate('subscription.premium_badge'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
+                    ],
+                  ).animate().fadeIn(delay: 300.ms).scale(
+                        begin: const Offset(0.8, 0.8),
+                        curve: Curves.easeOutBack,
                       ),
-                    ).animate().fadeIn(delay: 300.ms).scale(
-                          begin: const Offset(0.8, 0.8),
-                          curve: Curves.easeOutBack,
-                        ),
 
-                  // Takip et / Takipten çık — PRO Yazar'ın hemen altında, aksiyonlu buton
+                  // Takip et / Takipten çık
                   if (!isOwnProfile && currentUserId != null && isFollowingAsync != null)
                     isFollowingAsync.when(
                       data: (following) => Padding(
@@ -1100,27 +1136,6 @@ class _BookListItem extends StatelessWidget {
     );
   }
 
-  Widget _buildCoverPlaceholder() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.3),
-            AppColors.secondary.withValues(alpha: 0.2),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.auto_stories_rounded,
-          color: AppColors.primary.withValues(alpha: 0.5),
-          size: 28,
-        ),
-      ),
-    );
-  }
 }
 
 // ─── Kitap Grid (Tablet/Desktop) ─────────────────
@@ -1298,27 +1313,6 @@ class _BookGridItem extends StatelessWidget {
     );
   }
 
-  Widget _buildGridCoverPlaceholder() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.secondary,
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.auto_stories_rounded,
-          size: 48,
-          color: Colors.white.withValues(alpha: 0.3),
-        ),
-      ),
-    );
-  }
 }
 
 // ─── Bio Bölümü ────────────────────────────────────

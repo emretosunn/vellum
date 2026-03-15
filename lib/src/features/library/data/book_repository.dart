@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/auth_repository.dart';
+import '../../auth/domain/profile.dart';
 import '../domain/book.dart';
 
 /// Sıralama türü (ana sayfa filtre)
@@ -188,8 +189,36 @@ class BookRepository {
     return data.map<Book>((json) => Book.fromJson(json)).toList();
   }
 
+  /// Vellum Exclusive olarak işaretlenen yayınlanmış kitaplar
+  Future<List<Book>> getExclusiveBooks({int limit = 10}) async {
+    final data = await _client
+        .from('books')
+        .select()
+        .eq('status', 'published')
+        .eq('is_exclusive', true)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    return data.map<Book>((json) => Book.fromJson(json)).toList();
+  }
+
+  /// Bir kitabın Vellum Exclusive durumunu değiştir
+  Future<void> setExclusive(String bookId, bool isExclusive) async {
+    await _client
+        .from('books')
+        .update({'is_exclusive': isExclusive})
+        .eq('id', bookId);
+  }
+
+  /// Tablodan sil (RLS izin veriyorsa).
   Future<void> deleteBook(String bookId) async {
     await _client.from('books').delete().eq('id', bookId);
+  }
+
+  /// Sunucudaki delete_book_cascade RPC ile kitabı ve ilişkili verileri siler.
+  /// Sadece is_developer = true kullanıcılar başarılı olur; aksi halde exception.
+  Future<void> deleteBookCascade(String bookId) async {
+    await _client.rpc('delete_book_cascade', params: {'_book_id': bookId});
   }
 
   /// Kitap detayı açıldığında görüntülenme sayısını 1 artırır (RPC: increment_book_view)
@@ -257,6 +286,18 @@ final searchedBooksProvider = FutureProvider<List<Book>>((ref) async {
         sortOrder: sortOrder,
         category: category,
       );
+});
+
+/// Vellum Exclusive rafı için kitaplar
+final exclusiveBooksProvider = FutureProvider<List<Book>>((ref) async {
+  return ref.read(bookRepositoryProvider).getExclusiveBooks(limit: 10);
+});
+
+/// Aranan yazarlar (global arama için)
+final searchAuthorsProvider = FutureProvider<List<Profile>>((ref) async {
+  final query = ref.watch(searchQueryProvider);
+  if (query.trim().isEmpty) return [];
+  return ref.read(authRepositoryProvider).searchAuthors(query.trim());
 });
 
 /// Ana sayfada "Yeni Eklenenler" için son 5 kitap

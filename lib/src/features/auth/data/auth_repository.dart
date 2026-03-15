@@ -84,6 +84,12 @@ class AuthRepository {
       updates['is_verified_author'] = isVerifiedAuthor;
     }
 
+    if (updates.isEmpty) {
+      final data =
+          await _client.from('profiles').select().eq('id', id).single();
+      return Profile.fromJson(data);
+    }
+
     final data = await _client
         .from('profiles')
         .update(updates)
@@ -92,6 +98,20 @@ class AuthRepository {
         .single();
 
     return Profile.fromJson(data);
+  }
+
+  /// Geliştirici panelinden başka kullanıcının Pro Yazar rozetini ayarla.
+  /// RLS yüzünden direkt UPDATE çalışmadığı için Supabase RPC kullanır.
+  Future<void> setVerifiedAuthor({required String targetUserId, required bool value}) async {
+    final res = await _client.rpc(
+      'set_verified_author',
+      params: {'_target_user_id': targetUserId, '_value': value},
+    );
+    final map = res as Map<String, dynamic>;
+    if (map['ok'] != true) {
+      final err = map['error'] as String? ?? 'unknown';
+      throw Exception(err);
+    }
   }
 
   /// Avatar fotoğrafı yükle ve URL döndür
@@ -135,6 +155,20 @@ class AuthRepository {
         .from('profiles')
         .update({'notification_preferences': preferences})
         .eq('id', userId);
+  }
+
+  /// Yazar arama (username üzerinden, sadece author rolü)
+  Future<List<Profile>> searchAuthors(String query) async {
+    if (query.trim().isEmpty) return [];
+
+    final data = await _client
+        .from('profiles')
+        .select()
+        .eq('role', 'author')
+        .ilike('username', '%${query.trim()}%')
+        .limit(20);
+
+    return data.map<Profile>((json) => Profile.fromJson(json)).toList();
   }
 }
 

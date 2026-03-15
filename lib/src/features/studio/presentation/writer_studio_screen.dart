@@ -33,7 +33,7 @@ class WriterStudioScreen extends ConsumerWidget {
         children: [
           ClipRect(
             child: CustomScrollView(
-              slivers: [
+        slivers: [
             // Özel başlık alanı (gradient + tipografi)
             SliverToBoxAdapter(
               child: RepaintBoundary(
@@ -124,16 +124,16 @@ class WriterStudioScreen extends ConsumerWidget {
           // Kitaplarım başlığı (Yeni Kitap + Paylaşım sağ alttaki FAB’dan)
           SliverToBoxAdapter(
             child: RepaintBoundary(
-              child: profileAsync.whenOrNull(
-                data: (profile) {
+            child: profileAsync.whenOrNull(
+              data: (profile) {
                   if (profile == null) return const SizedBox.shrink();
                   final bookCount = myBooksAsync.valueOrNull?.length ?? 0;
-                  return Padding(
+                return Padding(
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                    children: [
+                      Text(
                           translate('studio.my_books_title'),
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -147,11 +147,11 @@ class WriterStudioScreen extends ConsumerWidget {
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                      ),
+                    ],
+                  ),
+                );
+              },
               ),
             ),
           ),
@@ -168,25 +168,25 @@ class WriterStudioScreen extends ConsumerWidget {
               }
 
               return myBooksAsync.when(
-                loading: () => const SliverToBoxAdapter(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
+            loading: () => const SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
                 ),
-                error: (err, _) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+              ),
+            ),
+            error: (err, _) => SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                     child: Text(
                       translate('studio.load_error', args: {'error': '$err'}),
                     ),
-                  ),
-                ),
-                data: (books) {
-                  if (books.isEmpty) {
-                    return SliverToBoxAdapter(
+              ),
+            ),
+            data: (books) {
+              if (books.isEmpty) {
+                return SliverToBoxAdapter(
                       child: RepaintBoundary(
                         child: _EmptyState(theme: theme),
                       ),
@@ -200,7 +200,7 @@ class WriterStudioScreen extends ConsumerWidget {
                         (context, index) {
                           final book = books[index];
                           return RepaintBoundary(
-                            child: Padding(
+                  child: Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: Dismissible(
                               key: ValueKey(book.id),
@@ -475,19 +475,19 @@ class _CreatePostFABOption extends StatelessWidget {
             children: [
               Icon(Icons.edit_note_rounded, size: 20, color: Colors.white),
               const SizedBox(width: 8),
-              Text(
+                          Text(
                 translate('studio.share_post_title'),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
 }
 
 /// Yeni Kitap seçeneği: mor yuvarlak buton, beyaz + ve metin.
@@ -653,7 +653,7 @@ class _PlanBadge extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
               child: Text(translate('subscription.subscribe_cta')),
-            ),
+          ),
         ],
       ),
     );
@@ -673,12 +673,12 @@ class _EmptyState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Center(
-        child: Column(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+            children: [
+              Container(
               padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
+                decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -703,7 +703,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
-            Text(
+              Text(
               translate('studio.empty_state_title'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -712,13 +712,13 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            Text(
+              Text(
               translate('studio.empty_state_subtitle'),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: 28),
             Material(
               color: Colors.transparent,
@@ -755,12 +755,12 @@ class _EmptyState extends StatelessWidget {
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
             ),
           ],
         ),
@@ -790,7 +790,7 @@ class _BookListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
+            decoration: BoxDecoration(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.05)
                 : Colors.black.withValues(alpha: 0.03),
@@ -867,19 +867,19 @@ class _BookListItem extends StatelessWidget {
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.circle,
+            children: [
+              Icon(
+                Icons.circle,
                                 size: 6,
                                 color: isPublished
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
+                    ? Colors.green
+                    : Colors.orange,
+              ),
                               const SizedBox(width: 6),
-                              Text(
-                                book.status == BookStatus.published
+              Text(
+                book.status == BookStatus.published
                                     ? translate('library.published')
-                                    : book.status == BookStatus.draft
+                    : book.status == BookStatus.draft
                                         ? translate('library.draft')
                                         : translate('library.archived'),
                                 style: theme.textTheme.labelSmall?.copyWith(

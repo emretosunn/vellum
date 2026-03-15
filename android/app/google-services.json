@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "754025713890",
+    "project_id": "appvellum",
+    "storage_bucket": "appvellum.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754025713890:android:cc0a78e48749dd6a5c4ebb",
+        "android_client_info": {
+          "package_name": "com.vexorabyte.vellum"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "754025713890-gphi8a35vl67aa3phifk9debp6q2ptgf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtBURocKyoZKQuYrz49-SXwxmD_lkfYZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "754025713890-gphi8a35vl67aa3phifk9debp6q2ptgf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

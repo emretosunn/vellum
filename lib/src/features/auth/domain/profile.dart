@@ -87,7 +87,7 @@ Object? _readNotificationPreferences(Map<dynamic, dynamic> json, String key) {
   if (value == null) return Map<String, dynamic>.from(_defaultNotificationPreferences);
   if (value is! Map) return Map<String, dynamic>.from(_defaultNotificationPreferences);
   final merged = Map<String, dynamic>.from(_defaultNotificationPreferences);
-  for (final e in (value as Map<dynamic, dynamic>).entries) {
+  for (final e in value.entries) {
     if (e.value is bool) merged[e.key.toString()] = e.value as bool;
   }
   return merged;

@@ -6,6 +6,7 @@ import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
 import '../data/subscription_repository.dart';
+import '../services/purchase_service.dart';
 import '../../auth/data/auth_repository.dart';
 import '../services/subscription_status_service.dart';
 
@@ -111,6 +112,15 @@ class _SubscriptionPlanModalContentState
     } catch (_) {
       return fallback;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Mağaza bağlantısını önceden başlat; böylece "Abone ol" tıklanınca Play penceresi hemen açılabilir.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.ref.read(subscriptionPurchaseServiceProvider).warmUpStore();
+    });
   }
 
   @override
@@ -233,19 +243,13 @@ class _SubscriptionPlanModalContentState
 
   Future<void> _subscribe(String userId) async {
     setState(() => _isLoading = true);
-    final days = _isYearly ? 365 : 30;
-    final planType = _isYearly ? 'yearly' : 'monthly';
-    final amount = _isYearly ? _yearlyPrice : _monthlyPrice;
 
     try {
-      await widget.ref.read(subscriptionRepositoryProvider).activateSubscription(
+      await widget.ref
+          .read(subscriptionPurchaseServiceProvider)
+          .purchaseSubscription(
             userId: userId,
-            durationDays: days,
-          );
-      await widget.ref.read(subscriptionRepositoryProvider).recordPayment(
-            userId: userId,
-            planType: planType,
-            amount: amount,
+            isYearly: _isYearly,
           );
       widget.ref.invalidate(currentProfileProvider);
       widget.ref.invalidate(paymentHistoryProvider);
@@ -262,10 +266,15 @@ class _SubscriptionPlanModalContentState
       }
     } catch (e) {
       if (mounted) {
+        final raw = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+        final msg = raw == 'Zaten abonesiniz'
+            ? _sub('subscription.already_subscribed', 'Zaten abonesiniz')
+            : (raw.isNotEmpty ? raw : _sub('subscription.error', 'Hata'));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_sub('subscription.error', 'Hata') + ': $e'),
+            content: Text(msg),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

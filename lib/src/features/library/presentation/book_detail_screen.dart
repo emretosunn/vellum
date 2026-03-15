@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
@@ -44,6 +45,8 @@ class BookDetailScreen extends ConsumerWidget {
           }
 
           final authorAsync = ref.watch(profileByIdProvider(book.authorId));
+          final profileAsync = ref.watch(currentProfileProvider);
+          final isDeveloper = profileAsync.valueOrNull?.isDeveloper == true;
 
           return _IncrementViewOnLoad(
             bookId: bookId,
@@ -57,6 +60,8 @@ class BookDetailScreen extends ConsumerWidget {
                     isDark: isDark,
                     screenWidth: screenWidth,
                     onReport: () => _showReportBookSheet(context, ref, book),
+                    showDeveloperMenu: isDeveloper,
+                    onDeveloperRemoveBook: () => _handleDeveloperRemoveBook(context, ref, book),
                   ),
 
                   // İçerik
@@ -339,21 +344,91 @@ class BookDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 16),
-          Text(translate('library.book_not_found'), style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          FilledButton.tonal(
-            onPressed: () => context.pop(),
-            child: Text(translate('common.back')),
+  static Future<void> _handleDeveloperRemoveBook(
+    BuildContext context,
+    WidgetRef ref,
+    Book book,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(translate('library.remove_book_dialog_title')),
+        content: Text(
+          translate('library.remove_book_dialog_body', args: {'title': book.title}),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(translate('common.cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(translate('library.remove_book')),
           ),
         ],
       ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await ref.read(bookRepositoryProvider).deleteBookCascade(book.id);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translate('library.error_with', args: {'error': e.toString()})),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      await Supabase.instance.client.from('notifications').insert({
+        'user_id': book.authorId,
+        'title': translate('notifications.book_removed_title'),
+        'body': translate('notifications.book_removed_body', args: {'title': book.title}),
+        'type': 'system',
+        'is_read': false,
+      });
+    } catch (_) {}
+
+    ref.invalidate(bookDetailProvider(book.id));
+    ref.invalidate(publishedBooksProvider);
+    ref.invalidate(searchedBooksProvider);
+    ref.invalidate(exclusiveBooksProvider);
+    ref.invalidate(authorBooksProvider(book.authorId));
+
+    if (context.mounted) {
+      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            translate('library.book_removed_snackbar', args: {'title': book.title}),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildErrorState(BuildContext context, ThemeData theme) {
+    return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 16),
+          Text(translate('library.book_not_found'), style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: () => context.pop(),
+            child: Text(translate('common.back')),
+              ),
+            ],
+          ),
     );
   }
 }
@@ -480,12 +555,16 @@ class _HeroCoverSliver extends StatelessWidget {
     required this.isDark,
     required this.screenWidth,
     this.onReport,
+    this.showDeveloperMenu = false,
+    this.onDeveloperRemoveBook,
   });
 
   final Book book;
   final bool isDark;
   final double screenWidth;
   final VoidCallback? onReport;
+  final bool showDeveloperMenu;
+  final VoidCallback? onDeveloperRemoveBook;
 
   @override
   Widget build(BuildContext context) {
@@ -517,8 +596,25 @@ class _HeroCoverSliver extends StatelessWidget {
               onPressed: onReport,
             ),
           ),
+        if (showDeveloperMenu && onDeveloperRemoveBook != null)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (_) => onDeveloperRemoveBook!(),
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'remove',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever_rounded, color: AppColors.error),
+                    const SizedBox(width: 12),
+                    Text(translate('library.remove_book')),
+                  ],
+                ),
+              ),
+            ],
+          ),
       ],
-      flexibleSpace: FlexibleSpaceBar(
+                flexibleSpace: FlexibleSpaceBar(
         stretchModes: const [
           StretchMode.zoomBackground,
           StretchMode.blurBackground,
@@ -582,10 +678,10 @@ class _HeroCoverSliver extends StatelessWidget {
 
   Widget _buildGradientBackground() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
           colors: [
             AppColors.primary,
             AppColors.secondary,
@@ -594,8 +690,8 @@ class _HeroCoverSliver extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(
-          Icons.auto_stories_rounded,
+                            child: Icon(
+                              Icons.auto_stories_rounded,
           size: 100,
           color: Colors.white.withValues(alpha: 0.2),
         ),
@@ -688,7 +784,7 @@ class _AuthorCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/author/${author.id}'),
       child: Container(
-            padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.08)
@@ -768,7 +864,7 @@ class _AuthorCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                translate('subscription.pro_badge'),
+                                translate('subscription.premium_badge'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -780,7 +876,7 @@ class _AuthorCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                        Text(
                         translate('library.view_profile'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.primary,
@@ -891,7 +987,7 @@ class _BookInfoSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
+                        Text(
               translate('library.about'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -915,7 +1011,7 @@ class _BookInfoSection extends StatelessWidget {
             ),
           ),
           child: Text(
-            book.summary,
+                          book.summary,
             style: theme.textTheme.bodyMedium?.copyWith(
               height: 1.6,
               color: isDark
@@ -1057,13 +1153,13 @@ class _EmptyChaptersWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Column(
-          children: [
+                        padding: const EdgeInsets.all(32),
+                        child: Center(
+                          child: Column(
+                            children: [
             Icon(
               Icons.library_books_outlined,
-              size: 48,
+                                  size: 48,
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
@@ -1305,9 +1401,9 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
                   children: [
                     Icon(Icons.chat_bubble_outline,
                         size: 40,
-                        color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(height: 8),
-                    Text(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(height: 8),
+                              Text(
                       translate('library.no_reviews'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -1317,11 +1413,11 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
                     Text(
                       translate('library.first_review'),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
               );
             }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
@@ -94,8 +95,8 @@ class PaywallWidget extends ConsumerWidget {
                 text: 'Zengin metin editörü ile profesyonel yazım',
               ),
               _PaywallBenefit(
-                icon: Icons.verified,
-                text: 'Onaylı yazar rozeti',
+                icon: Icons.workspace_premium_rounded,
+                text: translate('subscription.feature_badge'),
               ),
               _PaywallBenefit(
                 icon: Icons.bar_chart,

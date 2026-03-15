@@ -99,11 +99,11 @@ class SubscriptionRepository {
   }) async {
     final endDate = DateTime.now().add(Duration(days: durationDays));
 
+    // is_verified_author (Pro Yazar) yalnızca geliştirici panelinden verilir; abonelikle atanmaz.
     final updates = <String, dynamic>{
       'is_pro': true,
       'sub_end_date': endDate.toIso8601String(),
       'role': 'author',
-      'is_verified_author': true,
     };
 
     if (stripeCustomerId != null) {
