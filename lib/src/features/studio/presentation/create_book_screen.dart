@@ -8,6 +8,7 @@ import 'package:flutter_translate/flutter_translate.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
@@ -32,6 +33,19 @@ const Map<String, String> _contentWarningKeys = {
   'Diğer hassas içerik': 'studio.cw_diger_hassas',
 };
 
+/// Kitap dili/bölgesi seçimi (Home filtreleri ile aynı kodlar).
+/// Not: Basitlik için ülke -> dil eşlemesi yapıyoruz.
+const Map<String, String> _languageRegionLabels = {
+  // Map değerleri, translate ile kullanılacak i18n anahtarlarıdır.
+  'tr': 'home.language_region_tr',
+  'en': 'home.language_region_en',
+  'de': 'home.language_region_de',
+  'fr': 'home.language_region_fr',
+  'ru': 'home.language_region_ru',
+  'es': 'home.language_region_es',
+  'other': 'home.language_region_other',
+};
+
 /// Yeni kitap oluşturma / düzenleme sayfası (kapak resmi + başlık + özet).
 class CreateBookScreen extends ConsumerStatefulWidget {
   const CreateBookScreen({super.key, this.initialBook});
@@ -52,6 +66,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
   bool _isCreating = false;
 
   String? _selectedCategory;
+  String _selectedLanguageCode = 'tr';
   bool _isAdult18 = false;
   final Set<String> _contentWarnings = {};
 
@@ -72,6 +87,11 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
   String _categoryDisplayName(String value) =>
       translate(_categoryKeys[value] ?? 'studio.cat_diger');
+
+  String _languageDisplayName(String code) =>
+      _languageRegionLabels[code] != null
+          ? translate(_languageRegionLabels[code]!)
+          : code;
 
   String _contentWarningDisplayName(String label) =>
       translate(_contentWarningKeys[label] ?? label);
@@ -124,6 +144,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               summary: _summaryController.text.trim(),
               coverImageUrl: coverUrl,
               category: _selectedCategory,
+              languageCode: _selectedLanguageCode,
               isAdult18: _isAdult18,
               contentWarnings: _contentWarnings.toList(),
             );
@@ -145,6 +166,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               summary: _summaryController.text.trim(),
               coverImageUrl: coverUrl,
               category: _selectedCategory,
+              languageCode: _selectedLanguageCode,
               isAdult18: _isAdult18,
               contentWarnings: _contentWarnings.toList(),
             );
@@ -163,7 +185,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(translate('subscription.error', args: {'error': e.toString()}))),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {
@@ -223,13 +245,17 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                     _buildSectionTitle(theme, translate('studio.category_section')),
                     const SizedBox(height: 10),
                     _buildCategorySelector(theme, isDark),
+                    const SizedBox(height: 26),
+                    _buildSectionTitle(theme, translate('studio.language_region_title')),
+                    const SizedBox(height: 10),
+                    _buildLanguageSelector(theme, isDark),
                     const SizedBox(height: 22),
                     _buildAdult18Card(theme, isDark),
                     const SizedBox(height: 22),
-                    _buildSectionTitle(theme, 'İçerik uyarıları (isteğe bağlı)'),
+                    _buildSectionTitle(theme, translate('studio.content_warnings_optional')),
                     const SizedBox(height: 6),
                     Text(
-                      'Varsa okuyucuyu bilgilendirmek için seçin.',
+                      translate('studio.content_warnings_hint'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -448,7 +474,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Kapak Seç',
+                      translate('studio.cover_select'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -600,6 +626,97 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     );
   }
 
+  Widget _buildLanguageSelector(ThemeData theme, bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showLanguageDialog(context),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.language_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  _languageDisplayName(_selectedLanguageCode),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        final items = _languageRegionLabels.entries.toList();
+        return AlertDialog(
+          title: Text(translate('studio.language_region_title')),
+          content: SizedBox(
+            width: 320,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final entry = items[index];
+                final isSelected = entry.key == _selectedLanguageCode;
+                return ListTile(
+                  dense: true,
+                  leading: isSelected
+                      ? const Icon(Icons.check_rounded)
+                      : const Icon(Icons.language_rounded),
+                  title: Text(translate(entry.value)),
+                  onTap: () {
+                    setState(() => _selectedLanguageCode = entry.key);
+                    Navigator.pop(ctx);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showCategoryDialog(BuildContext context, ThemeData theme) {
     showDialog<void>(
       context: context,
@@ -707,7 +824,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                                               ),
                                               const SizedBox(width: 12),
                                               Text(
-                                                c ?? 'Seçiniz',
+                                                c == null
+                                                    ? translate('studio.select_placeholder')
+                                                    : _categoryDisplayName(c),
                                                 style: theme
                                                     .textTheme.bodyLarge
                                                     ?.copyWith(

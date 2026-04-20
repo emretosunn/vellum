@@ -5,8 +5,6 @@ import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../auth/data/auth_repository.dart';
-import '../data/subscription_repository.dart';
 
 /// Studio gibi premium özelliklere erişmek isteyip
 /// abone olmayan kullanıcılara gösterilen paywall widget'ı.

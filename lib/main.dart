@@ -24,14 +24,14 @@ Future<void> main() async {
   );
 
   await VellumTranslatePreferences.ensureInitialLocale(
-    supportedLocales: ['tr', 'en'],
+    supportedLocales: ['tr', 'en', 'de'],
     fallbackLocale: 'en',
   );
 
   final delegate = await LocalizationDelegate.create(
     // Sistem dili tr veya en değilse varsayılan olarak İngilizceye düş.
     fallbackLocale: 'en',
-    supportedLocales: ['tr', 'en'],
+    supportedLocales: ['tr', 'en', 'de'],
     basePath: 'assets/i18n/',
     preferences: VellumTranslatePreferences(),
   );

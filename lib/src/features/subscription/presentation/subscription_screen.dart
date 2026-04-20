@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../data/subscription_repository.dart';
@@ -34,7 +35,7 @@ class SubscriptionScreen extends ConsumerWidget {
               ),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('${translate('common.error')}: $err'),
+                child: Text(toUserFriendlyErrorMessage(err)),
               ),
               data: (profile) {
                 if (profile == null) {

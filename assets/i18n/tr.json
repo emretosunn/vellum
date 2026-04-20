@@ -12,7 +12,13 @@
     "unknown": "Bilinmiyor",
     "back": "Geri Dön",
     "add": "Ekle",
-    "ok": "Tamam"
+    "ok": "Tamam",
+    "error_generic_friendly": "Bir sorun oluştu. Lütfen tekrar deneyin.",
+    "network_unavailable": "İnternet bağlantısı bulunamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "request_timed_out": "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.",
+    "permission_denied": "Bu işlem için gerekli izniniz bulunmuyor.",
+    "update_downloaded_restart": "Güncelleme indirildi. Uygulamayı yeniden başlatın.",
+    "restart": "Yeniden başlat"
   },
   "onboarding": {
     "page1": {
@@ -29,7 +35,16 @@
     },
     "next": "İleri",
     "start": "Başlayalım",
-    "skip": "Atla"
+    "skip": "Atla",
+    "setup_language_title": "Hangi dili tercih edersiniz?",
+    "setup_language_subtitle": "İsterseniz sistem dilini kullanabilir, isterseniz kendiniz seçebilirsiniz.",
+    "setup_region_title": "Hangi bölgedeki kitapları görmek istersiniz?",
+    "setup_region_subtitle": "Varsayılan olarak tüm bölgeler gösterilir.",
+    "setup_theme_title": "Görünümü seçin",
+    "setup_theme_subtitle": "Aşağıdaki iki tema arasında geçiş yapabilirsiniz.",
+    "setup_notifications_title": "Bildirimlere izin verelim mi?",
+    "setup_notifications_subtitle": "Yeni kitaplardan ve önerilerden haberdar olun.",
+    "setup_finish": "Bildirim izni al ve devam et"
   },
   "auth": {
     "tagline": "Oku, Yaz, Yayınla.",
@@ -65,7 +80,15 @@
     "no_account": "Hesabınız yok mu? ",
     "have_account": "Zaten hesabınız var mı? ",
     "signup_link": "Kayıt Olun",
-    "login_link": "Giriş Yapın"
+    "login_link": "Giriş Yapın",
+    "accept_terms": "Kullanım şartlarını kabul ediyorum",
+    "accept_terms_required": "Kayıt olabilmek için kullanım şartlarını kabul etmelisiniz.",
+    "error_wrong_password": "E-posta veya şifre hatalı. Lütfen tekrar deneyin.",
+    "error_email_already_used": "Bu e-posta ile zaten bir hesap var.",
+    "error_email_invalid": "Geçerli bir e-posta girin.",
+    "error_password_weak": "Şifreniz güvenlik gereksinimlerini karşılamıyor.",
+    "error_email_not_confirmed": "E-postanızı doğrulamanız gerekiyor. Lütfen gelen kutunuzu kontrol edin.",
+    "error_generic": "Bir hata oluştu. Lütfen tekrar deneyin."
   },
   "dashboard": {
     "title": "Panel",
@@ -84,6 +107,7 @@
   "nav": {
     "home": "Ana Sayfa",
     "studio": "Stüdyo",
+    "discovery_canvas": "Keşfet",
     "subscription": "Abonelik",
     "settings": "Ayarlar"
   },
@@ -96,6 +120,23 @@
     "tab_following": "Takip Edilenler",
     "offline_banner": "Çevrimdışısınız. İndirdiğiniz kitaplar aşağıda.",
     "search_hint": "Binlerce dünyayı keşfet...",
+    "language_filter_all": "Tümü",
+    "language_filter_search_hint": "Ara...",
+    "language_region_tr": "Türkiye",
+    "language_region_en": "Amerika",
+    "language_region_de": "Almanya",
+    "language_region_fr": "Fransa",
+    "language_region_ru": "Rusya",
+    "language_region_es": "İspanya",
+    "language_region_other": "Diğer",
+    "filter_and_sort_title": "Filtrele ve sırala",
+    "sort_label": "Sıralama",
+    "sort_recent": "En son",
+    "sort_rating": "En çok puan",
+    "category_label": "Kategori",
+    "category_all_hint": "Tüm kategoriler",
+    "category_all": "Tümü",
+    "apply_filters": "Filtreleri uygula",
     "error_generic": "Bir hata oluştu",
     "no_published_books": "Henüz yayınlanmış kitap yok",
     "first_write_prompt": "İlk kitabı yazmaya ne dersin?",
@@ -114,6 +155,12 @@
     "following_empty_subtitle": "Henüz takip ettiğin yazar yok ya da hiç paylaşım yok.",
     "following_empty_body": "Yazar profillerinden \"Takip Et\" diyerek akışını doldurabilirsin."
   },
+  "discovery_canvas": {
+    "title": "Keşfet",
+    "search_hint": "Kitap adına göre ara",
+    "error_load": "Keşfet tuvali yüklenemedi",
+    "empty": "Aramanıza uygun kitap bulunamadı"
+  },
   "settings": {
     "title": "Ayarlar",
     "user": "Kullanıcı",
@@ -128,8 +175,15 @@
     "language": "Dil",
     "language_turkish": "Türkçe",
     "language_english": "İngilizce",
+    "language_german": "Almanca",
     "font_size": "Font Boyutu",
     "developer": "Geliştirici",
+    "onboarding_test_title": "Onboarding Testleri",
+    "onboarding_test_subtitle": "Onboarding ve kurulum akışlarını tekrar aç",
+    "onboarding_flow_title": "İlk Onboarding Akışı",
+    "onboarding_flow_subtitle": "Tanıtım/onboarding ekranlarını aç",
+    "signup_setup_flow_title": "Kayıt Sonrası Kurulum Akışı",
+    "signup_setup_flow_subtitle": "Dil, bölge, tema ve bildirim adımlarını aç",
     "author_badges_title": "Yazar rozetleri",
     "author_badges_subtitle": "Yazarlara rozet ver veya kaldır",
     "book_reports": "Kitap şikayetleri",
@@ -138,6 +192,8 @@
     "help_faq": "Yardım & SSS",
     "terms": "Kullanım Şartları",
     "privacy": "Gizlilik Politikası",
+    "terms_content": "Vellum Kullanım Şartları\n\nSon Güncelleme: 15 Şubat 2026\n\n1. Genel Hükümler\nVellum uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılırsınız. Uygulama, dijital içerik yayınlama ve tüketim platformu olarak hizmet vermektedir.\n\n2. Kullanıcı Hesapları\n• Hesap oluşturmak için 18 yaşını doldurmuş olmanız gerekmektedir.\n• Hesap bilgilerinizin güvenliğinden siz sorumlusunuz.\n• Her kullanıcı yalnızca bir hesap açabilir.\n\n3. İçerik Politikası\n• Yayınlanan içerikler telif haklarına uygun olmalıdır.\n• Yasadışı, müstehcen veya nefret söylemi içeren içerikler yasaktır.\n• Platform, uygunsuz içerikleri kaldırma hakkını saklı tutar.\n\n4. Abonelik ve Ödeme\n• Vellum Pro aboneliği aylık veya yıllık olarak satın alınabilir.\n• Abonelik iptali dönem sonunda geçerli olur.\n• Ödeme işlemleri güvenli ödeme sağlayıcıları üzerinden gerçekleştirilir.\n\n5. Fikri Mülkiyet\n• Yazarlar, yayınladıkları içeriklerin telif haklarına sahiptir.\n• Platform, içeriklerin tanıtımı için sınırlı kullanım hakkına sahiptir.\n\n6. Sorumluluk Sınırları\n• Platform, kullanıcılar arası anlaşmazlıklardan sorumlu değildir.\n• Teknik arızalardan kaynaklanan veri kayıpları için sorumluluk kabul edilmez.\n\n7. İletişim\nSorularınız için destek@vellum.app adresine yazabilirsiniz.",
+    "privacy_content": "Vellum Gizlilik Politikası\n\nSon Güncelleme: 15 Şubat 2026\n\n1. Toplanan Veriler\n• Kimlik bilgileri: E-posta, kullanıcı adı\n• Kullanım verileri: Okuma geçmişi, tercihler\n• Abonelik bilgileri: Plan türü, dönem bilgisi (kart bilgileri saklanmaz)\n\n2. Veri Kullanımı\nToplanan veriler aşağıdaki amaçlarla kullanılır:\n• Hesap yönetimi ve kimlik doğrulama\n• İçerik önerileri ve kişiselleştirme\n• Abonelik işlemlerinin yürütülmesi\n• Platform güvenliğinin sağlanması\n\n3. Veri Paylaşımı\n• Verileriniz üçüncü taraflarla pazarlama amacıyla paylaşılmaz.\n• Yasal zorunluluk halinde yetkili makamlarla paylaşılabilir.\n• Ödeme işlemleri için güvenli ödeme sağlayıcıları kullanılır.\n\n4. Çerezler\n• Oturum yönetimi için gerekli çerezler kullanılır.\n• Analitik çerezler, deneyiminizi iyileştirmek için kullanılır.\n\n5. Veri Güvenliği\n• Tüm veriler şifrelenerek saklanır.\n• Düzenli güvenlik denetimleri yapılır.\n• SSL/TLS protokolü ile iletişim güvenliği sağlanır.\n\n6. Kullanıcı Hakları\n• Verilerinize erişim talep edebilirsiniz.\n• Verilerinizin silinmesini isteyebilirsiniz.\n• Veri taşınabilirliği hakkınız bulunmaktadır.\n\n7. İletişim\nGizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsiniz.",
     "version": "Uygulama Sürümü",
     "logout": "Çıkış Yap",
     "logout_confirm": "Hesabınızdan çıkış yapmak istediğinize emin misiniz?",
@@ -213,6 +269,11 @@
     "faq_subscription": "Abonelik nasıl çalışır?",
     "faq_cancel_sub": "Aboneliğimi nasıl iptal ederim?",
     "faq_delete_account": "Hesabımı nasıl silerim?",
+    "faq_what_is_a": "Vellum, yazarların kitaplarını ve hikayelerini oluşturup yayınlayabildiği bir platformdur. Okuyucular ise yazarları takip ederek yeni bölümleri ve güncellemeleri kaçırmaz.",
+    "faq_how_author_a": "Kitap ve bölüm oluşturmak için Yazı Stüdyosu'nu kullanabilirsiniz. Bazı yazar rozetleri (ör. Pro Yazar) yalnızca geliştirici tarafından verilir. Yayınlamak için ise kitap yayınlama koşullarını (en az 3 sayfa ve 5000 kelime) tamamlamanız gerekir.",
+    "faq_subscription_a": "Vellum Pro aboneliği sayesinde daha fazla yazı stüdyosu ve yayınlama özelliğine erişirsiniz. Abonelik aylık veya yıllık olarak satın alınabilir; iptal ettikten sonra erişiminiz dönem sonuna kadar sürer.",
+    "faq_cancel_sub_a": "Aboneliğinizi iptal etmek için uygulamadaki Aboneliği Yönet ekranını kullanabilirsiniz. İptal, mevcut dönem sonunda geçerli olur; sonrasında Pro özelliklerine erişiminiz sona erer.",
+    "faq_delete_account_a": "Hesabınızı silmek için support@vellum.app adresine yazabilirsiniz. İsteğiniz değerlendirilecek ve hesabınızla ilişkili veriler silinecektir.",
     "avatar_failed": "Avatar yüklenemedi: {error}",
     "app_config_title": "Uygulama Konfigürasyonu",
     "app_config_subtitle": "Bakım modu ve sistem duyuruları",
@@ -306,7 +367,11 @@
     "remove_book": "Kitabı kaldır",
     "remove_book_dialog_title": "Kitabı Kaldır",
     "remove_book_dialog_body": "\"{title}\" kitabını tamamen kaldırmak istiyor musunuz? Bu işlem geri alınamaz. Kitap ve tüm bölümleri silinecektir.",
-    "book_removed_snackbar": "\"{title}\" kaldırıldı"
+    "book_removed_snackbar": "\"{title}\" kaldırıldı",
+    "posts_title": "Paylaşımlar",
+    "posts_load_error": "Paylaşımlar yüklenemedi",
+    "posts_empty": "Henüz paylaşım yok",
+    "opened_offline_copy": "Ağ sorunu nedeniyle çevrimdışı kopya açıldı."
   },
   "studio": {
     "load_error": "Yükleme hatası: {error}",
@@ -369,6 +434,7 @@
     "category_section": "Kategori",
     "category_select_title": "Kategori seçin",
     "select_placeholder": "Seçiniz",
+    "language_region_title": "Dil / Bölge",
     "content_warnings_optional": "İçerik uyarıları (isteğe bağlı)",
     "content_warnings_hint": "Varsa okuyucuyu bilgilendirmek için seçin.",
     "adult_content_title": "18+ içerik (olgun)",
@@ -386,7 +452,13 @@
     "cw_siddet": "Şiddet",
     "cw_kufur": "Küfür",
     "cw_olgun_temalar": "Olgun temalar",
-    "cw_diger_hassas": "Diğer hassas içerik"
+    "cw_diger_hassas": "Diğer hassas içerik",
+    "chapter_title_required": "Bölüm başlığı gerekli",
+    "chapter_saved": "Bölüm kaydedildi",
+    "chapter_edit_title": "Bölüm Düzenle",
+    "chapter_new_title": "Yeni Bölüm",
+    "chapter_title_label": "Bölüm Başlığı",
+    "chapter_title_hint": "Bölümünüzün başlığını yazın"
   },
   "profile": {
     "published_books": "Yayınlanan Kitaplar",

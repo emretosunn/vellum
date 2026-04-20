@@ -34,6 +34,8 @@ mixin _$Profile {
   bool get isVerifiedAuthor => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_developer')
   bool get isDeveloper => throw _privateConstructorUsedError;
+  @JsonKey(name: 'signup_setup_completed')
+  bool get signupSetupCompleted => throw _privateConstructorUsedError;
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl => throw _privateConstructorUsedError;
   String get bio => throw _privateConstructorUsedError;
@@ -71,6 +73,7 @@ abstract class $ProfileCopyWith<$Res> {
     @JsonKey(name: 'stripe_customer_id') String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') bool isDeveloper,
+    @JsonKey(name: 'signup_setup_completed') bool signupSetupCompleted,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -106,6 +109,7 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
     Object? stripeCustomerId = freezed,
     Object? isVerifiedAuthor = null,
     Object? isDeveloper = null,
+    Object? signupSetupCompleted = null,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -145,6 +149,10 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
             isDeveloper: null == isDeveloper
                 ? _value.isDeveloper
                 : isDeveloper // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            signupSetupCompleted: null == signupSetupCompleted
+                ? _value.signupSetupCompleted
+                : signupSetupCompleted // ignore: cast_nullable_to_non_nullable
                       as bool,
             avatarUrl: freezed == avatarUrl
                 ? _value.avatarUrl
@@ -189,6 +197,7 @@ abstract class _$$ProfileImplCopyWith<$Res> implements $ProfileCopyWith<$Res> {
     @JsonKey(name: 'stripe_customer_id') String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') bool isDeveloper,
+    @JsonKey(name: 'signup_setup_completed') bool signupSetupCompleted,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -223,6 +232,7 @@ class __$$ProfileImplCopyWithImpl<$Res>
     Object? stripeCustomerId = freezed,
     Object? isVerifiedAuthor = null,
     Object? isDeveloper = null,
+    Object? signupSetupCompleted = null,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -263,6 +273,10 @@ class __$$ProfileImplCopyWithImpl<$Res>
             ? _value.isDeveloper
             : isDeveloper // ignore: cast_nullable_to_non_nullable
                   as bool,
+        signupSetupCompleted: null == signupSetupCompleted
+            ? _value.signupSetupCompleted
+            : signupSetupCompleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
         avatarUrl: freezed == avatarUrl
             ? _value.avatarUrl
             : avatarUrl // ignore: cast_nullable_to_non_nullable
@@ -300,6 +314,7 @@ class _$ProfileImpl extends _Profile {
     @JsonKey(name: 'stripe_customer_id') this.stripeCustomerId,
     @JsonKey(name: 'is_verified_author') this.isVerifiedAuthor = false,
     @JsonKey(name: 'is_developer') this.isDeveloper = false,
+    @JsonKey(name: 'signup_setup_completed') this.signupSetupCompleted = false,
     @JsonKey(name: 'avatar_url') this.avatarUrl,
     this.bio = '',
     @JsonKey(readValue: _readLinks)
@@ -348,6 +363,9 @@ class _$ProfileImpl extends _Profile {
   @JsonKey(name: 'is_developer')
   final bool isDeveloper;
   @override
+  @JsonKey(name: 'signup_setup_completed')
+  final bool signupSetupCompleted;
+  @override
   @JsonKey(name: 'avatar_url')
   final String? avatarUrl;
   @override
@@ -381,7 +399,7 @@ class _$ProfileImpl extends _Profile {
 
   @override
   String toString() {
-    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, isDeveloper: $isDeveloper, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
+    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, isDeveloper: $isDeveloper, signupSetupCompleted: $signupSetupCompleted, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
   }
 
   @override
@@ -402,6 +420,8 @@ class _$ProfileImpl extends _Profile {
                 other.isVerifiedAuthor == isVerifiedAuthor) &&
             (identical(other.isDeveloper, isDeveloper) ||
                 other.isDeveloper == isDeveloper) &&
+            (identical(other.signupSetupCompleted, signupSetupCompleted) ||
+                other.signupSetupCompleted == signupSetupCompleted) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
             (identical(other.bio, bio) || other.bio == bio) &&
@@ -426,6 +446,7 @@ class _$ProfileImpl extends _Profile {
     stripeCustomerId,
     isVerifiedAuthor,
     isDeveloper,
+    signupSetupCompleted,
     avatarUrl,
     bio,
     const DeepCollectionEquality().hash(_links),
@@ -457,6 +478,7 @@ abstract class _Profile extends Profile {
     @JsonKey(name: 'stripe_customer_id') final String? stripeCustomerId,
     @JsonKey(name: 'is_verified_author') final bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') final bool isDeveloper,
+    @JsonKey(name: 'signup_setup_completed') final bool signupSetupCompleted,
     @JsonKey(name: 'avatar_url') final String? avatarUrl,
     final String bio,
     @JsonKey(readValue: _readLinks) final List<Map<String, dynamic>> links,
@@ -492,6 +514,9 @@ abstract class _Profile extends Profile {
   @override
   @JsonKey(name: 'is_developer')
   bool get isDeveloper;
+  @override
+  @JsonKey(name: 'signup_setup_completed')
+  bool get signupSetupCompleted;
   @override
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl;

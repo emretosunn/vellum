@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../../utils/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../subscription/services/subscription_service.dart';
@@ -377,7 +378,7 @@ class BookDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(translate('library.error_with', args: {'error': e.toString()})),
+            content: Text(toUserFriendlyErrorMessage(e)),
             backgroundColor: AppColors.error,
             duration: const Duration(seconds: 5),
           ),
@@ -630,25 +631,28 @@ class _HeroCoverSliver extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 140,
-                      height: 200,
-                      child: (book.coverImageUrl != null &&
-                              book.coverImageUrl!.isNotEmpty)
-                          ? Image.network(
-                              book.coverImageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Image.asset(
+                  Hero(
+                    tag: 'book-cover-${book.id}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 140,
+                        height: 200,
+                        child: (book.coverImageUrl != null &&
+                                book.coverImageUrl!.isNotEmpty)
+                            ? Image.network(
+                                book.coverImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  AppAssets.defaultBookCover,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.asset(
                                 AppAssets.defaultBookCover,
                                 fit: BoxFit.cover,
                               ),
-                            )
-                          : Image.asset(
-                              AppAssets.defaultBookCover,
-                              fit: BoxFit.cover,
-                            ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -758,7 +762,7 @@ class _OfflineDownloadAction extends ConsumerWidget {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(translate('library.download_error', args: {'error': e.toString()})),
+                  content: Text(toUserFriendlyErrorMessage(e)),
                 ),
               );
             }
@@ -1517,7 +1521,7 @@ class _ReviewFormState extends ConsumerState<_ReviewForm> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(translate('library.error_with', args: {'error': e.toString()}))),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {

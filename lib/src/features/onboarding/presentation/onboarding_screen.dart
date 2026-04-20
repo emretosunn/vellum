@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app.dart';
@@ -25,29 +26,29 @@ Future<bool> isOnboardingCompleted() async {
 
 class _OnboardingPage {
   const _OnboardingPage({
-    required this.imagePaths,
+    required this.animationPath,
     required this.titleKey,
     required this.subtitleKey,
   });
 
-  final List<String> imagePaths;
+  final String animationPath;
   final String titleKey;
   final String subtitleKey;
 }
 
 const _pages = [
   _OnboardingPage(
-    imagePaths: ['assets/image/book.png'],
+    animationPath: 'assets/animation/info-1.json',
     titleKey: 'onboarding.page1.title',
     subtitleKey: 'onboarding.page1.subtitle',
   ),
   _OnboardingPage(
-    imagePaths: ['assets/image/Humaaans - 3 Characters.png'],
+    animationPath: 'assets/animation/info-2.json',
     titleKey: 'onboarding.page2.title',
     subtitleKey: 'onboarding.page2.subtitle',
   ),
   _OnboardingPage(
-    imagePaths: ['assets/image/onboarding3.png'],
+    animationPath: 'assets/animation/inf0-3.json',
     titleKey: 'onboarding.page3.title',
     subtitleKey: 'onboarding.page3.subtitle',
   ),
@@ -55,15 +56,20 @@ const _pages = [
 
 /// Glide tarzı: her sayfa farklı canlı renk
 const _pageColors = [
-  Color(0xFF4F46E5), // Indigo
-  Color(0xFFD97706), // Amber / turuncu
-  Color(0xFF0891B2), // Cyan / teal
+  Colors.white,
+  Colors.white,
+  Colors.white,
 ];
 
 // ─── OnboardingScreen ────────────────────────────────
 
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({
+    super.key,
+    this.sandboxMode = false,
+  });
+
+  final bool sandboxMode;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -98,12 +104,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
+    if (widget.sandboxMode) {
+      if (!mounted) return;
+      final navigator = Navigator.of(context, rootNavigator: true);
+      navigator.popUntil((route) => route.isFirst);
+      context.go('/settings');
+      return;
+    }
+
     await markOnboardingCompleted();
     if (!mounted) return;
     ref.read(onboardingCompletedProvider.notifier).state = true;
   }
 
   Future<void> _skip() async {
+    if (widget.sandboxMode) {
+      await _completeOnboarding();
+      return;
+    }
     await _completeOnboarding();
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -142,6 +160,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onNext: _nextPage,
                 onSkip: _skip,
                 onCompleteOnboarding: _completeOnboarding,
+                sandboxMode: widget.sandboxMode,
               ),
             ),
           ],
@@ -159,6 +178,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
     required this.onNext,
     required this.onSkip,
     required this.onCompleteOnboarding,
+    required this.sandboxMode,
   });
 
   final PageController pageController;
@@ -166,13 +186,12 @@ class _OnboardingBottomBar extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onSkip;
   final Future<void> Function() onCompleteOnboarding;
+  final bool sandboxMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
-    final isDark = theme.brightness == Brightness.dark;
-    final openScreenColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F7);
+    final openScreenColor = Colors.white;
 
     return ListenableBuilder(
       listenable: pageController,
@@ -180,13 +199,12 @@ class _OnboardingBottomBar extends ConsumerWidget {
         final page = (pageController.page ?? 0).clamp(0.0, (totalPages - 1).toDouble());
         final currentPage = page.floor().clamp(0, totalPages - 1);
         final isLastPage = currentPage == totalPages - 1;
-        final pageColor = _pageColors[currentPage];
 
         final buttonChild = Container(
           width: double.infinity,
           height: 58,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
@@ -202,7 +220,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Colors.black87,
+                color: Colors.white,
                 letterSpacing: 0.3,
               ),
             ),
@@ -211,16 +229,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
 
         return Container(
           padding: EdgeInsets.fromLTRB(28, 16, 28, bottomPadding + 24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                pageColor.withValues(alpha: 0),
-                pageColor,
-              ],
-            ),
-          ),
+          decoration: const BoxDecoration(color: Colors.white),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -232,7 +241,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
                     child: TextButton(
                       onPressed: isLastPage ? null : onSkip,
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.white.withValues(alpha: 0.9),
+                        foregroundColor: Colors.black87,
                       ),
                       child: Text(
                         translate('onboarding.skip'),
@@ -255,7 +264,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(4),
-                          color: Colors.white.withValues(alpha: isActive ? 1.0 : 0.5),
+                          color: Colors.black.withValues(alpha: isActive ? 0.9 : 0.35),
                         ),
                       );
                     }),
@@ -266,7 +275,16 @@ class _OnboardingBottomBar extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               isLastPage
-                  ? OpenContainer(
+                  ? (sandboxMode
+                      ? Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onNext,
+                            borderRadius: BorderRadius.circular(14),
+                            child: buttonChild,
+                          ),
+                        )
+                      : OpenContainer(
                       transitionDuration: const Duration(milliseconds: 600),
                       closedColor: Colors.white,
                       openColor: openScreenColor,
@@ -284,7 +302,7 @@ class _OnboardingBottomBar extends ConsumerWidget {
                         child: buttonChild,
                       ),
                       openBuilder: (context, _) => const LoginScreen(),
-                    )
+                    ))
                   : Material(
                       color: Colors.transparent,
                       child: InkWell(
@@ -344,7 +362,7 @@ class _PageContent extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: size.width * 0.075,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: Colors.black,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -361,7 +379,7 @@ class _PageContent extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.8,
                         height: 1.1,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -378,7 +396,7 @@ class _PageContent extends StatelessWidget {
                           fontSize: size.width * 0.052,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: Colors.black87,
                         ),
                       ),
                     ),
@@ -388,7 +406,7 @@ class _PageContent extends StatelessWidget {
             ),
             // Görsel: kalan alanı tamamen doldur (ortada, büyük)
             Expanded(
-              child: _OnboardingImage(imagePath: page.imagePaths.first),
+              child: _OnboardingAnimation(animationPath: page.animationPath),
             ),
           ],
         ),
@@ -399,10 +417,10 @@ class _PageContent extends StatelessWidget {
 
 // ─── Tek görsel (tam ekrana sığacak şekilde, kalan alanı doldurur) ─────────
 
-class _OnboardingImage extends StatelessWidget {
-  const _OnboardingImage({required this.imagePath});
+class _OnboardingAnimation extends StatelessWidget {
+  const _OnboardingAnimation({required this.animationPath});
 
-  final String imagePath;
+  final String animationPath;
 
   @override
   Widget build(BuildContext context) {
@@ -415,9 +433,10 @@ class _OnboardingImage extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size * 1.1,
-            child: Image.asset(
-              imagePath,
+            child: Lottie.asset(
+              animationPath,
               fit: BoxFit.contain,
+              repeat: true,
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),

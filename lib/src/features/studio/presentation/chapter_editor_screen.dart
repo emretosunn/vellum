@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 
+import '../../../utils/user_friendly_error.dart';
 import '../../studio/data/chapter_repository.dart';
 
 class ChapterEditorScreen extends ConsumerStatefulWidget {
@@ -59,7 +61,7 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bölüm yüklenirken hata: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {
@@ -70,7 +72,7 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
   Future<void> _save() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bölüm başlığı gerekli')),
+        SnackBar(content: Text(translate('studio.chapter_title_required'))),
       );
       return;
     }
@@ -105,14 +107,14 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bölüm kaydedildi')),
+          SnackBar(content: Text(translate('studio.chapter_saved'))),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kaydetme hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {
@@ -140,7 +142,9 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
     return Scaffold(
       appBar: AppBar(
         title:
-            Text(widget.chapterId != null ? 'Bölüm Düzenle' : 'Yeni Bölüm'),
+            Text(widget.chapterId != null
+                ? translate('studio.chapter_edit_title')
+                : translate('studio.chapter_new_title')),
         actions: [
           if (_isSaving)
             const Padding(
@@ -155,7 +159,7 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.save, size: 18),
-              label: const Text('Kaydet'),
+              label: Text(translate('common.save')),
             ),
           const SizedBox(width: 8),
         ],
@@ -167,10 +171,11 @@ class _ChapterEditorScreenState extends ConsumerState<ChapterEditorScreen> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Bölüm Başlığı',
-                hintText: 'Bölümünüzün başlığını yazın',
+              decoration: InputDecoration(
+                labelText: translate('studio.chapter_title_label'),
+                hintText: translate('studio.chapter_title_hint'),
               ),
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
               style: theme.textTheme.titleLarge,
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app.dart';
 import '../../../constants/app_colors.dart';
@@ -17,6 +18,8 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  static const String _localSetupDoneKeyPrefix = 'signup_setup_completed_';
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       loading: () => false,
       error: (_, __) => false,
     );
+
+    // Kullanıcı ilk kez mi giriş yapıyor? (signup-setup daha tamamlanmadıysa)
+    if (isLoggedIn) {
+      try {
+        final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+        if (currentUserId != null && currentUserId.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final doneLocal = prefs.getBool('$_localSetupDoneKeyPrefix$currentUserId') ?? false;
+          if (doneLocal) {
+            // Lokal işaret varsa backend gecikmesi/RLS nedeniyle bir tur daha
+            // signup-setup'a düşmeyi engelle.
+            final onboardingDone = ref.read(onboardingCompletedProvider);
+            context.go(onboardingDone ? '/' : '/onboarding');
+            return;
+          }
+        }
+
+        final profile = await ref.read(currentProfileProvider.future);
+        if (!mounted) return;
+        if (profile != null && !profile.signupSetupCompleted) {
+          context.go('/signup-setup');
+          return;
+        }
+      } catch (_) {
+        // İnternet yoksa profil okunamayabilir; açılışı bloklamadan devam et.
+      }
+    }
+
     final onboardingDone = ref.read(onboardingCompletedProvider);
 
     if (!onboardingDone) {

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,8 +11,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/theme_preferences.dart';
 import '../../../localization/translate_preferences.dart';
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
+import '../../onboarding/presentation/onboarding_screen.dart';
+import '../../onboarding/presentation/signup_setup_screen.dart';
 import '../services/notification_permission_service.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/data/book_repository.dart';
@@ -218,13 +222,25 @@ class SettingsScreen extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
-            // ─── Geliştirici (sadece is_developer kullanıcılar) ───
-            if (profileAsync.valueOrNull?.isDeveloper == true) ...[
+            // ─── Geliştirici/Admin paneli ─────────────────────────────
+            if ((profileAsync.valueOrNull?.isDeveloper == true) ||
+                (profileAsync.valueOrNull?.role == UserRole.admin)) ...[
               _SectionTitle(title: translate('settings.developer')),
               const SizedBox(height: 8),
               _SettingsGroup(
                 isDark: isDark,
                 items: [
+                  _SettingsTile(
+                    icon: Icons.science_outlined,
+                    label: translate('settings.onboarding_test_title'),
+                    subtitle: translate('settings.onboarding_test_subtitle'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _DeveloperOnboardingTestPage(),
+                      ),
+                    ),
+                  ),
                   _SettingsTile(
                     icon: Icons.settings_applications_rounded,
                     label: translate('settings.app_config_title'),
@@ -296,7 +312,7 @@ class SettingsScreen extends ConsumerWidget {
                     MaterialPageRoute(
                       builder: (_) => _LegalPage(
                         title: translate('settings.terms'),
-                        content: _termsText,
+                        content: translate('settings.terms_content'),
                       ),
                     ),
                   ),
@@ -309,7 +325,7 @@ class SettingsScreen extends ConsumerWidget {
                     MaterialPageRoute(
                       builder: (_) => _LegalPage(
                         title: translate('settings.privacy'),
-                        content: _privacyText,
+                        content: translate('settings.privacy_content'),
                       ),
                     ),
                   ),
@@ -1528,7 +1544,7 @@ class _NotificationsPage extends ConsumerWidget {
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
-          child: Text('${translate('common.error')}: $err'),
+          child: Text(toUserFriendlyErrorMessage(err)),
         ),
         data: (profile) {
           if (profile == null) {
@@ -1561,8 +1577,10 @@ class _NotificationsPage extends ConsumerWidget {
             'weeklyDigest': resolve('weeklyDigest', true),
           };
 
+          final bottomNavExtra =
+              MediaQuery.paddingOf(context).bottom + 92; // glass bottom nav boşluğu
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomNavExtra),
             children: [
               const _SystemNotificationPermissionCard(),
               const SizedBox(height: 20),
@@ -1908,9 +1926,26 @@ class _LanguagePage extends StatefulWidget {
 
 class _LanguagePageState extends State<_LanguagePage> {
   static const List<Map<String, String>> _languages = [
-    {'code': 'system', 'nameKey': 'settings.language_system', 'flag': '🌐'},
-    {'code': 'tr', 'nameKey': 'settings.language_turkish', 'flag': '🇹🇷'},
-    {'code': 'en', 'nameKey': 'settings.language_english', 'flag': '🇬🇧'},
+    {
+      'code': 'system',
+      'nameKey': 'settings.language_system',
+      'flag': 'assets/image/flag_system.svg',
+    },
+    {
+      'code': 'tr',
+      'nameKey': 'settings.language_turkish',
+      'flag': 'assets/image/flag_tr.svg',
+    },
+    {
+      'code': 'de',
+      'nameKey': 'settings.language_german',
+      'flag': 'assets/image/falg_de.svg',
+    },
+    {
+      'code': 'en',
+      'nameKey': 'settings.language_english',
+      'flag': 'assets/image/flag_en.svg',
+    },
   ];
 
   String? _selected;
@@ -1947,7 +1982,7 @@ class _LanguagePageState extends State<_LanguagePage> {
       await VellumTranslatePreferences.setUseSystemLocale(true);
       final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
       final langCode = deviceLocale.languageCode;
-      final supported = langCode == 'tr' || langCode == 'en';
+      final supported = langCode == 'tr' || langCode == 'en' || langCode == 'de';
       await delegate.changeLocale(
           localeFromString(supported ? langCode : 'tr'));
       state.onLocaleChanged();
@@ -1960,7 +1995,9 @@ class _LanguagePageState extends State<_LanguagePage> {
         ? translate('settings.language_system')
         : code == 'tr'
             ? translate('settings.language_turkish')
-            : translate('settings.language_english');
+            : code == 'de'
+                ? translate('settings.language_german')
+                : translate('settings.language_english');
     navigator.pop();
     messenger.showSnackBar(
       SnackBar(
@@ -2024,8 +2061,12 @@ class _LanguagePageState extends State<_LanguagePage> {
               ),
               child: Row(
                 children: [
-                  Text(lang['flag']!,
-                      style: const TextStyle(fontSize: 28)),
+                  SvgPicture.asset(
+                    lang['flag']!,
+                    width: 34,
+                    height: 22,
+                    fit: BoxFit.contain,
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
@@ -2188,23 +2229,23 @@ class _HelpPage extends StatelessWidget {
   static const _faqItems = [
     {
       'qKey': 'settings.faq_what_is',
-      'aKey': 'settings.faq_what_is',
+      'aKey': 'settings.faq_what_is_a',
     },
     {
       'qKey': 'settings.faq_how_author',
-      'aKey': 'settings.faq_how_author',
+      'aKey': 'settings.faq_how_author_a',
     },
     {
       'qKey': 'settings.faq_subscription',
-      'aKey': 'settings.faq_subscription',
+      'aKey': 'settings.faq_subscription_a',
     },
     {
       'qKey': 'settings.faq_cancel_sub',
-      'aKey': 'settings.faq_cancel_sub',
+      'aKey': 'settings.faq_cancel_sub_a',
     },
     {
       'qKey': 'settings.faq_delete_account',
-      'aKey': 'settings.faq_delete_account',
+      'aKey': 'settings.faq_delete_account_a',
     },
   ];
 
@@ -2294,24 +2335,56 @@ class _HelpPage extends StatelessWidget {
 
 // ─── Yasal Metin Sayfası ─────────────────────────────
 
-class _LegalPage extends StatelessWidget {
+class _LegalPage extends StatefulWidget {
   const _LegalPage({required this.title, required this.content});
   final String title;
   final String content;
 
   @override
+  State<_LegalPage> createState() => _LegalPageState();
+}
+
+class _LegalPageState extends State<_LegalPage> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Bazı durumlarda ebeveyn scroll controller'ı etkisiyle yasal metin
+    // üstten başlamayabiliyor; her açılışta scroll'u sıfırlarız.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bottomNavExtra =
+        MediaQuery.paddingOf(context).bottom + 92; // bottom nav boşluğu
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          content,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            height: 1.7,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+      appBar: AppBar(title: Text(widget.title)),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          primary: false,
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomNavExtra),
+          child: Text(
+            widget.content,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.7,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+            ),
           ),
         ),
       ),
@@ -2645,81 +2718,7 @@ class _ThemeChip extends StatelessWidget {
 }
 
 // ─── İçerik Metinleri ────────────────────────────────
-
-const _termsText = '''
-Vellum Kullanım Şartları
-
-Son Güncelleme: 15 Şubat 2026
-
-1. Genel Hükümler
-Vellum uygulamasını kullanarak aşağıdaki şartları kabul etmiş sayılırsınız. Uygulama, dijital içerik yayınlama ve tüketim platformu olarak hizmet vermektedir.
-
-2. Kullanıcı Hesapları
-• Hesap oluşturmak için 18 yaşını doldurmuş olmanız gerekmektedir.
-• Hesap bilgilerinizin güvenliğinden siz sorumlusunuz.
-• Her kullanıcı yalnızca bir hesap açabilir.
-
-3. İçerik Politikası
-• Yayınlanan içerikler telif haklarına uygun olmalıdır.
-• Yasadışı, müstehcen veya nefret söylemi içeren içerikler yasaktır.
-• Platform, uygunsuz içerikleri kaldırma hakkını saklı tutar.
-
-4. Abonelik ve Ödeme
-• Vellum Pro aboneliği aylık veya yıllık olarak satın alınabilir.
-• Abonelik iptali dönem sonunda geçerli olur.
-• Ödeme işlemleri güvenli ödeme sağlayıcıları üzerinden gerçekleştirilir.
-
-5. Fikri Mülkiyet
-• Yazarlar, yayınladıkları içeriklerin telif haklarına sahiptir.
-• Platform, içeriklerin tanıtımı için sınırlı kullanım hakkına sahiptir.
-
-6. Sorumluluk Sınırları
-• Platform, kullanıcılar arası anlaşmazlıklardan sorumlu değildir.
-• Teknik arızalardan kaynaklanan veri kayıpları için sorumluluk kabul edilmez.
-
-7. İletişim
-Sorularınız için destek@vellum.app adresine yazabilirsiniz.
-''';
-
-const _privacyText = '''
-Vellum Gizlilik Politikası
-
-Son Güncelleme: 15 Şubat 2026
-
-1. Toplanan Veriler
-• Kimlik bilgileri: E-posta, kullanıcı adı
-• Kullanım verileri: Okuma geçmişi, tercihler
-• Abonelik bilgileri: Plan türü, dönem bilgisi (kart bilgileri saklanmaz)
-
-2. Veri Kullanımı
-Toplanan veriler aşağıdaki amaçlarla kullanılır:
-• Hesap yönetimi ve kimlik doğrulama
-• İçerik önerileri ve kişiselleştirme
-• Abonelik işlemlerinin yürütülmesi
-• Platform güvenliğinin sağlanması
-
-3. Veri Paylaşımı
-• Verileriniz üçüncü taraflarla pazarlama amacıyla paylaşılmaz.
-• Yasal zorunluluk halinde yetkili makamlarla paylaşılabilir.
-• Ödeme işlemleri için güvenli ödeme sağlayıcıları kullanılır.
-
-4. Çerezler
-• Oturum yönetimi için gerekli çerezler kullanılır.
-• Analitik çerezler, deneyiminizi iyileştirmek için kullanılır.
-
-5. Veri Güvenliği
-• Tüm veriler şifrelenerek saklanır.
-• Düzenli güvenlik denetimleri yapılır.
-• SSL/TLS protokolü ile iletişim güvenliği sağlanır.
-
-6. Kullanıcı Hakları
-• Verilerinize erişim talep edebilirsiniz.
-• Verilerinizin silinmesini isteyebilirsiniz.
-• Veri taşınabilirliği hakkınız bulunmaktadır.
-
-7. İletişim
-Gizlilik ile ilgili sorularınız için gizlilik@vellum.app adresine yazabilirsiniz.
-''';
+// Kullanım Şartları ve Gizlilik metinleri i18n üzerinden render edilir.
 
 // ─── Geliştirici: Kitap şikayetleri sayfası ─────────
 
@@ -3364,7 +3363,7 @@ Future<void> _showWarnAuthorDialog(
 
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Yazara uyarı gönderildi')),
+      SnackBar(content: Text(translate('settings.warn_author_sent'))),
     );
   }
 }
@@ -3407,7 +3406,11 @@ Future<void> _showRemoveBookDialog(
 
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"$bookTitle" kaldırıldı')),
+      SnackBar(
+        content: Text(
+          translate('settings.remove_book_done', args: {'title': bookTitle}),
+        ),
+      ),
     );
   }
 }
@@ -3485,6 +3488,62 @@ class _DeveloperReportsPage extends ConsumerWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _DeveloperOnboardingTestPage extends StatelessWidget {
+  const _DeveloperOnboardingTestPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(translate('settings.onboarding_test_title')),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            _SettingsGroup(
+              isDark: isDark,
+              items: [
+                _SettingsTile(
+                  icon: Icons.auto_awesome_rounded,
+                  label: translate('settings.onboarding_flow_title'),
+                  subtitle: translate('settings.onboarding_flow_subtitle'),
+                  onTap: () => Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  ).push(
+                    MaterialPageRoute(
+                      builder: (_) => const OnboardingScreen(
+                        sandboxMode: true,
+                      ),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.tune_rounded,
+                  label: translate('settings.signup_setup_flow_title'),
+                  subtitle: translate('settings.signup_setup_flow_subtitle'),
+                  onTap: () => Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  ).push(
+                    MaterialPageRoute(
+                      builder: (_) => const SignupSetupScreen(
+                        sandboxMode: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

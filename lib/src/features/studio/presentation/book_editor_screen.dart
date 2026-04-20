@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
 import '../data/chapter_repository.dart';
@@ -73,7 +74,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yükleme hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     }
@@ -162,7 +163,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sayfa oluşturma hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     }
@@ -204,7 +205,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     } catch (e) {
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kaydetme hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {
@@ -268,7 +269,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Silme hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     }
@@ -277,14 +278,63 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
   Future<void> _publishBook() async {
     if (_book == null) return;
 
-    if (_chapters.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('En az bir sayfa gerekli')),
+    // Yayın ön koşulları:
+    // - En az 3 sayfa (chapter)
+    // - En az 5000 kelime (tüm sayfaların toplam metni)
+    final pageCount = _chapters.length;
+    int totalWords = 0;
+    for (int i = 0; i < _chapters.length; i++) {
+      final text = i == _currentPageIndex
+          ? _textController.text
+          : ((_chapters[i].content['text'] as String?) ?? '');
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) continue;
+      totalWords +=
+          trimmed.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    }
+
+    final reasons = <String>[];
+    if (pageCount < 3) {
+      reasons.add('En az 3 sayfa gerekli. (Şu an: $pageCount)');
+    }
+    if (totalWords < 5000) {
+      reasons.add('En az 5000 kelime gerekli. (Şu an: $totalWords)');
+    }
+
+    if (reasons.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Yayınlanamaz'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Kitabınızın yayınlanması için aşağıdaki şartları tamamlamalısınız:',
+              ),
+              const SizedBox(height: 12),
+              ...reasons.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('• $r'),
+                  )),
+            ],
+          ),
+          actions: [
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Tamam'),
+            ),
+          ],
+        ),
       );
       return;
     }
 
-    final theme = Theme.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -341,7 +391,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yayınlama hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     } finally {

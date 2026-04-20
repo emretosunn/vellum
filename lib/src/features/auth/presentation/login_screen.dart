@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
+import '../../../app.dart';
 import '../data/auth_repository.dart';
 import '../../subscription/services/subscription_status_service.dart';
 
@@ -26,6 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _acceptedTerms = false;
   String? _errorMessage;
 
   @override
@@ -38,6 +41,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final bool didSignUp = !_isLogin;
+    // Signup sonrası oturum çok hızlı açılınca router yarışa girip kullanıcıyı
+    // home'a gönderebiliyor. Bu bayrak redirect'i `/signup-setup`a sabitler.
+    ref.read(signupSetupPendingProvider.notifier).state = didSignUp;
 
     setState(() {
       _isLoading = true;
@@ -53,6 +61,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
       } else {
+        if (!_acceptedTerms) {
+          setState(() {
+            _errorMessage = _auth(
+              'auth.accept_terms_required',
+              'Kayıt olabilmek için kullanım şartlarını kabul etmelisiniz.',
+            );
+          });
+          return;
+        }
+
         await authRepo.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
@@ -63,11 +81,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Giriş/kayıt sonrası abonelik durumunu temizle ve yeniden kontrol et
       ref.invalidate(isProProvider);
 
-      if (mounted) context.go('/');
+      if (mounted) {
+        context.go(didSignUp ? '/signup-setup' : '/');
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = _authErrorMessage(e);
         });
       }
     } finally {
@@ -75,11 +95,123 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // OAuth login'de signup-setup zorlamasına düşmemek için geçici bayrağı
+    // temizleyelim.
+    ref.read(signupSetupPendingProvider.notifier).state = false;
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.signInWithGoogleOAuth();
+      // Navigasyon/router redirect ile otomatik yapılır.
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _authErrorMessage(e);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // OAuth login'de signup-setup zorlamasına düşmemek için geçici bayrağı
+    // temizleyelim.
+    ref.read(signupSetupPendingProvider.notifier).state = false;
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.signInWithFacebookOAuth();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _authErrorMessage(e);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   void _toggleMode() {
     setState(() {
       _isLogin = !_isLogin;
       _errorMessage = null;
+      _acceptedTerms = false;
     });
+  }
+
+  Future<void> _showLegalDialog() async {
+    final theme = Theme.of(context);
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.68;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(translate('settings.terms')),
+        content: SizedBox(
+          width: 380,
+          height: maxHeight,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  translate('settings.terms'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  translate('settings.terms_content'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Divider(height: 1),
+                const SizedBox(height: 18),
+                Text(
+                  translate('settings.privacy'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  translate('settings.privacy_content'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(translate('common.close')),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -128,6 +260,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (_) {
       return fallback;
     }
+  }
+
+  String _authErrorMessage(Object error) {
+    final raw = error.toString();
+    final msg = raw.toLowerCase();
+
+    bool containsAll(List<String> parts) =>
+        parts.every((p) => msg.contains(p.toLowerCase()));
+
+    // Supabase/Auth yaygın mesaj kalıpları.
+    if (containsAll(['invalid', 'login']) ||
+        (msg.contains('invalid') && msg.contains('credentials')) ||
+        msg.contains('wrong password') ||
+        msg.contains('invalid password')) {
+      return _auth(
+        'auth.error_wrong_password',
+        'E-posta veya şifre hatalı. Lütfen tekrar deneyin.',
+      );
+    }
+
+    if (msg.contains('already registered') ||
+        msg.contains('user already') ||
+        (msg.contains('duplicate') && msg.contains('email')) ||
+        msg.contains('email already')) {
+      return _auth(
+        'auth.error_email_already_used',
+        'Bu e-posta ile zaten bir hesap var.',
+      );
+    }
+
+    if (msg.contains('invalid') && msg.contains('email')) {
+      return _auth(
+        'auth.error_email_invalid',
+        'Geçerli bir e-posta girin.',
+      );
+    }
+
+    if (msg.contains('password') &&
+        (msg.contains('at least') ||
+            msg.contains('weak') ||
+            msg.contains('require') ||
+            msg.contains('min'))) {
+      return _auth(
+        'auth.error_password_weak',
+        'Şifreniz güvenlik gereksinimlerini karşılamıyor.',
+      );
+    }
+
+    if (msg.contains('email not confirmed') ||
+        msg.contains('not confirmed') ||
+        msg.contains('verify your email') ||
+        msg.contains('confirm your email')) {
+      return _auth(
+        'auth.error_email_not_confirmed',
+        'E-postanızı doğrulamanız gerekiyor. Lütfen gelen kutunuzu kontrol edin.',
+      );
+    }
+
+    return _auth('auth.error_generic', 'Bir hata oluştu. Lütfen tekrar deneyin.');
   }
 
   Widget _buildMobileLayout(BuildContext context) {
@@ -286,6 +477,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildFormCard(BuildContext context) {
     final theme = Theme.of(context);
+    final showApple = kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
       child: Column(
@@ -373,6 +567,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             ),
           ),
+          if (!_isLogin) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: Checkbox(
+                    value: _acceptedTerms,
+                    onChanged: (v) =>
+                        setState(() => _acceptedTerms = v ?? false),
+                    activeColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: _showLegalDialog,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Text(
+                      _auth('auth.accept_terms', 'Kullanım şartlarını kabul ediyorum'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (_isLogin) ...[
             const SizedBox(height: 12),
             Row(
@@ -508,25 +737,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _SocialCircleIcon(
-                    icon: Icons.apple_rounded,
-                    onTap: () {
-                      // Apple ile giriş – ileride bağlanacak
-                    },
-                  ),
-                  const SizedBox(width: 12),
+                  if (showApple) ...[
+                    _SocialCircleIcon(
+                      icon: Icons.apple_rounded,
+                      onTap: () {
+                        // Apple ile giriş – ileride bağlanacak
+                      },
+                    ),
+                    const SizedBox(width: 14),
+                  ],
                   _SocialCircleIcon(
                     icon: Icons.g_mobiledata_rounded,
                     assetSvg: 'assets/image/google_login.svg',
                     onTap: () {
-                      // Google ile giriş – ileride bağlanacak
+                      _signInWithGoogle();
                     },
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   _SocialCircleIcon(
                     icon: Icons.facebook_rounded,
                     onTap: () {
-                      // Facebook ile giriş – ileride bağlanabilir
+                      _signInWithFacebook();
                     },
                   ),
                 ],
@@ -589,8 +820,8 @@ class _SocialCircleIcon extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        width: 42,
-        height: 42,
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: theme.colorScheme.surface,
@@ -606,12 +837,12 @@ class _SocialCircleIcon extends StatelessWidget {
           child: assetSvg != null
               ? SvgPicture.asset(
                   assetSvg!,
-                  width: 22,
-                  height: 22,
+                  width: 28,
+                  height: 28,
                 )
               : Icon(
                   icon,
-                  size: 22,
+                  size: 30,
                   color: theme.colorScheme.onSurface,
                 ),
         ),

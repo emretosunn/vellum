@@ -6,7 +6,9 @@ import '../features/library/presentation/author_profile_screen.dart';
 import '../features/library/presentation/book_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/reader_screen.dart';
+import '../features/library/presentation/discovery_canvas_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/onboarding/presentation/signup_setup_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shared/widgets/scaffold_with_nav.dart';
 import '../features/shared/presentation/splash_screen.dart';
@@ -23,30 +25,60 @@ import '../features/subscription/presentation/premium_upgrade_screen.dart';
 GoRouter createRouter({
   bool isLoggedIn = false,
   bool onboardingCompleted = true,
+  bool signupSetupPending = false,
+  bool forceSignupSetup = false,
+  bool signupSetupRedirectOverride = false,
 }) {
   return GoRouter(
     initialLocation: '/splash',
+    // Web'de OAuth callback gibi deep-link URL'leri geldiğinde
+    // browser'ın mevcut URL'ini ezmeyelim.
+    overridePlatformDefaultLocation: false,
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final location = state.matchedLocation;
       final isSplash = location == '/splash';
       final isOnboarding = location == '/onboarding';
       final isLogin = location == '/login';
+      final isSignupSetup = location == '/signup-setup';
+      final isAuthCallback =
+          location == '/auth-callback' || location == '/auth/callback';
 
       // Splash ekranı her zaman ilk açılışta bir kere gösterilsin.
       // Sonraki yönlendirmeler splash üzerinden root'a atlayacak.
       if (isSplash) return null;
+      // OAuth callback sayfasını serbest bırak.
+      // Burada auth state güncellenirken router yarışına girmesin.
+      if (isAuthCallback) return null;
 
-      // Onboarding henüz tamamlanmadıysa oraya yönlendir
-      if (!onboardingCompleted && !isOnboarding) return '/onboarding';
+      // Signup sonrası kişiselleştirme adımı:
+      // Döngüleri engellemek için setup ekranına zorlamayı yalnızca geçici
+      // `signupSetupPending` bayrağı ile yapıyoruz.
+      if (!signupSetupRedirectOverride &&
+          signupSetupPending &&
+          isLoggedIn &&
+          !isSignupSetup) {
+        return '/signup-setup';
+      }
+
+      // Onboarding henüz tamamlanmadıysa oraya yönlendir (signup-setup hariç)
+      if (!onboardingCompleted && !isOnboarding && !isSignupSetup) {
+        return '/onboarding';
+      }
       // Onboarding tamamlandıysa oraya gitmeyi engelle
       if (onboardingCompleted && isOnboarding) {
         return isLoggedIn ? '/' : '/login';
       }
 
       // Auth yönlendirmeleri
-      if (!isLoggedIn && !isLogin && !isOnboarding) return '/login';
-      if (isLoggedIn && isLogin) return '/';
+      if (!isLoggedIn && !isLogin && !isOnboarding && !isSignupSetup) {
+        return '/login';
+      }
+      if (isLoggedIn && isLogin) {
+        return (!signupSetupRedirectOverride && signupSetupPending)
+            ? '/signup-setup'
+            : '/';
+      }
 
       return null;
     },
@@ -63,6 +95,21 @@ GoRouter createRouter({
         path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // Kayıt sonrası kişiselleştirme (dil/bölge/tema/bildirim)
+      GoRoute(
+        path: '/signup-setup',
+        name: 'signupSetup',
+        builder: (context, state) => const SignupSetupScreen(),
+      ),
+
+      // OAuth provider (Google/Facebook) callback dönüşü.
+      // Callback sonrası auth state güncelleneceği için Splash akışıyla devam edilir.
+      GoRoute(
+        path: '/auth/callback',
+        name: 'authCallback',
+        builder: (context, state) => const SplashScreen(),
       ),
 
       // Login ekranı (shell dışında)
@@ -174,6 +221,17 @@ GoRouter createRouter({
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/discovery-canvas',
+                name: 'discoveryCanvas',
+                builder: (context, state) => const DiscoveryCanvasScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 3: Abonelik
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/subscription',
                 name: 'subscription',
                 builder: (context, state) => const SubscriptionScreen(),
@@ -181,7 +239,7 @@ GoRouter createRouter({
             ],
           ),
 
-          // Branch 3: Ayarlar
+          // Branch 4: Ayarlar
           StatefulShellBranch(
             routes: [
               GoRoute(

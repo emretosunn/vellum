@@ -31,6 +31,11 @@ class ScaffoldWithNav extends StatelessWidget {
       label: translate('nav.studio'),
     ),
     _NavDestination(
+      icon: Icons.explore_outlined,
+      selectedIcon: Icons.explore_rounded,
+      label: translate('nav.discovery_canvas'),
+    ),
+    _NavDestination(
       icon: Icons.workspace_premium_outlined,
       selectedIcon: Icons.workspace_premium_rounded,
       label: translate('nav.subscription'),
@@ -471,49 +476,153 @@ class _GlassBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    const centerIndex = 2;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            height: 68,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.black.withValues(alpha: 0.06),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
+      child: SizedBox(
+        height: 86,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.white.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.06),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(destinations.length, (index) {
+                        if (index == centerIndex) {
+                          return const SizedBox(width: 70);
+                        }
+                        final isSelected = index == currentIndex;
+                        final dest = destinations[index];
+                        return _GlassNavItem(
+                          icon: isSelected ? dest.selectedIcon : dest.icon,
+                          label: dest.label,
+                          isSelected: isSelected,
+                          onTap: () => onTap(index),
+                        );
+                      }),
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(destinations.length, (index) {
-                final isSelected = index == currentIndex;
-                final dest = destinations[index];
+            Positioned(
+              top: 0,
+              child: _CenterFloatingNavItem(
+                destination: destinations[centerIndex],
+                isSelected: currentIndex == centerIndex,
+                onTap: () => onTap(centerIndex),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                return _GlassNavItem(
-                  icon: isSelected ? dest.selectedIcon : dest.icon,
-                  label: dest.label,
-                  isSelected: isSelected,
-                  onTap: () => onTap(index),
-                );
-              }),
+class _CenterFloatingNavItem extends StatelessWidget {
+  const _CenterFloatingNavItem({
+    required this.destination,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final _NavDestination destination;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 86,
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.95),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.30),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Icon(
+                isSelected ? destination.selectedIcon : destination.icon,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
-          ),
+            const SizedBox(height: 2),
+            Text(
+              destination.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.primary
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              margin: const EdgeInsets.only(top: 2),
+              width: isSelected ? 6 : 0,
+              height: isSelected ? 6 : 0,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.5),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : [],
+              ),
+            ),
+          ],
         ),
       ),
     );

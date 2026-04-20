@@ -5,6 +5,7 @@ import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../data/auth_repository.dart';
 import '../../subscription/services/subscription_status_service.dart';
 
@@ -41,7 +42,7 @@ class DashboardScreen extends ConsumerWidget {
               )),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('${translate('common.error')}: $err'),
+                child: Text(toUserFriendlyErrorMessage(err)),
               ),
               data: (profile) {
                 if (profile == null) {

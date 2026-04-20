@@ -2,9 +2,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../data/book_repository.dart';
+import '../domain/book.dart';
 import '../data/read_books_repository.dart';
 import '../data/reading_progress_repository.dart';
 import '../../auth/data/auth_repository.dart';
@@ -48,12 +51,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     try {
       final connectivity = await Connectivity().checkConnectivity();
       final hasNetwork = connectivity != ConnectivityResult.none;
+      final offlineManager = ref.read(offlineDownloadManagerProvider);
 
       final subscriptionService = ref.read(subscriptionServiceProvider);
-      final isPro = await subscriptionService.isPro();
+      bool isPro = false;
+      try {
+        isPro = await subscriptionService.isPro();
+      } catch (_) {
+        // Ağ sorununda üyelik sorgusu yanıtsız kalabilir; local fallback kararını
+        // yalnızca bu sonuca bağlamayız.
+      }
+
+      final offlineBookCached = await offlineManager.getOfflineBook(widget.bookId);
 
       // İnternet yok ve kullanıcı Pro değilse: erişime izin verme.
-      if (!hasNetwork && !isPro) {
+      if (!hasNetwork && !isPro && offlineBookCached == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -65,28 +77,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         return;
       }
 
-      final book =
-          await ref.read(bookRepositoryProvider).getBookById(widget.bookId);
+      // Ağ varken kitap meta bilgisini sunucudan alırız.
+      // Ağ yoksa offline kayıttan devam edeceğiz; gereksiz network çağrısı yapmayız.
+      Book? book;
+      if (hasNetwork) {
+        try {
+          book = await ref.read(bookRepositoryProvider).getBookById(widget.bookId);
+        } catch (_) {
+          // Kitap meta çağrısı ağ/DNS sebebiyle patlayabilir; aşağıda offline fallback denenecek.
+          book = null;
+        }
+      }
 
       List<Chapter> chapters;
+      String resolvedBookTitle = 'Kitap';
 
-      if (!hasNetwork && isPro) {
-        // Çevrimdışı Pro: Hive üzerinden oku.
-        final offlineManager = ref.read(offlineDownloadManagerProvider);
-        final offlineBook =
-            await offlineManager.getOfflineBook(widget.bookId);
-        if (offlineBook == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Bu kitap çevrimdışı indirilememiş. İnternet bağlantısı ile tekrar deneyin.'),
-              ),
-            );
-            Navigator.pop(context);
-          }
-          return;
-        }
+      if (!hasNetwork && offlineBookCached != null) {
+        // Çevrimdışı Pro: yerel depolamadan oku.
+        final offlineBook = offlineBookCached;
 
         chapters = List<Chapter>.generate(
           offlineBook.chapters.length,
@@ -98,13 +106,52 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             order: index,
           ),
         );
+        resolvedBookTitle = offlineBook.title;
         _usingOffline = true;
+      } else if (!hasNetwork && offlineBookCached == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Bu kitap çevrimdışı indirilememiş. İnternet bağlantısı ile tekrar deneyin.',
+              ),
+            ),
+          );
+          Navigator.pop(context);
+        }
+        return;
       } else {
-        // Online okuma (mevcut davranış).
-        chapters = await ref
-            .read(chapterRepositoryProvider)
-            .getChaptersByBook(widget.bookId);
-        _usingOffline = false;
+        // Online okuma; DNS/host gibi ağ hatalarında varsa offline kopyaya düş.
+        try {
+          chapters = await ref
+              .read(chapterRepositoryProvider)
+              .getChaptersByBook(widget.bookId);
+          resolvedBookTitle = book?.title ?? 'Kitap';
+          _usingOffline = false;
+        } catch (_) {
+          final offlineBook = offlineBookCached;
+          if (offlineBook == null) rethrow;
+
+          chapters = List<Chapter>.generate(
+            offlineBook.chapters.length,
+            (index) => Chapter(
+              id: 'offline-${offlineBook.bookId}-$index',
+              bookId: offlineBook.bookId,
+              title: 'Bölüm ${index + 1}',
+              content: {'text': offlineBook.chapters[index]},
+              order: index,
+            ),
+          );
+          resolvedBookTitle = offlineBook.title;
+          _usingOffline = true;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(translate('library.opened_offline_copy')),
+              ),
+            );
+          }
+        }
       }
 
       if (!mounted) return;
@@ -146,7 +193,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ? widget.initialChapterIndex
             : savedIndex;
         setState(() {
-          _bookTitle = book?.title ?? 'Kitap';
+          _bookTitle = resolvedBookTitle;
           _chapters = chapters;
           _currentIndex = initialIndex.clamp(0, chapters.isEmpty ? 0 : chapters.length - 1);
           _isLoading = false;
@@ -156,7 +203,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yükleme hatası: $e')),
+          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
         );
       }
     }
@@ -445,10 +492,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       onPressed: () async {
                                         final userId = ref.read(authRepositoryProvider).currentUser?.id;
                                         if (userId != null) {
-                                          await ref.read(readBooksRepositoryProvider).markBookAsCompleted(
-                                            userId: userId,
-                                            bookId: widget.bookId,
-                                          );
+                                          try {
+                                            await ref.read(readBooksRepositoryProvider).markBookAsCompleted(
+                                              userId: userId,
+                                              bookId: widget.bookId,
+                                            );
+                                          } catch (_) {
+                                            // Mark action'ı en kötü durumda bile ekranı kilitlememeli.
+                                          }
                                           ref.invalidate(completedBooksProvider(userId));
                                         }
                                         await ref.read(readingProgressRepositoryProvider).removeBook(widget.bookId);

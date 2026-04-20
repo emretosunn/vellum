@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../constants/app_assets.dart';
@@ -32,6 +35,17 @@ String _timeBasedGreeting() {
 
 bool _homeVerticalListAnimated = false;
 
+/// Home dil/bölge filtresi seçenekleri (ülke -> dil kodu eşleşmesi)
+const Map<String, String> _languageRegionLabels = {
+  'tr': 'home.language_region_tr',
+  'en': 'home.language_region_en',
+  'de': 'home.language_region_de',
+  'fr': 'home.language_region_fr',
+  'ru': 'home.language_region_ru',
+  'es': 'home.language_region_es',
+  'other': 'home.language_region_other',
+};
+
 enum HomeTab {
   explore,
   following,
@@ -46,8 +60,13 @@ class _HomeHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
+    final cachedUsernameAsync = ref.watch(cachedUsernameProvider);
+    final cachedUsername = cachedUsernameAsync.valueOrNull;
+    final avatarSeed = profileAsync.valueOrNull?.username ?? cachedUsername ?? '';
+    final avatarInitial = avatarSeed.isNotEmpty ? avatarSeed.substring(0, 1).toUpperCase() : 'O';
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final languageCode = ref.watch(bookLanguageFilterProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
       child: Row(
@@ -68,7 +87,7 @@ class _HomeHeader extends ConsumerWidget {
                   onBackgroundImageError: (avatarUrl != null && avatarUrl.isNotEmpty) ? (_, __) {} : null,
                   child: avatarUrl == null || avatarUrl.isEmpty
                       ? Text(
-                          (profile?.username.isNotEmpty == true ? profile!.username[0] : 'O').toUpperCase(),
+                          avatarInitial,
                           style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
                         )
                       : null,
@@ -93,11 +112,16 @@ class _HomeHeader extends ConsumerWidget {
                 ),
                 profileAsync.when(
                   data: (profile) => Text(
-                    profile?.username ?? translate('home.reader_fallback'),
+                    profile?.username ??
+                        cachedUsername ??
+                        translate('home.reader_fallback'),
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   loading: () => const SizedBox(height: 26),
-                  error: (_, __) => Text(translate('home.reader_fallback'), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  error: (_, __) => Text(
+                    cachedUsername ?? translate('home.reader_fallback'),
+                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -110,21 +134,222 @@ class _HomeHeader extends ConsumerWidget {
             child: Consumer(
               builder: (context, ref, _) {
                 final count = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
-                return IconButton(
-                  onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-                    ref.invalidate(unreadNotificationCountProvider);
-                  },
-                  icon: Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: Icon(Icons.notifications_outlined, color: theme.colorScheme.onSurface, size: 24),
-                  ),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        barrierDismissible: true,
+                        builder: (ctx) => _LanguagePickerDialog(
+                          selected: languageCode,
+                          onSelected: (value) {
+                            ref
+                                .read(bookLanguageFilterProvider.notifier)
+                                .state = value;
+                          },
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.language_rounded,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                        size: 22,
+                      ),
+                    ),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        );
+                        ref.invalidate(unreadNotificationCountProvider);
+                      },
+                      icon: Badge(
+                        isLabelVisible: count > 0,
+                        label: Text('$count'),
+                        child: Icon(
+                          Icons.notifications_outlined,
+                          color: theme.colorScheme.onSurface,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LanguagePickerDialog extends StatefulWidget {
+  const _LanguagePickerDialog({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  State<_LanguagePickerDialog> createState() =>
+      _LanguagePickerDialogState();
+}
+
+class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
+  final _controller = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final options = <({String? code, String label})>[
+      (code: null, label: translate('home.language_filter_all')),
+      for (final e in _languageRegionLabels.entries)
+        (code: e.key, label: translate(e.value)),
+    ];
+
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? options
+        : options.where((o) => o.label.toLowerCase().contains(q)).toList();
+
+    // En fazla 5 öğe görünsün, fazlası liste içinde scroll ile açılsın.
+    const tileHeight = 40.0;
+    final visibleCount = filtered.length < 5 ? filtered.length : 5;
+    final listHeight =
+        (tileHeight * visibleCount) + ((visibleCount - 1) * 1);
+
+    return Dialog(
+      backgroundColor:
+          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.98),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 320,
+          maxHeight: 360,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.language_rounded,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      translate('studio.language_region_title'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _controller,
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                  ),
+                  hintText: translate('home.language_filter_search_hint'),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerLow,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.55),
+                      width: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: listHeight,
+                child: ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.25),
+                  ),
+                  itemBuilder: (context, index) {
+                    final opt = filtered[index];
+                    final isSelected = opt.code == widget.selected;
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Material(
+                        color: isSelected
+                            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                            : Colors.transparent,
+                        child: ListTile(
+                          dense: true,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 6),
+                          leading: isSelected
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  size: 20,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : const SizedBox.shrink(),
+                          title: Text(
+                            opt.label,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight:
+                                  isSelected ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                          onTap: () {
+                            widget.onSelected(opt.code);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1581,18 +1806,37 @@ class _OfflineBookCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: (offlineBook.coverImage.isNotEmpty)
-                    ? Image.network(
-                        offlineBook.coverImage,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          AppAssets.defaultBookCover,
+                    ? (() {
+                        final cover = offlineBook.coverImage;
+                        final isRemote = cover.startsWith('http://') ||
+                            cover.startsWith('https://');
+                        if (isRemote) {
+                          return Image.network(
+                            cover,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              AppAssets.defaultBookCover,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                          );
+                        }
+                        return Image.file(
+                          File(cover),
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                        ),
-                      )
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            AppAssets.defaultBookCover,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        );
+                      })()
                     : Image.asset(
                         AppAssets.defaultBookCover,
                         fit: BoxFit.cover,
@@ -2184,15 +2428,24 @@ class _BookFilterSheet extends ConsumerStatefulWidget {
 }
 
 class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
+  final _categoryValue = ValueNotifier<String?>(null);
+
+  @override
+  void dispose() {
+    _categoryValue.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final sortOrder = ref.watch(bookSortOrderProvider);
     final category = ref.watch(bookCategoryFilterProvider);
+    _categoryValue.value = category;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.88;
-    final bottomPadding = MediaQuery.paddingOf(context).bottom + 24;
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.82;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + 12;
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxSheetHeight),
@@ -2236,7 +2489,7 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Filtrele ve sırala',
+                              translate('home.filter_and_sort_title'),
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.5,
@@ -2280,7 +2533,8 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
               ),
             ),
             // İçerik — scroll
-            Expanded(
+            Flexible(
+              fit: FlexFit.loose,
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(24, 32, 24, bottomPadding),
                 child: Column(
@@ -2288,7 +2542,7 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                   children: [
                     // Sıralama — segmentli özel görünüm
                     Text(
-            'Sıralama',
+            translate('home.sort_label'),
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -2317,7 +2571,7 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                 children: [
                   Expanded(
                     child: _SortSegment(
-                      label: 'En son',
+                      label: translate('home.sort_recent'),
                       icon: Icons.schedule_rounded,
                       isSelected: sortOrder == BookSortOrder.recent,
                       onTap: () {
@@ -2328,7 +2582,7 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                   ),
                   Expanded(
                     child: _SortSegment(
-                      label: 'En çok puan',
+                      label: translate('home.sort_rating'),
                       icon: Icons.star_rounded,
                       isSelected: sortOrder == BookSortOrder.rating,
                       onTap: () {
@@ -2345,7 +2599,7 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
 
           // Kategori — özel kart dropdown
           Text(
-            'Kategori',
+            translate('home.category_label'),
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -2353,79 +2607,159 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: isDark ? 0.4 : 0.6,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: theme.colorScheme.outline.withValues(alpha: 0.15),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+          DropdownButtonHideUnderline(
+            child: DropdownButton2<String?>(
+              valueListenable: _categoryValue,
+              isExpanded: true,
+              customButton: Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: isDark ? 0.4 : 0.6,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: category,
-                isExpanded: true,
-                hint: Padding(
-                  padding: const EdgeInsets.only(left: 18),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.category_rounded,
-                        size: 20,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Tüm kategoriler',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.category_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        category == null
+                            ? translate('home.category_all_hint')
+                            : category,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 26,
+                    ),
+                  ],
+                ),
+              ),
+              onChanged: (v) {
+                _categoryValue.value = v;
+                ref.read(bookCategoryFilterProvider.notifier).state = v;
+              },
+              items: [
+                DropdownItem<String?>(
+                  value: null,
+                  height: 44,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Row(
+                      children: [
+                        if (category == null)
+                          Icon(
+                            Icons.check_rounded,
+                            color: theme.colorScheme.primary,
+                          )
+                        else
+                          const SizedBox(width: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            translate('home.category_all'),
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: category == null
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                icon: Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 26,
-                  ),
-                ),
-                borderRadius: BorderRadius.circular(18),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                dropdownColor: theme.colorScheme.surfaceContainerHigh,
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
+                ...bookCategories.map(
+                  (c) => DropdownItem<String?>(
+                    value: c,
+                    height: 44,
                     child: Padding(
-                      padding: EdgeInsets.only(left: 18),
-                      child: Text('Tümü'),
-                    ),
-                  ),
-                  ...bookCategories.map(
-                    (c) => DropdownMenuItem<String?>(
-                      value: c,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 18),
-                        child: Text(c),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Row(
+                        children: [
+                          if (category == c)
+                            Icon(
+                              Icons.check_rounded,
+                              color: theme.colorScheme.primary,
+                            )
+                          else
+                            const SizedBox(width: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              c,
+                              style:
+                                  theme.textTheme.bodyLarge?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: category == c
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-                onChanged: (v) {
-                  ref.read(bookCategoryFilterProvider.notifier).state = v;
-                },
+                ),
+              ],
+              buttonStyleData: ButtonStyleData(
+                height: 56,
+                width: double.infinity,
+                padding: EdgeInsets.zero,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              dropdownStyleData: DropdownStyleData(
+                maxHeight: 176,
+                padding: EdgeInsets.zero,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                    width: 1,
+                  ),
+                ),
+                scrollbarTheme: ScrollbarThemeData(
+                  radius: const Radius.circular(16),
+                  thickness: WidgetStateProperty.all(6),
+                  thumbVisibility: WidgetStateProperty.all(true),
+                ),
+              ),
+              menuItemStyleData: const MenuItemStyleData(
+                padding: EdgeInsets.zero,
+              ),
+              iconStyleData: const IconStyleData(
+                icon: SizedBox.shrink(),
+                iconSize: 0,
               ),
             ),
           ),
@@ -2446,8 +2780,9 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
             ),
             icon: const Icon(Icons.check_rounded, size: 22),
             label: Text(
-              'Filtreleri uygula',
+              translate('home.apply_filters'),
               style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onPrimary,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
               ),

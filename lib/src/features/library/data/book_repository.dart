@@ -22,15 +22,20 @@ class BookRepository {
     int offset = 0,
     BookSortOrder sortOrder = BookSortOrder.recent,
     String? category,
+    String? languageCode,
   }) async {
     final base = _client
         .from('books')
         .select()
         .eq('status', 'published');
 
-    final filtered = (category != null && category.isNotEmpty)
-        ? base.eq('category', category)
+    final filteredByLanguage = (languageCode != null && languageCode.isNotEmpty)
+        ? base.eq('language_code', languageCode)
         : base;
+
+    final filtered = (category != null && category.isNotEmpty)
+        ? filteredByLanguage.eq('category', category)
+        : filteredByLanguage;
 
     final data = await filtered
         .order('created_at', ascending: false)
@@ -126,6 +131,7 @@ class BookRepository {
     String summary = '',
     String? coverImageUrl,
     String? category,
+    String? languageCode,
     bool isAdult18 = false,
     List<String> contentWarnings = const [],
   }) async {
@@ -137,6 +143,8 @@ class BookRepository {
           'summary': summary,
           'cover_image_url': coverImageUrl,
           if (category != null && category.isNotEmpty) 'category': category,
+          if (languageCode != null && languageCode.isNotEmpty)
+            'language_code': languageCode,
           'is_adult_18': isAdult18,
           'content_warnings': contentWarnings,
         })
@@ -154,6 +162,7 @@ class BookRepository {
     String? coverImageUrl,
     String? status,
     String? category,
+    String? languageCode,
     bool? isAdult18,
     List<String>? contentWarnings,
   }) async {
@@ -163,6 +172,9 @@ class BookRepository {
     if (coverImageUrl != null) updates['cover_image_url'] = coverImageUrl;
     if (status != null) updates['status'] = status;
     if (category != null) updates['category'] = category;
+    if (languageCode != null) {
+      updates['language_code'] = languageCode;
+    }
     if (isAdult18 != null) updates['is_adult_18'] = isAdult18;
     if (contentWarnings != null) updates['content_warnings'] = contentWarnings;
 
@@ -178,13 +190,18 @@ class BookRepository {
 
   /// Kitap sil
   /// Kitap arama (başlık veya özet üzerinden); kategori/sıra uygulanmaz
-  Future<List<Book>> searchBooks(String query) async {
-    final data = await _client
+  Future<List<Book>> searchBooks(String query, {String? languageCode}) async {
+    var q = _client
         .from('books')
         .select()
         .eq('status', 'published')
-        .or('title.ilike.%$query%,summary.ilike.%$query%')
-        .order('created_at', ascending: false);
+        .or('title.ilike.%$query%,summary.ilike.%$query%');
+
+    if (languageCode != null && languageCode.isNotEmpty) {
+      q = q.eq('language_code', languageCode);
+    }
+
+    final data = await q.order('created_at', ascending: false);
 
     return data.map<Book>((json) => Book.fromJson(json)).toList();
   }
@@ -272,19 +289,25 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 /// Filtre: sıralama ve kategori (ana sayfa)
 final bookSortOrderProvider = StateProvider<BookSortOrder>((ref) => BookSortOrder.recent);
 final bookCategoryFilterProvider = StateProvider<String?>((ref) => null);
+final bookLanguageFilterProvider = StateProvider<String?>((ref) => null);
 
 /// Arama sonuçları veya filtrelenmiş liste (arama boşsa filtre uygulanır)
 final searchedBooksProvider = FutureProvider<List<Book>>((ref) async {
   final query = ref.watch(searchQueryProvider);
   final sortOrder = ref.watch(bookSortOrderProvider);
   final category = ref.watch(bookCategoryFilterProvider);
+  final languageCode = ref.watch(bookLanguageFilterProvider);
 
   if (query.trim().isNotEmpty) {
-    return ref.read(bookRepositoryProvider).searchBooks(query.trim());
+    return ref.read(bookRepositoryProvider).searchBooks(
+          query.trim(),
+          languageCode: languageCode,
+        );
   }
   return ref.read(bookRepositoryProvider).getPublishedBooks(
         sortOrder: sortOrder,
         category: category,
+        languageCode: languageCode,
       );
 });
 

@@ -12,7 +12,13 @@
     "unknown": "Unknown",
     "back": "Go Back",
     "add": "Add",
-    "ok": "OK"
+    "ok": "OK",
+    "error_generic_friendly": "Something went wrong. Please try again.",
+    "network_unavailable": "No internet connection. Please check your connection and try again.",
+    "request_timed_out": "The request timed out. Please try again.",
+    "permission_denied": "You don't have permission to perform this action.",
+    "update_downloaded_restart": "Update downloaded. Please restart the app.",
+    "restart": "Restart"
   },
   "onboarding": {
     "page1": {
@@ -29,7 +35,16 @@
     },
     "next": "Next",
     "start": "Get Started",
-    "skip": "Skip"
+    "skip": "Skip",
+    "setup_language_title": "Which language would you like to use?",
+    "setup_language_subtitle": "You can use your system language or choose one yourself.",
+    "setup_region_title": "Which region's books do you want to see?",
+    "setup_region_subtitle": "All regions are shown by default.",
+    "setup_theme_title": "Choose your look",
+    "setup_theme_subtitle": "Switch between the two themes below.",
+    "setup_notifications_title": "Enable notifications?",
+    "setup_notifications_subtitle": "Stay updated with new books and recommendations.",
+    "setup_finish": "Request notifications & continue"
   },
   "auth": {
     "tagline": "Read, Write, Publish.",
@@ -65,7 +80,15 @@
     "no_account": "Don't have an account? ",
     "have_account": "Already have an account? ",
     "signup_link": "Sign Up",
-    "login_link": "Sign In"
+    "login_link": "Sign In",
+    "accept_terms": "I agree to the Terms of Use",
+    "accept_terms_required": "Please accept the Terms of Use to create an account.",
+    "error_wrong_password": "Incorrect email or password. Please try again.",
+    "error_email_already_used": "An account already exists with this email.",
+    "error_email_invalid": "Please enter a valid email address.",
+    "error_password_weak": "Your password does not meet the requirements.",
+    "error_email_not_confirmed": "Please verify your email address. Check your inbox.",
+    "error_generic": "Something went wrong. Please try again."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -84,6 +107,7 @@
   "nav": {
     "home": "Home",
     "studio": "Studio",
+    "discovery_canvas": "Explore",
     "subscription": "Subscription",
     "settings": "Settings"
   },
@@ -96,6 +120,23 @@
     "tab_following": "Following",
     "offline_banner": "You're offline. Your downloaded books are below.",
     "search_hint": "Discover thousands of worlds...",
+    "language_filter_all": "All",
+    "language_filter_search_hint": "Search...",
+    "language_region_tr": "Turkey",
+    "language_region_en": "United States",
+    "language_region_de": "Germany",
+    "language_region_fr": "France",
+    "language_region_ru": "Russia",
+    "language_region_es": "Spain",
+    "language_region_other": "Other",
+    "filter_and_sort_title": "Filter & sort",
+    "sort_label": "Sort",
+    "sort_recent": "Most recent",
+    "sort_rating": "Highest rating",
+    "category_label": "Category",
+    "category_all_hint": "All categories",
+    "category_all": "All",
+    "apply_filters": "Apply filters",
     "error_generic": "Something went wrong",
     "no_published_books": "No published books yet",
     "first_write_prompt": "How about writing your first book?",
@@ -114,6 +155,12 @@
     "following_empty_subtitle": "You don't follow any authors yet or there are no posts.",
     "following_empty_body": "Follow authors from their profiles to fill your feed."
   },
+  "discovery_canvas": {
+    "title": "Explore",
+    "search_hint": "Search by book title",
+    "error_load": "Failed to load discovery canvas",
+    "empty": "No books match your search"
+  },
   "settings": {
     "title": "Settings",
     "user": "User",
@@ -128,8 +175,15 @@
     "language": "Language",
     "language_turkish": "Turkish",
     "language_english": "English",
+    "language_german": "Deutsch",
     "font_size": "Font Size",
     "developer": "Developer",
+    "onboarding_test_title": "Onboarding Tests",
+    "onboarding_test_subtitle": "Re-open onboarding and setup flows",
+    "onboarding_flow_title": "Intro Onboarding Flow",
+    "onboarding_flow_subtitle": "Open the intro/onboarding screens",
+    "signup_setup_flow_title": "Post-signup Setup Flow",
+    "signup_setup_flow_subtitle": "Open language, region, theme and notification steps",
     "author_badges_title": "Author badges",
     "author_badges_subtitle": "Grant or remove author badges",
     "book_reports": "Book reports",
@@ -138,6 +192,8 @@
     "help_faq": "Help & FAQ",
     "terms": "Terms of Use",
     "privacy": "Privacy Policy",
+    "terms_content": "Vellum Terms of Use\n\nLast Updated: February 15, 2026\n\n1. General Provisions\nBy using the Vellum app, you are deemed to have accepted the following terms. The app serves as a platform for publishing and consuming digital content.\n\n2. User Accounts\n• You must be at least 18 years old to create an account.\n• You are responsible for the security of your account information.\n• Each user may create only one account.\n\n3. Content Policy\n• Published content must comply with copyright laws.\n• Content that is unlawful, obscene, or includes hate speech is prohibited.\n• The platform reserves the right to remove inappropriate content.\n\n4. Subscription and Payments\n• The Vellum Pro subscription can be purchased monthly or annually.\n• Subscription cancellation takes effect at the end of the billing period.\n• Payments are processed through secure payment providers.\n\n5. Intellectual Property\n• Authors own the copyright to the content they publish.\n• The platform has a limited license to use the content for promotional purposes.\n\n6. Limitations of Liability\n• The platform is not responsible for disputes between users.\n• No liability is accepted for data losses caused by technical failures.\n\n7. Contact\nFor questions, you can write to support@vellum.app.",
+    "privacy_content": "Vellum Privacy Policy\n\nLast Updated: February 15, 2026\n\n1. Data We Collect\n• Identity information: Email address, username\n• Usage data: Reading history, preferences\n• Subscription information: Plan type, billing period details (card information is not stored)\n\n2. How We Use Data\nCollected data is used for the following purposes:\n• Account management and authentication\n• Content recommendations and personalization\n• Processing subscription-related transactions\n• Ensuring platform security\n\n3. Data Sharing\n• Your data is not shared with third parties for marketing purposes.\n• It may be shared with competent authorities when required by law.\n• Secure payment providers are used for payment processing.\n\n4. Cookies\n• Cookies required for session management are used.\n• Analytical cookies are used to improve your experience.\n\n5. Data Security\n• All data is encrypted and stored.\n• Regular security audits are conducted.\n• Communication security is ensured using SSL/TLS.\n\n6. User Rights\n• You may request access to your data.\n• You may request deletion of your data.\n• You have the right to data portability.\n\n7. Contact\nFor privacy-related questions, you can write to gizlilik@vellum.app.",
     "version": "App Version",
     "logout": "Log Out",
     "logout_confirm": "Are you sure you want to log out?",
@@ -213,6 +269,11 @@
     "faq_subscription": "How does subscription work?",
     "faq_cancel_sub": "How do I cancel my subscription?",
     "faq_delete_account": "How do I delete my account?",
+    "faq_what_is_a": "Vellum is a platform where writers create and publish books and stories. Readers can follow authors to keep up with new chapters and updates.",
+    "faq_how_author_a": "Use the Writing Studio to create books and chapters. Some author badges (e.g., Pro Author) are granted only by the developer. To publish, you also need to meet the publishing requirements (at least 3 chapters/pages and 5,000 words).",
+    "faq_subscription_a": "With a Vellum Pro subscription, you get access to more Writing Studio and publishing features. You can choose monthly or yearly billing, and after you cancel, your access stays until the end of the billing period.",
+    "faq_cancel_sub_a": "To cancel your subscription, use the “Manage Subscription” screen in the app. Cancellation takes effect at the end of the current billing period, and you lose access to Pro features after that.",
+    "faq_delete_account_a": "To delete your account, contact us at support@vellum.app. Your request will be reviewed and your associated data will be removed.",
     "avatar_failed": "Failed to load avatar: {error}",
     "app_config_title": "App Configuration",
     "app_config_subtitle": "Maintenance mode and system announcements",
@@ -306,7 +367,11 @@
     "remove_book": "Remove book",
     "remove_book_dialog_title": "Remove Book",
     "remove_book_dialog_body": "Are you sure you want to remove \"{title}\" permanently? This cannot be undone. The book and all chapters will be deleted.",
-    "book_removed_snackbar": "\"{title}\" has been removed"
+    "book_removed_snackbar": "\"{title}\" has been removed",
+    "posts_title": "Posts",
+    "posts_load_error": "Could not load posts",
+    "posts_empty": "No posts yet",
+    "opened_offline_copy": "Opened offline copy because of a network issue."
   },
   "studio": {
     "load_error": "Load error: {error}",
@@ -369,6 +434,7 @@
     "category_section": "Category",
     "category_select_title": "Select category",
     "select_placeholder": "Select",
+    "language_region_title": "Language / Region",
     "content_warnings_optional": "Content warnings (optional)",
     "content_warnings_hint": "Select any that apply to inform readers.",
     "adult_content_title": "18+ content (mature)",
@@ -386,7 +452,13 @@
     "cw_siddet": "Violence",
     "cw_kufur": "Profanity",
     "cw_olgun_temalar": "Mature themes",
-    "cw_diger_hassas": "Other sensitive content"
+    "cw_diger_hassas": "Other sensitive content",
+    "chapter_title_required": "Chapter title is required",
+    "chapter_saved": "Chapter saved",
+    "chapter_edit_title": "Edit Chapter",
+    "chapter_new_title": "New Chapter",
+    "chapter_title_label": "Chapter Title",
+    "chapter_title_hint": "Write your chapter title"
   },
   "profile": {
     "published_books": "Published Books",

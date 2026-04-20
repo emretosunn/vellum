@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../data/subscription_repository.dart';
 import '../services/purchase_service.dart';
 import '../../auth/data/auth_repository.dart';
@@ -266,10 +267,10 @@ class _SubscriptionPlanModalContentState
       }
     } catch (e) {
       if (mounted) {
-        final raw = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
-        final msg = raw == 'Zaten abonesiniz'
-            ? _sub('subscription.already_subscribed', 'Zaten abonesiniz')
-            : (raw.isNotEmpty ? raw : _sub('subscription.error', 'Hata'));
+        final msg = toUserFriendlyErrorMessage(
+          e,
+          fallbackKey: 'subscription.error',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),

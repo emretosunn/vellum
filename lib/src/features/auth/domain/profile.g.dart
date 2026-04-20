@@ -19,6 +19,7 @@ _$ProfileImpl _$$ProfileImplFromJson(
   stripeCustomerId: json['stripe_customer_id'] as String?,
   isVerifiedAuthor: json['is_verified_author'] as bool? ?? false,
   isDeveloper: json['is_developer'] as bool? ?? false,
+  signupSetupCompleted: json['signup_setup_completed'] as bool? ?? false,
   avatarUrl: json['avatar_url'] as String?,
   bio: json['bio'] as String? ?? '',
   links:
@@ -52,6 +53,7 @@ Map<String, dynamic> _$$ProfileImplToJson(_$ProfileImpl instance) =>
       'stripe_customer_id': instance.stripeCustomerId,
       'is_verified_author': instance.isVerifiedAuthor,
       'is_developer': instance.isDeveloper,
+      'signup_setup_completed': instance.signupSetupCompleted,
       'avatar_url': instance.avatarUrl,
       'bio': instance.bio,
       'links': instance.links,

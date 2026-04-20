@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/data/auth_repository.dart';
@@ -25,9 +26,9 @@ class AuthorPostsPage extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: profileAsync.when(
-          data: (p) => Text(p?.username ?? 'Paylaşımlar'),
-          loading: () => const Text('Paylaşımlar'),
-          error: (_, __) => const Text('Paylaşımlar'),
+          data: (p) => Text(p?.username ?? translate('library.posts_title')),
+          loading: () => Text(translate('library.posts_title')),
+          error: (_, __) => Text(translate('library.posts_title')),
         ),
         centerTitle: true,
       ),
@@ -41,11 +42,11 @@ class AuthorPostsPage extends ConsumerWidget {
               children: [
                 Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
                 const SizedBox(height: 16),
-                Text('Paylaşımlar yüklenemedi', style: theme.textTheme.titleMedium),
+                Text(translate('library.posts_load_error'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(authorPostsProvider(authorId)),
-                  child: const Text('Tekrar Dene'),
+                  child: Text(translate('common.retry')),
                 ),
               ],
             ),
@@ -64,7 +65,7 @@ class AuthorPostsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Henüz paylaşım yok',
+                    translate('library.posts_empty'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

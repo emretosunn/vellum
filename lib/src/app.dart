@@ -15,6 +15,20 @@ import 'features/shared/presentation/maintenance_screen.dart';
 /// onboarding tamamlanınca true'ya çekilir.
 final onboardingCompletedProvider = StateProvider<bool>((ref) => false);
 
+/// Signup sonrası kişiselleştirme ekranı gösterilsin diye yapılan geçici bayrak.
+/// Auth oturumu çok hızlı açılınca router'ın `/login` -> `'/'` redirect'i yarışı oluşabiliyor.
+/// Bu bayrak sayesinde kullanıcı direkt `'/signup-setup'`a gönderilir.
+final signupSetupPendingProvider = StateProvider<bool>((ref) => false);
+
+/// Kullanıcı signup-setup ekranında "bitir" dediğinde,
+/// Supabase'te flag henüz güncellenememiş olsa bile home'a geçsin diye
+/// bu tur redirect'i engeller.
+final signupSetupRedirectOverrideProvider = StateProvider<bool>((ref) => false);
+
+/// Signup-setup akışında hangi adımdayız? (Dil/tema değişimi sırasında widget yeniden
+/// oluşturulursa bile adımı kaybetmemek için state'i burada tutuyoruz.)
+final signupSetupStepProvider = StateProvider<int>((ref) => 0);
+
 class VellumApp extends ConsumerWidget {
   const VellumApp({super.key});
 
@@ -27,12 +41,21 @@ class VellumApp extends ConsumerWidget {
         false;
 
     final onboardingDone = ref.watch(onboardingCompletedProvider);
+    final signupSetupPending = ref.watch(signupSetupPendingProvider);
+    final signupSetupRedirectOverride =
+        ref.watch(signupSetupRedirectOverrideProvider);
     final appConfigAsync = ref.watch(appConfigProvider);
     final profileAsync = ref.watch(currentProfileProvider);
+
+    final forceSignupSetup =
+        profileAsync.valueOrNull?.signupSetupCompleted == false;
 
     final router = createRouter(
       isLoggedIn: isLoggedIn,
       onboardingCompleted: onboardingDone,
+      signupSetupPending: signupSetupPending,
+      forceSignupSetup: forceSignupSetup,
+      signupSetupRedirectOverride: signupSetupRedirectOverride,
     );
     final themeMode = ref.watch(themeModeProvider);
     final localizationDelegate = LocalizedApp.of(context).delegate;
