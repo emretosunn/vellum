@@ -50,7 +50,7 @@ dependencies:
   dio: ^5.7.0
 
   # Çeviri / yerelleştirme
-  flutter_translate: ^3.1.0
+  flutter_translate: ^4.1.0
 
   # Uygulama içi satın alma (Google Play)
   in_app_purchase: ^3.2.0
@@ -107,6 +107,10 @@ flutter:
     - assets/animation/
     - assets/icon/
     - assets/image/
+    - AssetManifest.json
     - assets/i18n/
     - assets/i18n/tr.json
     - assets/i18n/en.json
+
+dependency_overrides:
+  intl: ^0.20.2
