@@ -24,6 +24,7 @@ import '../../subscription/services/subscription_status_service.dart';
 import '../../../config/version.dart';
 import '../data/app_config_repository.dart';
 import '../../shared/presentation/maintenance_screen.dart';
+import '../../shared/widgets/scaffold_with_nav.dart';
 
 // ─── Providers ───────────────────────────────────────
 /// Başlangıç teması her zaman açık (beyaz) ekran; kullanıcı Ayarlar'dan değiştirebilir.
@@ -56,11 +57,43 @@ final notificationPermissionStatusProvider =
 // ANA AYARLAR EKRANI
 // ═════════════════════════════════════════════════════
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    navRetapEventNotifier.addListener(_handleRetap);
+  }
+
+  @override
+  void dispose() {
+    navRetapEventNotifier.removeListener(_handleRetap);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleRetap() {
+    final event = navRetapEventNotifier.value;
+    if (event == null || event.index != 4) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(currentProfileProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -70,6 +103,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
             Text(
@@ -415,6 +449,7 @@ class _ProfileEditPage extends ConsumerStatefulWidget {
 
 class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   late final TextEditingController _usernameController;
+  late final TextEditingController _birthDateController;
   late final TextEditingController _bioController;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
@@ -428,6 +463,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     super.initState();
     final p = widget.profile;
     _usernameController = TextEditingController(text: p?.username ?? '');
+    _birthDateController = TextEditingController(
+      text: _formatBirthDate(p?.birthDate),
+    );
     _bioController = TextEditingController(text: p?.bio ?? '');
     _avatarUrl = p?.avatarUrl;
     _links = List<Map<String, dynamic>>.from(
@@ -441,8 +479,59 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _birthDateController.dispose();
     _bioController.dispose();
     super.dispose();
+  }
+
+  String _formatBirthDate(DateTime? date) {
+    if (date == null) return '';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final y = date.year.toString();
+    return '$d.$m.$y';
+  }
+
+  DateTime? _parseBirthDate(String raw) {
+    final parts = raw.trim().split('.');
+    if (parts.length != 3) return null;
+    final d = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final y = int.tryParse(parts[2]);
+    if (d == null || m == null || y == null) return null;
+    try {
+      final dt = DateTime(y, m, d);
+      if (dt.day != d || dt.month != m || dt.year != y) return null;
+      return dt;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return null;
+    final now = DateTime.now();
+    var age = now.year - birthDate.year;
+    final passed = now.month > birthDate.month ||
+        (now.month == birthDate.month && now.day >= birthDate.day);
+    if (!passed) age--;
+    return age;
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final current = _parseBirthDate(_birthDateController.text) ??
+        DateTime(now.year - 18, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: now,
+    );
+    if (picked == null) return;
+    setState(() {
+      _birthDateController.text = _formatBirthDate(picked);
+    });
   }
 
   Future<void> _pickAvatar() async {
@@ -655,12 +744,27 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     if (!_formKey.currentState!.validate()) return;
     final userId = ref.read(authRepositoryProvider).currentUser?.id;
     if (userId == null) return;
+    final birthDate = _parseBirthDate(_birthDateController.text);
+    if (_birthDateController.text.trim().isNotEmpty && birthDate == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translate('onboarding.setup_profile_age_invalid')),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    final age = _calculateAge(birthDate);
 
     setState(() => _saving = true);
     try {
       await ref.read(authRepositoryProvider).updateProfile(
             id: userId,
             username: _usernameController.text.trim(),
+            age: age,
+            birthDate: birthDate,
             bio: _bioController.text.trim(),
             links: _links,
             avatarUrl: _avatarUrl,
@@ -934,6 +1038,48 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 return null;
               },
             ),
+                          const SizedBox(height: 16),
+
+                          // Doğum Tarihi
+                          TextFormField(
+                            controller: _birthDateController,
+                            readOnly: true,
+                            onTap: _pickBirthDate,
+                            style: theme.textTheme.bodyLarge,
+                            decoration: InputDecoration(
+                              labelText: translate('onboarding.setup_birth_date_label'),
+                              hintText: translate('onboarding.setup_birth_date_placeholder'),
+                              prefixIcon: const Icon(Icons.cake_outlined),
+                              suffixIcon: const Icon(Icons.calendar_month_outlined),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.02),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
 
             // E-posta (salt okunur)

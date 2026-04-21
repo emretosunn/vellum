@@ -10,7 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app.dart';
 import '../../auth/presentation/login_screen.dart';
 
-const _kOnboardingCompleted = 'onboarding_completed';
+// Not: v2 anahtari kullanarak eski/restore edilmis cache kaynakli
+// onboarding atlanmasini engelliyoruz.
+const _kOnboardingCompleted = 'onboarding_completed_v2';
+const _kOnboardingName = 'onboarding_display_name';
 
 Future<void> markOnboardingCompleted() async {
   final prefs = await SharedPreferences.getInstance();
@@ -77,7 +80,10 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
-  static const int _totalPages = 3;
+  static const int _totalPages = 4;
+  static const int _namePageIndex = 3;
+  final TextEditingController _nameController = TextEditingController();
+  String? _nameError;
 
   @override
   void initState() {
@@ -88,11 +94,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   void _nextPage() {
     final page = _pageController.page ?? 0;
+    if (page.floor() == _namePageIndex) {
+      _completeOnboarding();
+      return;
+    }
     if (page.floor() < _totalPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 800),
@@ -104,6 +115,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
+    final rawName = _nameController.text.trim();
+    if (rawName.isEmpty || rawName.length < 2) {
+      if (mounted) {
+        setState(() => _nameError = translate('onboarding.name_required'));
+      }
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kOnboardingName, rawName);
+
     if (widget.sandboxMode) {
       if (!mounted) return;
       final navigator = Navigator.of(context, rootNavigator: true);
@@ -142,6 +163,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             itemCount: _totalPages,
             onPageChanged: (_) => setState(() {}),
             itemBuilder: (context, index) {
+              if (index == _namePageIndex) {
+                return _NameCapturePage(
+                  controller: _nameController,
+                  errorText: _nameError,
+                  onChanged: () {
+                    if (_nameError != null) {
+                      setState(() => _nameError = null);
+                    }
+                  },
+                );
+              }
               return _PageContent(
                 key: ValueKey(index),
                 page: _pages[index],
@@ -442,6 +474,85 @@ class _OnboardingAnimation extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _NameCapturePage extends StatelessWidget {
+  const _NameCapturePage({
+    required this.controller,
+    required this.errorText,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String? errorText;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Container(
+      color: Colors.white,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(size.width * 0.08, 72, size.width * 0.08, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                translate('onboarding.name_title'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 44,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.1,
+                  height: 1.05,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                translate('onboarding.name_subtitle'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 36),
+              TextField(
+                controller: controller,
+                onChanged: (_) => onChanged(),
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  hintText: translate('onboarding.name_hint'),
+                  errorText: errorText,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.2)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.black, width: 1.4),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

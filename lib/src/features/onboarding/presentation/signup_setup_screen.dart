@@ -33,19 +33,29 @@ class SignupSetupScreen extends ConsumerStatefulWidget {
 
 class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
   static const String _localSetupDoneKeyPrefix = 'signup_setup_completed_';
+  static const String _localAgeKeyPrefix = 'user_age_';
+  static const String _localAllowAdultKeyPrefix = 'allow_adult_content_';
   late final PageController _pageController;
-  static const int _totalPages = 7;
-  static const int _languageIntroPage = 0;
-  static const int _languageAnswerPage = 1;
-  static const int _regionIntroPage = 2;
-  static const int _regionAnswerPage = 3;
-  static const int _themeIntroPage = 4;
-  static const int _themeAnswerPage = 5;
-  static const int _notificationsPage = 6;
+  static const int _totalPages = 11;
+  static const int _profileIntroPage = 0;
+  static const int _profileAnswerPage = 1;
+  static const int _birthIntroPage = 2;
+  static const int _birthAnswerPage = 3;
+  static const int _languageIntroPage = 4;
+  static const int _languageAnswerPage = 5;
+  static const int _regionIntroPage = 6;
+  static const int _regionAnswerPage = 7;
+  static const int _themeIntroPage = 8;
+  static const int _themeAnswerPage = 9;
+  static const int _notificationsPage = 10;
   late int _currentPage;
 
   // Vitrin renkleri: her adımda farklı bir canlı renk.
   static const List<Color> _pageColors = [
+    Colors.white,
+    Colors.white,
+    Colors.white,
+    Colors.white,
     Colors.white,
     Colors.white,
     Colors.white,
@@ -64,6 +74,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
   ThemeMode _selectedThemeMode = ThemeMode.light;
 
   bool _isFinishing = false;
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _birthDateController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
 
   @override
   void initState() {
@@ -101,15 +114,36 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
         }
       });
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final profile = await ref.read(currentProfileProvider.future);
+        if (!mounted || profile == null) return;
+        setState(() {
+          _usernameController.text = profile.username;
+        });
+      } catch (_) {
+        // ignore
+      }
+    });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _ageController.dispose();
+    _birthDateController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
   void _goNext() {
+    if (_currentPage == _profileAnswerPage && !_validateProfileStep()) {
+      return;
+    }
+    if (_currentPage == _birthAnswerPage && !_validateBirthStep()) {
+      return;
+    }
     if (_currentPage < _totalPages - 1) {
       final target = _currentPage + 1;
       // Optimistic step update: page animasyonu bitmeden yeniden build olursa dahi adım korunur.
@@ -152,6 +186,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
       if (currentUserId != null && currentUserId.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('$_localSetupDoneKeyPrefix$currentUserId', true);
+        final age = int.tryParse(_ageController.text.trim()) ?? 18;
+        await prefs.setInt('$_localAgeKeyPrefix$currentUserId', age);
+        await prefs.setBool('$_localAllowAdultKeyPrefix$currentUserId', age >= 18);
       }
 
       // En son: bildirim izni iste.
@@ -183,8 +220,12 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
       try {
         final profile = await ref.read(currentProfileProvider.future);
         if (profile != null) {
+          final birthDate = _parseBirthDate(_birthDateController.text.trim());
           await ref.read(authRepositoryProvider).updateProfile(
                 id: profile.id,
+                username: _usernameController.text.trim(),
+                age: int.tryParse(_ageController.text.trim()),
+                birthDate: birthDate,
                 signupSetupCompleted: true,
               );
         }
@@ -243,6 +284,64 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     state.onLocaleChanged();
   }
 
+  bool _validateProfileStep() {
+    final username = _usernameController.text.trim();
+
+    String? message;
+    if (username.length < 3) {
+      message = translate('onboarding.setup_profile_username_required');
+    }
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateBirthStep() {
+    final dt = _parseBirthDate(_birthDateController.text.trim());
+    final age = _calculateAge(dt);
+    if (dt == null || age == null || age < 13 || age > 120) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(translate('onboarding.setup_profile_age_invalid')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false;
+    }
+    _ageController.text = age.toString();
+    return true;
+  }
+
+  DateTime? _parseBirthDate(String raw) {
+    final parts = raw.split('.');
+    if (parts.length != 3) return null;
+    final d = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final y = int.tryParse(parts[2]);
+    if (d == null || m == null || y == null) return null;
+    try {
+      final dt = DateTime(y, m, d);
+      if (dt.day != d || dt.month != m || dt.year != y) return null;
+      return dt;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return null;
+    final today = DateTime.now();
+    var age = today.year - birthDate.year;
+    final hasBirthdayPassed = (today.month > birthDate.month) ||
+        (today.month == birthDate.month && today.day >= birthDate.day);
+    if (!hasBirthdayPassed) age--;
+    return age;
+  }
+
   @override
   Widget build(BuildContext context) {
     final pageColor = _pageColors[_currentPage];
@@ -264,6 +363,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
                 child: _SetupStep(
                   stepIndex: index,
                   pageColor: _pageColors[index],
+                  ageController: _ageController,
+                  birthDateController: _birthDateController,
+                  usernameController: _usernameController,
                   selectedLocaleOption: _selectedLocaleOption,
                   onSelectLocale: _applyLocaleOption,
                   selectedRegionCode: _selectedRegionCode,
@@ -407,6 +509,9 @@ class _SetupStep extends StatelessWidget {
   const _SetupStep({
     required this.stepIndex,
     required this.pageColor,
+    required this.ageController,
+    required this.birthDateController,
+    required this.usernameController,
     required this.selectedLocaleOption,
     required this.onSelectLocale,
     required this.selectedRegionCode,
@@ -417,6 +522,9 @@ class _SetupStep extends StatelessWidget {
 
   final int stepIndex;
   final Color pageColor;
+  final TextEditingController ageController;
+  final TextEditingController birthDateController;
+  final TextEditingController usernameController;
 
   final String selectedLocaleOption;
   final Future<void> Function(String option) onSelectLocale;
@@ -441,6 +549,30 @@ class _SetupStep extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content;
     switch (stepIndex) {
+      case _SignupSetupScreenState._profileIntroPage:
+        content = const _QuestionIntroStep(
+          titleKey: 'onboarding.setup_profile_title',
+          subtitleKey: 'onboarding.setup_profile_subtitle',
+          animationAsset: 'assets/animation/info-1.json',
+        );
+        break;
+      case _SignupSetupScreenState._profileAnswerPage:
+        content = _UsernameSetupStep(
+          usernameController: usernameController,
+        );
+        break;
+      case _SignupSetupScreenState._birthIntroPage:
+        content = const _QuestionIntroStep(
+          titleKey: 'onboarding.setup_birth_intro_title',
+          subtitleKey: 'onboarding.setup_birth_intro_subtitle',
+          animationAsset: 'assets/animation/info-2.json',
+        );
+        break;
+      case _SignupSetupScreenState._birthAnswerPage:
+        content = _BirthDateSetupStep(
+          birthDateController: birthDateController,
+        );
+        break;
       case _SignupSetupScreenState._languageIntroPage:
         content = const _QuestionIntroStep(
           titleKey: 'onboarding.setup_language_title',
@@ -578,6 +710,161 @@ class _LanguageStep extends StatelessWidget {
           // Alt metni aynı anahtar ile gösteriyoruz, kartın altında ekstra vurgu.
         ),
       ],
+    );
+  }
+}
+
+class _UsernameSetupStep extends StatelessWidget {
+  const _UsernameSetupStep({
+    required this.usernameController,
+  });
+
+  final TextEditingController usernameController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _Header(
+          icon: Icons.badge_outlined,
+          title: translate('onboarding.setup_profile_title'),
+          subtitle: translate('onboarding.setup_profile_subtitle'),
+        ),
+        const SizedBox(height: 18),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: [
+              _ProfileField(
+                controller: usernameController,
+                label: translate('onboarding.setup_profile_username_label'),
+                hint: translate('onboarding.setup_profile_username_hint'),
+                keyboardType: TextInputType.text,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BirthDateSetupStep extends StatelessWidget {
+  const _BirthDateSetupStep({
+    required this.birthDateController,
+  });
+
+  final TextEditingController birthDateController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _Header(
+          icon: Icons.cake_outlined,
+          title: translate('onboarding.setup_birth_date_label'),
+          subtitle: translate('onboarding.setup_birth_date_hint'),
+        ),
+        const SizedBox(height: 18),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: _BirthDateField(controller: birthDateController),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileField extends StatelessWidget {
+  const _ProfileField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.keyboardType,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final TextInputType keyboardType;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.black.withValues(alpha: 0.16),
+          ),
+        ),
+      ),
+      style: theme.textTheme.bodyLarge,
+    );
+  }
+}
+
+class _BirthDateField extends StatefulWidget {
+  const _BirthDateField({required this.controller});
+  final TextEditingController controller;
+
+  @override
+  State<_BirthDateField> createState() => _BirthDateFieldState();
+}
+
+class _BirthDateFieldState extends State<_BirthDateField> {
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final initial = DateTime(now.year - 18, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: now,
+    );
+    if (picked == null) return;
+    final day = picked.day.toString().padLeft(2, '0');
+    final month = picked.month.toString().padLeft(2, '0');
+    final year = picked.year.toString();
+    widget.controller.text = '$day.$month.$year';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: widget.controller,
+      readOnly: true,
+      onTap: _pickDate,
+      decoration: InputDecoration(
+        labelText: translate('onboarding.setup_birth_date_label'),
+        hintText: translate('onboarding.setup_birth_date_placeholder'),
+        suffixIcon: const Icon(Icons.calendar_month_outlined),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.black.withValues(alpha: 0.16),
+          ),
+        ),
+      ),
+      style: theme.textTheme.bodyLarge,
     );
   }
 }
@@ -933,6 +1220,7 @@ class _Header extends StatelessWidget {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
+    final titleLines = _buildTitleLines(words, size.width);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -945,7 +1233,7 @@ class _Header extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final w in words)
+              for (final w in titleLines)
                 Text(
                   w,
                   textAlign: TextAlign.center,
@@ -977,6 +1265,39 @@ class _Header extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  List<String> _buildTitleLines(List<String> words, double screenWidth) {
+    if (words.isEmpty) return const [];
+    if (words.length == 1) return words;
+
+    final compact = screenWidth < 380;
+    final medium = screenWidth >= 380 && screenWidth < 520;
+    final maxLineChars = compact ? 10 : (medium ? 14 : 18);
+    final maxWordsPerLine = compact ? 2 : 3;
+
+    final lines = <String>[];
+    var current = <String>[];
+    var currentLen = 0;
+
+    for (final word in words) {
+      final nextLen = current.isEmpty ? word.length : currentLen + 1 + word.length;
+      final canAppend = current.length < maxWordsPerLine && nextLen <= maxLineChars;
+      if (canAppend) {
+        current.add(word);
+        currentLen = nextLen;
+      } else {
+        lines.add(current.join(' '));
+        current = [word];
+        currentLen = word.length;
+      }
+    }
+
+    if (current.isNotEmpty) {
+      lines.add(current.join(' '));
+    }
+
+    return lines;
   }
 }
 

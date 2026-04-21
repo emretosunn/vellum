@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/widgets.dart';
 
 import '../features/auth/presentation/login_screen.dart';
 import '../features/library/presentation/all_books_screen.dart';
@@ -17,6 +18,17 @@ import '../features/studio/presentation/chapter_editor_screen.dart';
 import '../features/studio/presentation/writer_studio_screen.dart';
 import '../features/subscription/presentation/subscription_screen.dart';
 import '../features/subscription/presentation/premium_upgrade_screen.dart';
+
+final GlobalKey<NavigatorState> _homeBranchNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'homeBranchNav');
+final GlobalKey<NavigatorState> _studioBranchNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'studioBranchNav');
+final GlobalKey<NavigatorState> _discoveryBranchNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'discoveryBranchNav');
+final GlobalKey<NavigatorState> _subscriptionBranchNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'subscriptionBranchNav');
+final GlobalKey<NavigatorState> _settingsBranchNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'settingsBranchNav');
 
 /// GoRouter yapılandırması.
 ///
@@ -62,12 +74,20 @@ GoRouter createRouter({
       }
 
       // Onboarding henüz tamamlanmadıysa oraya yönlendir (signup-setup hariç)
-      if (!onboardingCompleted && !isOnboarding && !isSignupSetup) {
+      if (!isLoggedIn &&
+          !onboardingCompleted &&
+          !isOnboarding &&
+          !isSignupSetup) {
         return '/onboarding';
       }
       // Onboarding tamamlandıysa oraya gitmeyi engelle
       if (onboardingCompleted && isOnboarding) {
         return isLoggedIn ? '/' : '/login';
+      }
+      // Oturum açıkken klasik onboarding'e geri dönmeyelim.
+      // (Kullanıcının ikinci kez onboarding turuna zorlanmasını engeller.)
+      if (isLoggedIn && isOnboarding) {
+        return '/';
       }
 
       // Auth yönlendirmeleri
@@ -192,11 +212,21 @@ GoRouter createRouter({
       // Ana navigasyon shell'i (4 tab: Home, Stüdyo, Abonelik, Ayarlar)
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return ScaffoldWithNav(navigationShell: navigationShell);
+          return ScaffoldWithNav(
+            navigationShell: navigationShell,
+            branchNavigatorKeys: [
+              _homeBranchNavigatorKey,
+              _studioBranchNavigatorKey,
+              _discoveryBranchNavigatorKey,
+              _subscriptionBranchNavigatorKey,
+              _settingsBranchNavigatorKey,
+            ],
+          );
         },
         branches: [
           // Branch 0: Ana Sayfa
           StatefulShellBranch(
+            navigatorKey: _homeBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/',
@@ -208,6 +238,7 @@ GoRouter createRouter({
 
           // Branch 1: Stüdyo
           StatefulShellBranch(
+            navigatorKey: _studioBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/studio',
@@ -219,6 +250,7 @@ GoRouter createRouter({
 
           // Branch 2: Abonelik
           StatefulShellBranch(
+            navigatorKey: _discoveryBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/discovery-canvas',
@@ -230,6 +262,7 @@ GoRouter createRouter({
 
           // Branch 3: Abonelik
           StatefulShellBranch(
+            navigatorKey: _subscriptionBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/subscription',
@@ -241,6 +274,7 @@ GoRouter createRouter({
 
           // Branch 4: Ayarlar
           StatefulShellBranch(
+            navigatorKey: _settingsBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/settings',

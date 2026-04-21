@@ -108,6 +108,8 @@ class AuthRepository {
     String? avatarUrl,
     bool? isVerifiedAuthor,
     bool? signupSetupCompleted,
+    int? age,
+    DateTime? birthDate,
   }) async {
     final updates = <String, dynamic>{};
     if (username != null) updates['username'] = username;
@@ -119,6 +121,10 @@ class AuthRepository {
     }
     if (signupSetupCompleted != null) {
       updates['signup_setup_completed'] = signupSetupCompleted;
+    }
+    if (age != null) updates['age'] = age;
+    if (birthDate != null) {
+      updates['birth_date'] = birthDate.toIso8601String().split('T').first;
     }
 
     if (updates.isEmpty) {

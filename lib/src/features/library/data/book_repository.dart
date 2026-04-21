@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/auth_repository.dart';
@@ -15,6 +16,7 @@ enum BookSortOrder {
 class BookRepository {
   BookRepository(this._client);
   final SupabaseClient _client;
+  static const String _localAllowAdultKeyPrefix = 'allow_adult_content_';
 
   /// Yayınlanan kitapları listele (vitrin) — sıralama ve kategori filtresi
   Future<List<Book>> getPublishedBooks({
@@ -47,7 +49,7 @@ class BookRepository {
       books = await _sortByRating(books);
     }
 
-    return books;
+    return _applyAgeGate(books);
   }
 
   /// Kitapları ortalama puana göre sıralar (reviews tablosundan)
@@ -84,7 +86,10 @@ class BookRepository {
         await _client.from('books').select().eq('id', bookId).maybeSingle();
 
     if (data == null) return null;
-    return Book.fromJson(data);
+    final book = Book.fromJson(data);
+    final canSeeAdult = await _canSeeAdultContent();
+    if (!canSeeAdult && book.isAdult18) return null;
+    return book;
   }
 
   /// Birden fazla kitabı ID listesine göre getirir (sıra korunur).
@@ -95,10 +100,11 @@ class BookRepository {
         .select()
         .inFilter('id', bookIds);
     final byId = {for (final j in data) j['id'] as String: Book.fromJson(j)};
-    return bookIds
+    final books = bookIds
         .map((id) => byId[id])
         .whereType<Book>()
         .toList();
+    return _applyAgeGate(books);
   }
 
   /// Bir yazarın yayınlanmış kitapları
@@ -110,7 +116,8 @@ class BookRepository {
         .eq('status', 'published')
         .order('created_at', ascending: false);
 
-    return data.map((json) => Book.fromJson(json)).toList();
+    final books = data.map((json) => Book.fromJson(json)).toList();
+    return _applyAgeGate(books);
   }
 
   /// Yazarın kendi kitapları
@@ -203,7 +210,8 @@ class BookRepository {
 
     final data = await q.order('created_at', ascending: false);
 
-    return data.map<Book>((json) => Book.fromJson(json)).toList();
+    final books = data.map<Book>((json) => Book.fromJson(json)).toList();
+    return _applyAgeGate(books);
   }
 
   /// Vellum Exclusive olarak işaretlenen yayınlanmış kitaplar
@@ -216,7 +224,8 @@ class BookRepository {
         .order('created_at', ascending: false)
         .limit(limit);
 
-    return data.map<Book>((json) => Book.fromJson(json)).toList();
+    final books = data.map<Book>((json) => Book.fromJson(json)).toList();
+    return _applyAgeGate(books);
   }
 
   /// Bir kitabın Vellum Exclusive durumunu değiştir
@@ -241,6 +250,19 @@ class BookRepository {
   /// Kitap detayı açıldığında görüntülenme sayısını 1 artırır (RPC: increment_book_view)
   Future<void> incrementBookView(String bookId) async {
     await _client.rpc('increment_book_view', params: {'book_id': bookId});
+  }
+
+  Future<List<Book>> _applyAgeGate(List<Book> books) async {
+    final canSeeAdult = await _canSeeAdultContent();
+    if (canSeeAdult) return books;
+    return books.where((b) => !b.isAdult18).toList();
+  }
+
+  Future<bool> _canSeeAdultContent() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return true;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('$_localAllowAdultKeyPrefix$userId') ?? true;
   }
 }
 

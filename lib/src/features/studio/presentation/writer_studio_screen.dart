@@ -10,15 +10,48 @@ import '../../library/data/book_repository.dart';
 import '../../library/domain/book.dart';
 import '../../library/presentation/create_post_sheet.dart';
 import '../../subscription/services/subscription_status_service.dart';
+import '../../shared/widgets/scaffold_with_nav.dart';
 import 'create_book_screen.dart';
 
 const int _freeBookLimit = 1;
 
-class WriterStudioScreen extends ConsumerWidget {
+class WriterStudioScreen extends ConsumerStatefulWidget {
   const WriterStudioScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WriterStudioScreen> createState() => _WriterStudioScreenState();
+}
+
+class _WriterStudioScreenState extends ConsumerState<WriterStudioScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    navRetapEventNotifier.addListener(_handleRetap);
+  }
+
+  @override
+  void dispose() {
+    navRetapEventNotifier.removeListener(_handleRetap);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleRetap() {
+    final event = navRetapEventNotifier.value;
+    if (event == null || event.index != 1) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(currentProfileProvider);
     final isProAsync = ref.watch(isProProvider);
     final myBooksAsync = ref.watch(myBooksProvider);
@@ -26,13 +59,14 @@ class WriterStudioScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final isPro = isProAsync.valueOrNull ?? false;
 
-    final bottomPadding = MediaQuery.paddingOf(context).bottom + 98;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + 23;
 
     return Scaffold(
       body: Stack(
         children: [
           ClipRect(
             child: CustomScrollView(
+              controller: _scrollController,
         slivers: [
             // Özel başlık alanı (gradient + tipografi)
             SliverToBoxAdapter(

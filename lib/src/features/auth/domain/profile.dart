@@ -30,6 +30,8 @@ class Profile with _$Profile {
     @Default(false)
     @JsonKey(name: 'signup_setup_completed')
     bool signupSetupCompleted,
+    int? age,
+    @JsonKey(name: 'birth_date') DateTime? birthDate,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     @Default('') String bio,
     @Default(<Map<String, dynamic>>[])

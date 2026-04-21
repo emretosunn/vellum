@@ -5,12 +5,15 @@ import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 import '../../../app.dart';
 import '../data/auth_repository.dart';
 import '../../subscription/services/subscription_status_service.dart';
+
+enum _AuthEntryStage { methodChoice, emailForm }
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +23,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  static const String _kOnboardingName = 'onboarding_display_name';
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -30,6 +34,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = false;
   bool _acceptedTerms = false;
   String? _errorMessage;
+  _AuthEntryStage _entryStage = _AuthEntryStage.methodChoice;
+  String? _onboardingName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOnboardingName();
+  }
+
+  Future<void> _loadOnboardingName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _onboardingName = prefs.getString(_kOnboardingName)?.trim();
+    });
+  }
 
   @override
   void dispose() {
@@ -82,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(isProProvider);
 
       if (mounted) {
-        context.go(didSignUp ? '/signup-setup' : '/');
+        context.go(didSignUp ? '/signup-setup' : '/splash');
       }
     } catch (e) {
       if (mounted) {
@@ -151,6 +171,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _isLogin = !_isLogin;
       _errorMessage = null;
       _acceptedTerms = false;
+      _entryStage = _AuthEntryStage.emailForm;
+    });
+  }
+
+  void _openEmailFlow({bool login = true}) {
+    setState(() {
+      _isLogin = login;
+      _errorMessage = null;
+      _entryStage = _AuthEntryStage.emailForm;
+    });
+  }
+
+  void _backToMethodChoice() {
+    setState(() {
+      _errorMessage = null;
+      _entryStage = _AuthEntryStage.methodChoice;
     });
   }
 
@@ -321,7 +357,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return _auth('auth.error_generic', 'Bir hata oluştu. Lütfen tekrar deneyin.');
   }
 
+  String _buildHelloWithName() {
+    final name = (_onboardingName ?? '').trim();
+    final helloRaw = _auth('auth.hello_title', 'Hello');
+    final hello = helloRaw.replaceAll(RegExp(r'[\s,;:]+$'), '');
+    if (name.isEmpty) return helloRaw;
+    return '$hello, $name';
+  }
+
   Widget _buildMobileLayout(BuildContext context) {
+    if (_entryStage == _AuthEntryStage.methodChoice) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.sizeOf(context).height -
+              MediaQuery.paddingOf(context).top -
+              MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          children: [
+            _buildHeaderSection(context, compact: true),
+            const Spacer(),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.07),
+              ),
+              child: _buildFormCard(context),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -332,7 +399,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           children: [
             _buildHeaderSection(context, compact: true),
-            const SizedBox(height: 44),
+            const SizedBox(height: 76),
             _buildFormCard(context),
           ],
         ),
@@ -343,6 +410,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildHeaderSection(BuildContext context, {bool compact = false}) {
     final theme = Theme.of(context);
     final isLogin = _isLogin;
+    final hasName = (_onboardingName ?? '').isNotEmpty;
 
     return Padding(
       // Üst boşluğu daha da artır: tüm içerik ekranın ortasına doğru insin.
@@ -352,13 +420,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           Text(
             isLogin
-                ? _auth('auth.hello_title', 'Merhaba,')
+                ? (hasName
+                    ? _buildHelloWithName()
+                    : _auth('auth.hello_title', 'Merhaba,'))
                 : _auth('auth.welcome_title', 'Hoş geldin,'),
             style: GoogleFonts.inter(
-              fontSize: compact ? 32 : 36,
-              fontWeight: FontWeight.w800,
+              fontSize: compact ? 36 : 42,
+              fontWeight: FontWeight.w900,
               color: AppColors.primary,
-              letterSpacing: -0.5,
+              letterSpacing: -0.7,
             ),
             textAlign: TextAlign.center,
           ),
@@ -368,10 +438,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ? _auth('auth.welcome_back', 'Tekrar Hoş Geldin')
                 : _auth('auth.signup_title', 'Kayıt Ol'),
             style: GoogleFonts.inter(
-              fontSize: compact ? 26 : 30,
-              fontWeight: FontWeight.w700,
+              fontSize: compact ? 42 : 48,
+              fontWeight: FontWeight.w900,
               color: theme.colorScheme.onSurface,
-              letterSpacing: -0.2,
+              letterSpacing: -0.8,
+              height: 1.05,
             ),
             textAlign: TextAlign.center,
           ),
@@ -382,10 +453,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 : _auth('auth.signup_subtitle',
                     'Hesabını oluştur, hikâyelerini dünyayla paylaş.'),
             style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              height: 1.4,
+              height: 1.25,
             ),
             textAlign: TextAlign.center,
           ),
@@ -480,12 +551,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final showApple = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
+
+    if (_entryStage == _AuthEntryStage.methodChoice) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MethodChoiceButton(
+              text: 'Google',
+              onTap: _isLoading ? null : _signInWithGoogle,
+              leading: SvgPicture.asset(
+                'assets/image/google_login.svg',
+                width: 24,
+                height: 24,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _MethodChoiceButton(
+              text: 'Facebook',
+              onTap: _isLoading ? null : _signInWithFacebook,
+              leading: const Icon(Icons.facebook_rounded, size: 24),
+            ),
+            const SizedBox(height: 14),
+            if (showApple)
+              _MethodChoiceButton(
+                text: 'Apple',
+                onTap: () {},
+                leading: const Icon(Icons.apple_rounded, size: 24),
+              ),
+            const SizedBox(height: 42),
+            Text(
+              _auth('auth.or', 'veya'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => _openEmailFlow(login: true),
+              child: Text(_auth('auth.email_continue', 'e-posta ile devam edin')),
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 14),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+            ],
+            if (_isLoading) ...[
+              const SizedBox(height: 18),
+              const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _backToMethodChoice,
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: Text(translate('common.back')),
+            ),
+          ),
           Form(
             key: _formKey,
             child: Column(
@@ -846,6 +994,55 @@ class _SocialCircleIcon extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
         ),
+      ),
+    );
+  }
+}
+
+class _MethodChoiceButton extends StatelessWidget {
+  const _MethodChoiceButton({
+    required this.text,
+    required this.onTap,
+    required this.leading,
+  });
+
+  final String text;
+  final VoidCallback? onTap;
+  final Widget leading;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(56),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        side: BorderSide(
+          color: AppColors.primary.withValues(alpha: 0.28),
+          width: 1.1,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        elevation: 0,
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 24, height: 24, child: Center(child: leading)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 24),
+        ],
       ),
     );
   }

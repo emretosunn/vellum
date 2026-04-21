@@ -47,8 +47,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           if (doneLocal) {
             // Lokal işaret varsa backend gecikmesi/RLS nedeniyle bir tur daha
             // signup-setup'a düşmeyi engelle.
-            final onboardingDone = ref.read(onboardingCompletedProvider);
-            context.go(onboardingDone ? '/' : '/onboarding');
+            context.go('/');
             return;
           }
         }
@@ -66,7 +65,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     final onboardingDone = ref.read(onboardingCompletedProvider);
 
-    if (!onboardingDone) {
+    if (!isLoggedIn && !onboardingDone) {
       context.go('/onboarding');
     } else {
       context.go(isLoggedIn ? '/' : '/login');

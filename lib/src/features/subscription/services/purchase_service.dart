@@ -22,6 +22,20 @@ class SubscriptionPurchaseService {
   static const String _monthlyId = 'aylik_premium';
   static const String _yearlyId = 'yillik_premium';
 
+  Future<Map<String, ProductDetails>> getSubscriptionProducts() async {
+    final available = await _iap.isAvailable();
+    if (!available) return const {};
+
+    final response = await _iap.queryProductDetails({_monthlyId, _yearlyId});
+    if (response.error != null || response.productDetails.isEmpty) {
+      return const {};
+    }
+
+    return {
+      for (final p in response.productDetails) p.id: p,
+    };
+  }
+
   /// Mağaza bağlantısını ve ürün listesini önceden yükler; ilk satın alma tıklamasında gecikmeyi azaltır.
   void warmUpStore() {
     _iap.isAvailable().then((_) {

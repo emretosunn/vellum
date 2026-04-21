@@ -7,6 +7,14 @@ import 'package:go_router/go_router.dart';
 import '../../../constants/app_colors.dart';
 import '../../../utils/responsive.dart';
 
+class NavRetapEvent {
+  const NavRetapEvent({required this.index, required this.nonce});
+  final int index;
+  final int nonce;
+}
+
+final navRetapEventNotifier = ValueNotifier<NavRetapEvent?>(null);
+
 /// Responsive navigasyon shell'i.
 ///
 /// Mobile: Glassmorphism [BottomNavigationBar]
@@ -15,9 +23,11 @@ class ScaffoldWithNav extends StatelessWidget {
   const ScaffoldWithNav({
     super.key,
     required this.navigationShell,
+    required this.branchNavigatorKeys,
   });
 
   final StatefulNavigationShell navigationShell;
+  final List<GlobalKey<NavigatorState>> branchNavigatorKeys;
 
   static List<_NavDestination> _getDestinations(BuildContext context) => [
     _NavDestination(
@@ -47,11 +57,41 @@ class ScaffoldWithNav extends StatelessWidget {
     ),
   ];
 
-  void _onDestinationSelected(int index) {
+  void _onDestinationSelected(BuildContext context, int index) {
+    final isRetap = index == navigationShell.currentIndex;
+    if (index == navigationShell.currentIndex) {
+      final branchNav = index >= 0 && index < branchNavigatorKeys.length
+          ? branchNavigatorKeys[index].currentState
+          : null;
+      if (branchNav != null && branchNav.canPop()) {
+        branchNav.popUntil((route) => route.isFirst);
+      }
+    }
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,
     );
+
+    if (isRetap) {
+      navRetapEventNotifier.value = NavRetapEvent(
+        index: index,
+        nonce: DateTime.now().microsecondsSinceEpoch,
+      );
+      // Aynı taba tekrar basıldığında ilgili tabın ana sayfasına dönüp
+      // mümkünse içeriği en üste kaydır.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (index < 0 || index >= branchNavigatorKeys.length) return;
+        final branchContext = branchNavigatorKeys[index].currentContext;
+        if (branchContext == null) return;
+        final primary = PrimaryScrollController.maybeOf(branchContext);
+        if (primary == null || !primary.hasClients) return;
+        primary.animateTo(
+          0,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
   }
 
   @override
@@ -66,7 +106,7 @@ class ScaffoldWithNav extends StatelessWidget {
         bottomNavigationBar: _GlassBottomNav(
           currentIndex: currentIndex,
           destinations: _getDestinations(context),
-          onTap: _onDestinationSelected,
+          onTap: (index) => _onDestinationSelected(context, index),
         ),
       );
     }
@@ -78,7 +118,7 @@ class ScaffoldWithNav extends StatelessWidget {
           _PremiumSidebar(
             currentIndex: currentIndex,
             destinations: _getDestinations(context),
-            onTap: _onDestinationSelected,
+            onTap: (index) => _onDestinationSelected(context, index),
             isExpanded: context.isDesktop,
           ),
           Expanded(child: navigationShell),

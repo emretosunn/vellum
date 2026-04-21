@@ -24,6 +24,7 @@ import '../../library/domain/book.dart';
 import '../../library/offline/offline_book.dart';
 import '../../library/offline/offline_download_manager.dart';
 import '../../notifications/presentation/notifications_screen.dart';
+import '../../shared/widgets/scaffold_with_nav.dart';
 
 /// Saate göre selamlama (referans tasarım: GOOD MORNING / EVENING)
 String _timeBasedGreeting() {
@@ -415,11 +416,43 @@ class HomeScreen extends ConsumerWidget {
 }
 
 /// Keşfet sekmesi: mevcut ana sayfa içeriği (arama, hero, kitaplar, indirilenler).
-class _DiscoverTab extends ConsumerWidget {
+class _DiscoverTab extends ConsumerStatefulWidget {
   const _DiscoverTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DiscoverTab> createState() => _DiscoverTabState();
+}
+
+class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    navRetapEventNotifier.addListener(_handleRetap);
+  }
+
+  @override
+  void dispose() {
+    navRetapEventNotifier.removeListener(_handleRetap);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleRetap() {
+    final event = navRetapEventNotifier.value;
+    if (event == null || event.index != 0) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final booksAsync = ref.watch(searchedBooksProvider);
     final authorsAsync = ref.watch(searchAuthorsProvider);
     final recentAsync = ref.watch(recentBooksProvider);
@@ -449,6 +482,7 @@ class _DiscoverTab extends ConsumerWidget {
       },
       child: ClipRect(
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
                   if (isOffline) ...[
@@ -935,11 +969,43 @@ class _AuthorSearchTile extends StatelessWidget {
 }
 
 /// Takip Edilenler sekmesi: takip ettiğin yazarların metin paylaşımları.
-class _FollowingFeedTab extends ConsumerWidget {
+class _FollowingFeedTab extends ConsumerStatefulWidget {
   const _FollowingFeedTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FollowingFeedTab> createState() => _FollowingFeedTabState();
+}
+
+class _FollowingFeedTabState extends ConsumerState<_FollowingFeedTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    navRetapEventNotifier.addListener(_handleRetap);
+  }
+
+  @override
+  void dispose() {
+    navRetapEventNotifier.removeListener(_handleRetap);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleRetap() {
+    final event = navRetapEventNotifier.value;
+    if (event == null || event.index != 0) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final feedAsync = ref.watch(followingFeedProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -972,6 +1038,7 @@ class _FollowingFeedTab extends ConsumerWidget {
         data: (posts) {
           if (posts.isEmpty) {
             return ListView(
+              controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
               children: [
                 Icon(Icons.people_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
@@ -991,6 +1058,7 @@ class _FollowingFeedTab extends ConsumerWidget {
             );
           }
           return ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: posts.length,
             itemBuilder: (context, index) {

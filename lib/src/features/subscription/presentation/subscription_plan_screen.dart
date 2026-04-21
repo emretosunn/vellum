@@ -3,13 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/user_friendly_error.dart';
-import '../data/subscription_repository.dart';
 import '../services/purchase_service.dart';
 import '../../auth/data/auth_repository.dart';
-import '../services/subscription_status_service.dart';
 
 /// Plan seçim modalını gösterir. Cam saydam arka plan, yatay kaydırılabilir kartlar.
 Future<bool?> showSubscriptionPlanModal(BuildContext context) {
@@ -62,11 +62,14 @@ Future<bool?> showSubscriptionPlanModal(BuildContext context) {
                           width: 1,
                         ),
                       ),
-                      child: Consumer(
-                        builder: (_, ref, __) => _SubscriptionPlanModalContent(
-                          ref: ref,
-                          onClose: () => Navigator.of(context).pop(false),
-                          onSubscribed: () => Navigator.of(context).pop(true),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Consumer(
+                          builder: (_, ref, __) => _SubscriptionPlanModalContent(
+                            ref: ref,
+                            onClose: () => Navigator.of(context).pop(false),
+                            onSubscribed: () => Navigator.of(context).pop(true),
+                          ),
                         ),
                       ),
                     ),
@@ -100,7 +103,9 @@ class _SubscriptionPlanModalContentState
     extends ConsumerState<_SubscriptionPlanModalContent> {
   bool _isYearly = true;
   bool _isLoading = false;
-  final _pageController = PageController(viewportFraction: 0.88);
+  bool _loadingPrices = false;
+  ProductDetails? _monthlyProduct;
+  ProductDetails? _yearlyProduct;
 
   static const _monthlyPrice = 49.99;
   static const _yearlyPrice = 399.99;
@@ -121,124 +126,209 @@ class _SubscriptionPlanModalContentState
     // Mağaza bağlantısını önceden başlat; böylece "Abone ol" tıklanınca Play penceresi hemen açılabilir.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.ref.read(subscriptionPurchaseServiceProvider).warmUpStore();
+      _loadProducts();
     });
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
+  Future<void> _loadProducts() async {
+    setState(() => _loadingPrices = true);
+    try {
+      final products = await widget.ref
+          .read(subscriptionPurchaseServiceProvider)
+          .getSubscriptionProducts();
+      if (!mounted) return;
+      setState(() {
+        _monthlyProduct = products['aylik_premium'];
+        _yearlyProduct = products['yillik_premium'];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPrices = false);
+      }
+    }
+  }
+
+  String _currencySymbol(String? code) {
+    switch ((code ?? '').toUpperCase()) {
+      case 'TRY':
+        return '₺';
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      default:
+        return code ?? '';
+    }
+  }
+
+  String _derivedPerMonthFromYearly() {
+    final yearly = _yearlyProduct;
+    if (yearly == null) {
+      return '\$${(_yearlyPrice / 12).toStringAsFixed(2)}';
+    }
+    final symbol = _currencySymbol(yearly.currencyCode);
+    final v = yearly.rawPrice / 12;
+    return '$symbol${v.toStringAsFixed(2)}';
+  }
+
+  String _yearlyPerYearLabel() {
+    final yearly = _yearlyProduct;
+    if (yearly == null) {
+      return '\$${_yearlyPrice.toStringAsFixed(2)} / year';
+    }
+    return '${yearly.price} / ${_sub('subscription.per_year_word', 'year')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final userId = widget.ref.read(authRepositoryProvider).currentUser?.id;
+    final monthlyPriceText =
+        _monthlyProduct?.price ?? '\$${_monthlyPrice.toStringAsFixed(2)}';
+    final yearlyPerMonthText = _derivedPerMonthFromYearly();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
-          child: Row(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(width: 32),
-              Text(
-                '{ ${_sub('subscription.pricing_label', 'Fiyatlandırma')} }',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                  letterSpacing: 1.2,
-                ),
-              ),
               IconButton(
                 onPressed: widget.onClose,
-                icon: Icon(
-                  Icons.close_rounded,
+                icon: const Icon(Icons.close_rounded),
+              ),
+              TextButton(
+                onPressed: () {},
+                child: Text(_sub('subscription.restore', 'Restore')),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _sub('subscription.unlock_title', 'Unlock'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          Text(
+            _sub('subscription.unlock_subtitle', 'Unlimited Access'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _BenefitTile(
+            icon: Icons.lock_rounded,
+            title: _sub('subscription.benefit_1_title', 'Full access to all content'),
+            subtitle: _sub(
+              'subscription.benefit_1_subtitle',
+              'Unlock your full potential with instant and unlimited access to all content.',
+            ),
+          ),
+          _BenefitTile(
+            icon: Icons.favorite_rounded,
+            title: _sub('subscription.benefit_2_title', 'AI Coach/Dietitian Assistant 24/7'),
+            subtitle: _sub(
+              'subscription.benefit_2_subtitle',
+              'Your 24/7 smart assistant guiding your writing and productivity goals.',
+            ),
+          ),
+          _BenefitTile(
+            icon: Icons.notifications_active_rounded,
+            title: _sub('subscription.benefit_3_title', 'Unlimited Habit Reminders'),
+            subtitle: _sub(
+              'subscription.benefit_3_subtitle',
+              'Stay on track with personalized and unlimited reminders.',
+            ),
+          ),
+          const SizedBox(height: 14),
+          _PlanOptionCard(
+            selected: !_isYearly,
+            title: _sub('subscription.monthly_label', 'Monthly'),
+            trailingTop: monthlyPriceText,
+            trailingBottom: _sub('subscription.monthly_suffix', '/ month'),
+            onTap: () => setState(() => _isYearly = false),
+            theme: theme,
+          ),
+          const SizedBox(height: 10),
+          _PlanOptionCard(
+            selected: _isYearly,
+            title: _sub('subscription.yearly_label', 'Yearly'),
+            leadingBottom: _yearlyPerYearLabel(),
+            badgeText: _sub('subscription.best_price_badge', 'Best Price'),
+            trailingTop: yearlyPerMonthText,
+            trailingBottom: _sub('subscription.billed_annually', 'Billed annually'),
+            onTap: () => setState(() => _isYearly = true),
+            theme: theme,
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 54,
+            child: ElevatedButton(
+              onPressed: (_isLoading || userId == null) ? null : () => _subscribe(userId),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.3,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      _sub('subscription.continue', 'Continue'),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _sub('subscription.terms_short', 'Terms'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                _sub('subscription.privacy_short', 'Privacy'),
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Text(
-            _sub('subscription.premium_title', 'Her Planda Premium Araçların\nKeyfini Çıkarın'),
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-              height: 1.25,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _ToolIconsRow(theme: theme, sub: _sub),
-        const SizedBox(height: 20),
-        Flexible(
-          child: SizedBox(
-            height: 460,
-            child: PageView(
-              controller: _pageController,
-              physics: const BouncingScrollPhysics(),
-              children: [
-                _GlassPlanCard(
-                  theme: theme,
-                  planName: _sub('subscription.free_plan', 'Ücretsiz'),
-                  accentColor: Colors.grey.shade600,
-                  description: _sub('subscription.pro_description', 'Yazarlar için tasarlanmış araçlarla daha iyi içerik üretin.'),
-                  features: [
-                    (_sub('subscription.feature_unlimited', 'Sınırsız kitap oluşturma ve yayınlama'), false),
-                    (_sub('subscription.feature_studio', 'Yazı Stüdyosu tam erişim'), false),
-                    (_sub('subscription.feature_badge', 'Onaylı yazar rozeti'), false),
-                    (_sub('subscription.feature_support', 'Öncelikli destek'), false),
-                  ],
-                  limitText: _sub('subscription.limit_3_books', 'En fazla 3 kitap'),
-                  isPro: false,
-                  onSubscribe: null,
-                  isLoading: false,
-                  sub: _sub,
+          if (_loadingPrices)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _sub('subscription.loading_prices', 'Fiyatlar güncelleniyor...'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                _GlassPlanCard(
-                  theme: theme,
-                  planName: 'Vellum Pro',
-                  accentColor: AppColors.primary,
-                  description: _sub('subscription.pro_description', 'Yazarlar için tasarlanmış araçlarla daha iyi içerik üretin.'),
-                  features: [
-                    (_sub('subscription.feature_unlimited', 'Sınırsız kitap oluşturma ve yayınlama'), true),
-                    (_sub('subscription.feature_studio', 'Yazı Stüdyosu tam erişim'), true),
-                    (_sub('subscription.feature_badge', 'Onaylı yazar rozeti'), true),
-                    (_sub('subscription.feature_support', 'Öncelikli destek'), true),
-                  ],
-                  limitText: null,
-                  isPro: true,
-                  isYearly: _isYearly,
-                  monthlyPrice: _monthlyPrice,
-                  yearlyPrice: _yearlyPrice,
-                  onSubscribe: userId != null ? () => _subscribe(userId) : null,
-                  isLoading: _isLoading,
-                  sub: _sub,
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _PeriodToggle(
-          isYearly: _isYearly,
-          onChanged: (v) => setState(() => _isYearly = v),
-          sub: _sub,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          _sub('subscription.swipe_hint', 'Kartları kaydırarak planları inceleyin'),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
+        ],
+      ),
     );
   }
 
@@ -252,18 +342,9 @@ class _SubscriptionPlanModalContentState
             userId: userId,
             isYearly: _isYearly,
           );
-      widget.ref.invalidate(currentProfileProvider);
-      widget.ref.invalidate(paymentHistoryProvider);
-      widget.ref.invalidate(isProProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_sub('subscription.activated', 'Aboneliğiniz başarıyla aktifleştirildi!')),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        widget.onSubscribed();
+        await _showSuccessDialog();
       }
     } catch (e) {
       if (mounted) {
@@ -283,303 +364,132 @@ class _SubscriptionPlanModalContentState
       if (mounted) setState(() => _isLoading = false);
     }
   }
-}
 
-class _ToolIconsRow extends StatelessWidget {
-  const _ToolIconsRow({required this.theme, required this.sub});
-  final ThemeData theme;
-  final String Function(String, String) sub;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _ToolIcon(
-          icon: Icons.auto_stories_rounded,
-          label: sub('subscription.tool_books', 'Kitap Oluşturma'),
-          theme: theme,
-        ),
-        _ToolIcon(
-          icon: Icons.edit_note_rounded,
-          label: sub('subscription.tool_studio', 'Yazı Stüdyosu'),
-          theme: theme,
-        ),
-        _ToolIcon(
-          icon: Icons.publish_rounded,
-          label: sub('subscription.tool_publish', 'Yayınlama'),
-          theme: theme,
-        ),
-      ],
-    );
-  }
-}
-
-class _ToolIcon extends StatelessWidget {
-  const _ToolIcon({
-    required this.icon,
-    required this.label,
-    required this.theme,
-  });
-  final IconData icon;
-  final String label;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+  Future<void> _showSuccessDialog() async {
+    final theme = Theme.of(context);
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 24),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GlassPlanCard extends StatelessWidget {
-  const _GlassPlanCard({
-    required this.theme,
-    required this.planName,
-    required this.accentColor,
-    required this.description,
-    required this.features,
-    this.limitText,
-    required this.isPro,
-    this.isYearly,
-    this.monthlyPrice,
-    this.yearlyPrice,
-    this.onSubscribe,
-    required this.isLoading,
-    required this.sub,
-  });
-  final ThemeData theme;
-  final String planName;
-  final Color accentColor;
-  final String description;
-  final List<(String, bool)> features;
-  final String? limitText;
-  final bool isPro;
-  final bool? isYearly;
-  final double? monthlyPrice;
-  final double? yearlyPrice;
-  final VoidCallback? onSubscribe;
-  final bool isLoading;
-  final String Function(String, String) sub;
-
-  @override
-  Widget build(BuildContext context) {
-    final children = <Widget>[
-      Center(
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: accentColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(
-            isPro ? Icons.workspace_premium_rounded : Icons.person_outline_rounded,
-            size: 32,
-            color: accentColor,
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        planName,
-        style: theme.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
-        ),
-        textAlign: TextAlign.center,
-      ),
-      const SizedBox(height: 4),
-      Text(
-        description,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      const SizedBox(height: 10),
-      for (final f in features)
-        _FeatureRow(
-          text: f.$1,
-          included: f.$2,
-          theme: theme,
-        ),
-    ];
-
-    if (limitText != null && !isPro) {
-      children.addAll([
-        const SizedBox(height: 4),
-        Text(
-          limitText!,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ]);
-    }
-
-    if (isPro && isYearly != null && monthlyPrice != null && yearlyPrice != null) {
-      children.addAll([
-        const SizedBox(height: 8),
-        if (isYearly!)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              sub('subscription.save_percent', '%33 tasarruf'),
-              style: TextStyle(
-                color: accentColor,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '₺${(isYearly! ? yearlyPrice! : monthlyPrice!).toStringAsFixed(2)}',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              isYearly! ? sub('subscription.per_year', '/yıl') : sub('subscription.per_month', '/ay'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 44,
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onSubscribe,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    sub('subscription.subscribe_btn', 'Abone Ol'),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 190,
+                    child: Lottie.asset(
+                      'assets/animation/hello.json',
+                      repeat: true,
                     ),
                   ),
-          ),
-        ),
-      ]);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withValues(
-                alpha: theme.brightness == Brightness.dark ? 0.5 : 0.6,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: accentColor.withValues(alpha: 0.3),
-                width: 1,
+                  const SizedBox(height: 8),
+                  Text(
+                    _sub('subscription.success_title', 'Vellum Pro Aktif!'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _sub(
+                      'subscription.success_subtitle',
+                      'Tüm premium özellikler artık hesabınızda aktif.',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        widget.onSubscribed();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        _sub('subscription.success_continue', 'Harika, devam et'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: children,
-              ),
-            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
-class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({
-    required this.text,
-    required this.included,
-    required this.theme,
+class _BenefitTile extends StatelessWidget {
+  const _BenefitTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
   });
-  final String text;
-  final bool included;
-  final ThemeData theme;
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            included ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            size: 18,
-            color: included ? AppColors.success : theme.colorScheme.outline,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 18, color: AppColors.primary),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -588,74 +498,105 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-class _PeriodToggle extends StatelessWidget {
-  const _PeriodToggle({
-    required this.isYearly,
-    required this.onChanged,
-    required this.sub,
+class _PlanOptionCard extends StatelessWidget {
+  const _PlanOptionCard({
+    required this.selected,
+    required this.title,
+    this.leadingBottom,
+    this.badgeText,
+    required this.trailingTop,
+    required this.trailingBottom,
+    required this.onTap,
+    required this.theme,
   });
-  final bool isYearly;
-  final ValueChanged<bool> onChanged;
-  final String Function(String, String) sub;
+
+  final bool selected;
+  final String title;
+  final String? leadingBottom;
+  final String? badgeText;
+  final String trailingTop;
+  final String trailingBottom;
+  final VoidCallback onTap;
+  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.all(4),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(14),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.35),
+            width: selected ? 1.8 : 1.0,
+          ),
         ),
         child: Row(
           children: [
             Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(false),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: !isYearly ? AppColors.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    sub('subscription.monthly', 'Aylık'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: !isYearly ? FontWeight.bold : FontWeight.normal,
-                      color: !isYearly
-                          ? Colors.white
-                          : theme.colorScheme.onSurfaceVariant,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
+                  if (leadingBottom != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        leadingBottom!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(true),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isYearly ? AppColors.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    sub('subscription.yearly', 'Yıllık'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: isYearly ? FontWeight.bold : FontWeight.normal,
-                      color: isYearly
-                          ? Colors.white
-                          : theme.colorScheme.onSurfaceVariant,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (badgeText != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      badgeText!,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                Text(
+                  trailingTop,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
+                Text(
+                  trailingBottom,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -663,3 +604,4 @@ class _PeriodToggle extends StatelessWidget {
     );
   }
 }
+

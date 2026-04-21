@@ -36,6 +36,9 @@ mixin _$Profile {
   bool get isDeveloper => throw _privateConstructorUsedError;
   @JsonKey(name: 'signup_setup_completed')
   bool get signupSetupCompleted => throw _privateConstructorUsedError;
+  int? get age => throw _privateConstructorUsedError;
+  @JsonKey(name: 'birth_date')
+  DateTime? get birthDate => throw _privateConstructorUsedError;
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl => throw _privateConstructorUsedError;
   String get bio => throw _privateConstructorUsedError;
@@ -74,6 +77,8 @@ abstract class $ProfileCopyWith<$Res> {
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') bool isDeveloper,
     @JsonKey(name: 'signup_setup_completed') bool signupSetupCompleted,
+    int? age,
+    @JsonKey(name: 'birth_date') DateTime? birthDate,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -110,6 +115,8 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
     Object? isVerifiedAuthor = null,
     Object? isDeveloper = null,
     Object? signupSetupCompleted = null,
+    Object? age = freezed,
+    Object? birthDate = freezed,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -154,6 +161,14 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
                 ? _value.signupSetupCompleted
                 : signupSetupCompleted // ignore: cast_nullable_to_non_nullable
                       as bool,
+            age: freezed == age
+                ? _value.age
+                : age // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            birthDate: freezed == birthDate
+                ? _value.birthDate
+                : birthDate // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             avatarUrl: freezed == avatarUrl
                 ? _value.avatarUrl
                 : avatarUrl // ignore: cast_nullable_to_non_nullable
@@ -198,6 +213,8 @@ abstract class _$$ProfileImplCopyWith<$Res> implements $ProfileCopyWith<$Res> {
     @JsonKey(name: 'is_verified_author') bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') bool isDeveloper,
     @JsonKey(name: 'signup_setup_completed') bool signupSetupCompleted,
+    int? age,
+    @JsonKey(name: 'birth_date') DateTime? birthDate,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String bio,
     @JsonKey(readValue: _readLinks) List<Map<String, dynamic>> links,
@@ -233,6 +250,8 @@ class __$$ProfileImplCopyWithImpl<$Res>
     Object? isVerifiedAuthor = null,
     Object? isDeveloper = null,
     Object? signupSetupCompleted = null,
+    Object? age = freezed,
+    Object? birthDate = freezed,
     Object? avatarUrl = freezed,
     Object? bio = null,
     Object? links = null,
@@ -277,6 +296,14 @@ class __$$ProfileImplCopyWithImpl<$Res>
             ? _value.signupSetupCompleted
             : signupSetupCompleted // ignore: cast_nullable_to_non_nullable
                   as bool,
+        age: freezed == age
+            ? _value.age
+            : age // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        birthDate: freezed == birthDate
+            ? _value.birthDate
+            : birthDate // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         avatarUrl: freezed == avatarUrl
             ? _value.avatarUrl
             : avatarUrl // ignore: cast_nullable_to_non_nullable
@@ -315,6 +342,8 @@ class _$ProfileImpl extends _Profile {
     @JsonKey(name: 'is_verified_author') this.isVerifiedAuthor = false,
     @JsonKey(name: 'is_developer') this.isDeveloper = false,
     @JsonKey(name: 'signup_setup_completed') this.signupSetupCompleted = false,
+    this.age,
+    @JsonKey(name: 'birth_date') this.birthDate,
     @JsonKey(name: 'avatar_url') this.avatarUrl,
     this.bio = '',
     @JsonKey(readValue: _readLinks)
@@ -366,6 +395,11 @@ class _$ProfileImpl extends _Profile {
   @JsonKey(name: 'signup_setup_completed')
   final bool signupSetupCompleted;
   @override
+  final int? age;
+  @override
+  @JsonKey(name: 'birth_date')
+  final DateTime? birthDate;
+  @override
   @JsonKey(name: 'avatar_url')
   final String? avatarUrl;
   @override
@@ -399,7 +433,7 @@ class _$ProfileImpl extends _Profile {
 
   @override
   String toString() {
-    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, isDeveloper: $isDeveloper, signupSetupCompleted: $signupSetupCompleted, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
+    return 'Profile(id: $id, username: $username, role: $role, isPro: $isPro, subEndDate: $subEndDate, stripeCustomerId: $stripeCustomerId, isVerifiedAuthor: $isVerifiedAuthor, isDeveloper: $isDeveloper, signupSetupCompleted: $signupSetupCompleted, age: $age, birthDate: $birthDate, avatarUrl: $avatarUrl, bio: $bio, links: $links, notificationPreferences: $notificationPreferences, createdAt: $createdAt)';
   }
 
   @override
@@ -422,6 +456,9 @@ class _$ProfileImpl extends _Profile {
                 other.isDeveloper == isDeveloper) &&
             (identical(other.signupSetupCompleted, signupSetupCompleted) ||
                 other.signupSetupCompleted == signupSetupCompleted) &&
+            (identical(other.age, age) || other.age == age) &&
+            (identical(other.birthDate, birthDate) ||
+                other.birthDate == birthDate) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
             (identical(other.bio, bio) || other.bio == bio) &&
@@ -447,6 +484,8 @@ class _$ProfileImpl extends _Profile {
     isVerifiedAuthor,
     isDeveloper,
     signupSetupCompleted,
+    age,
+    birthDate,
     avatarUrl,
     bio,
     const DeepCollectionEquality().hash(_links),
@@ -479,6 +518,8 @@ abstract class _Profile extends Profile {
     @JsonKey(name: 'is_verified_author') final bool isVerifiedAuthor,
     @JsonKey(name: 'is_developer') final bool isDeveloper,
     @JsonKey(name: 'signup_setup_completed') final bool signupSetupCompleted,
+    final int? age,
+    @JsonKey(name: 'birth_date') final DateTime? birthDate,
     @JsonKey(name: 'avatar_url') final String? avatarUrl,
     final String bio,
     @JsonKey(readValue: _readLinks) final List<Map<String, dynamic>> links,
@@ -517,6 +558,11 @@ abstract class _Profile extends Profile {
   @override
   @JsonKey(name: 'signup_setup_completed')
   bool get signupSetupCompleted;
+  @override
+  int? get age;
+  @override
+  @JsonKey(name: 'birth_date')
+  DateTime? get birthDate;
   @override
   @JsonKey(name: 'avatar_url')
   String? get avatarUrl;

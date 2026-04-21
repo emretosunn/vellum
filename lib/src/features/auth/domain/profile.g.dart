@@ -20,6 +20,10 @@ _$ProfileImpl _$$ProfileImplFromJson(
   isVerifiedAuthor: json['is_verified_author'] as bool? ?? false,
   isDeveloper: json['is_developer'] as bool? ?? false,
   signupSetupCompleted: json['signup_setup_completed'] as bool? ?? false,
+  age: (json['age'] as num?)?.toInt(),
+  birthDate: json['birth_date'] == null
+      ? null
+      : DateTime.parse(json['birth_date'] as String),
   avatarUrl: json['avatar_url'] as String?,
   bio: json['bio'] as String? ?? '',
   links:
@@ -54,6 +58,8 @@ Map<String, dynamic> _$$ProfileImplToJson(_$ProfileImpl instance) =>
       'is_verified_author': instance.isVerifiedAuthor,
       'is_developer': instance.isDeveloper,
       'signup_setup_completed': instance.signupSetupCompleted,
+      'age': instance.age,
+      'birth_date': instance.birthDate?.toIso8601String(),
       'avatar_url': instance.avatarUrl,
       'bio': instance.bio,
       'links': instance.links,

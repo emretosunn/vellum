@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/user_friendly_error.dart';
@@ -9,12 +10,45 @@ import '../../auth/domain/profile.dart';
 import '../data/subscription_repository.dart';
 import '../services/subscription_status_service.dart';
 import 'subscription_plan_screen.dart';
+import '../../shared/widgets/scaffold_with_nav.dart';
 
-class SubscriptionScreen extends ConsumerWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    navRetapEventNotifier.addListener(_handleRetap);
+  }
+
+  @override
+  void dispose() {
+    navRetapEventNotifier.removeListener(_handleRetap);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleRetap() {
+    final event = navRetapEventNotifier.value;
+    if (event == null || event.index != 3) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(currentProfileProvider);
     final paymentsAsync = ref.watch(paymentHistoryProvider);
     const navBarSpace = 104.0;
@@ -23,6 +57,7 @@ class SubscriptionScreen extends ConsumerWidget {
     return Scaffold(
       body: ClipRect(
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
           SliverAppBar.large(title: Text(translate('subscription.title'))),
           SliverToBoxAdapter(
@@ -118,22 +153,9 @@ class SubscriptionScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(translate('subscription.cancel_title')),
-        content: Text(translate('subscription.cancel_confirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(translate('subscription.give_up')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
-            child: Text(translate('subscription.cancel_btn')),
-          ),
-        ],
+      builder: (ctx) => _CancelSubscriptionDialog(
+        onKeep: () => Navigator.pop(ctx, false),
+        onConfirmCancel: () => Navigator.pop(ctx, true),
       ),
     );
 
@@ -144,19 +166,21 @@ class SubscriptionScreen extends ConsumerWidget {
           .read(subscriptionRepositoryProvider)
           .cancelSubscription(userId);
 
-      // Provider'ları yenile
+      if (context.mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const _CancellationGoodbyeDialog(),
+        );
+      }
+
+      if (!context.mounted) return;
+
+      // Provider'ları dialog kapandıktan sonra yenile.
+      // Aksi halde redirect tetiklenip splash araya girebiliyor.
       ref.invalidate(currentProfileProvider);
       ref.invalidate(paymentHistoryProvider);
       ref.invalidate(isProProvider);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(translate('subscription.cancelled')),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -168,6 +192,161 @@ class SubscriptionScreen extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+class _CancelSubscriptionDialog extends StatelessWidget {
+  const _CancelSubscriptionDialog({
+    required this.onKeep,
+    required this.onConfirmCancel,
+  });
+
+  final VoidCallback onKeep;
+  final VoidCallback onConfirmCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 180,
+                child: Lottie.asset(
+                  'assets/animation/dilsecim-kedi.json',
+                  repeat: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                translate('subscription.cancel_title'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                translate('subscription.cancel_dialog_emotional'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onConfirmCancel,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(translate('subscription.cancel_btn')),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onKeep,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(translate('subscription.keep_subscription')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CancellationGoodbyeDialog extends StatelessWidget {
+  const _CancellationGoodbyeDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 190,
+                child: Lottie.asset(
+                  'assets/animation/bye.json',
+                  repeat: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                translate('subscription.cancel_goodbye_title'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                translate('subscription.cancel_goodbye_subtitle'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(translate('subscription.cancel_goodbye_continue')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -349,8 +528,7 @@ class _SubscriptionDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final endDate = profile.subEndDate;
-    final daysLeft =
-        endDate != null ? endDate.difference(DateTime.now()).inDays : null;
+    final daysLeft = endDate?.difference(DateTime.now()).inDays;
 
     return Card(
       child: Padding(
