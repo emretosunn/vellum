@@ -634,6 +634,7 @@
     "terms_short": "Terms",
     "privacy_short": "Privacy",
     "loading_prices": "Refreshing prices...",
+    "price_loading_short": "--",
     "restore_success": "Your subscription has been restored.",
     "restore_not_found": "No subscription was found to restore.",
     "restore_error": "An error occurred while restoring.",

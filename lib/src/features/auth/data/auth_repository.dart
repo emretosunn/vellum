@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +10,8 @@ class AuthRepository {
   AuthRepository(this._client);
   final SupabaseClient _client;
   static const String _cachedUsernameKey = 'cached_username';
-  static const String _mobileAuthRedirect = 'vellum://login-callback/';
+  // go_router tarafındaki callback route'u ile birebir uyumlu tutulur.
+  static const String _mobileAuthRedirect = 'vellum://auth/callback';
 
   // ─── Auth ─────────────────────────────────────────
 
@@ -331,7 +330,7 @@ class AuthRepository {
       if ((hit['id'] as String?) == currentUserId) return candidate;
     }
 
-    return '${safeBase}${DateTime.now().millisecondsSinceEpoch % 100000}';
+    return '$safeBase${DateTime.now().millisecondsSinceEpoch % 100000}';
   }
 }
 

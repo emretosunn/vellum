@@ -634,6 +634,7 @@
     "terms_short": "Şartlar",
     "privacy_short": "Gizlilik",
     "loading_prices": "Fiyatlar güncelleniyor...",
+    "price_loading_short": "--",
     "restore_success": "Aboneliğiniz geri yüklendi.",
     "restore_not_found": "Geri yüklenecek abonelik bulunamadı.",
     "restore_error": "Geri yükleme sırasında bir hata oluştu.",

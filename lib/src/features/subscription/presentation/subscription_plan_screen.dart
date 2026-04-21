@@ -108,9 +108,6 @@ class _SubscriptionPlanModalContentState
   ProductDetails? _monthlyProduct;
   ProductDetails? _yearlyProduct;
 
-  static const _monthlyPrice = 49.99;
-  static const _yearlyPrice = 399.99;
-
   String _sub(String key, String fallback) {
     try {
       final t = translate(key);
@@ -165,7 +162,7 @@ class _SubscriptionPlanModalContentState
   String _derivedPerMonthFromYearly() {
     final yearly = _yearlyProduct;
     if (yearly == null) {
-      return '\$${(_yearlyPrice / 12).toStringAsFixed(2)}';
+      return _sub('subscription.price_loading_short', '--');
     }
     final symbol = _currencySymbol(yearly.currencyCode);
     final v = yearly.rawPrice / 12;
@@ -175,7 +172,7 @@ class _SubscriptionPlanModalContentState
   String _yearlyPerYearLabel() {
     final yearly = _yearlyProduct;
     if (yearly == null) {
-      return '\$${_yearlyPrice.toStringAsFixed(2)} / year';
+      return _sub('subscription.price_loading_short', '--');
     }
     return '${yearly.price} / ${_sub('subscription.per_year_word', 'year')}';
   }
@@ -185,7 +182,7 @@ class _SubscriptionPlanModalContentState
     final theme = Theme.of(context);
     final userId = widget.ref.read(authRepositoryProvider).currentUser?.id;
     final monthlyPriceText =
-        _monthlyProduct?.price ?? '\$${_monthlyPrice.toStringAsFixed(2)}';
+        _monthlyProduct?.price ?? _sub('subscription.price_loading_short', '--');
     final yearlyPerMonthText = _derivedPerMonthFromYearly();
 
     return SingleChildScrollView(

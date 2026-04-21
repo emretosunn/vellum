@@ -633,6 +633,7 @@
     "terms_short": "Bedingungen",
     "privacy_short": "Datenschutz",
     "loading_prices": "Preise werden aktualisiert...",
+    "price_loading_short": "--",
     "restore_success": "Dein Abonnement wurde wiederhergestellt.",
     "restore_not_found": "Es wurde kein Abo zum Wiederherstellen gefunden.",
     "restore_error": "Beim Wiederherstellen ist ein Fehler aufgetreten.",

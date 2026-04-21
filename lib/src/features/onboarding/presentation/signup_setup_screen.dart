@@ -379,9 +379,12 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
 
     return Scaffold(
       backgroundColor: pageColor,
-      body: Stack(
-        children: [
-          PageView.builder(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Stack(
+          children: [
+            PageView.builder(
             controller: _pageController,
             physics: const BouncingScrollPhysics(),
             itemCount: _totalPages,
@@ -420,20 +423,21 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
               );
             },
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: MediaQuery.paddingOf(context).bottom,
-            child: _BottomBar(
-              currentPage: _currentPage,
-              totalPages: _totalPages,
-              isFinishing: _isFinishing,
-              onNext: _goNext,
-              onFinish: _finish,
-              buttonColor: pageColor,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.paddingOf(context).bottom,
+              child: _BottomBar(
+                currentPage: _currentPage,
+                totalPages: _totalPages,
+                isFinishing: _isFinishing,
+                onNext: _goNext,
+                onFinish: _finish,
+                buttonColor: pageColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -827,6 +831,9 @@ class _ProfileField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      textInputAction: TextInputAction.done,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

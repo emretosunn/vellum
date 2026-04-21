@@ -53,8 +53,9 @@ GoRouter createRouter({
       final isOnboarding = location == '/onboarding';
       final isLogin = location == '/login';
       final isSignupSetup = location == '/signup-setup';
-      final isAuthCallback =
-          location == '/auth-callback' || location == '/auth/callback';
+      final isAuthCallback = location == '/auth-callback' ||
+          location == '/auth/callback' ||
+          location == '/login-callback';
 
       // Splash ekranı her zaman ilk açılışta bir kere gösterilsin.
       // Sonraki yönlendirmeler splash üzerinden root'a atlayacak.
@@ -129,6 +130,12 @@ GoRouter createRouter({
       GoRoute(
         path: '/auth/callback',
         name: 'authCallback',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      // iOS/Android eski redirect şemaları için geriye dönük uyumluluk.
+      GoRoute(
+        path: '/login-callback',
+        name: 'loginCallbackLegacy',
         builder: (context, state) => const SplashScreen(),
       ),
 
