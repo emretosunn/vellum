@@ -161,6 +161,37 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     if (_isFinishing) return;
     setState(() => _isFinishing = true);
 
+    // Kullanıcı swipe ile ara adımları geçebilirse bile
+    // bitirmede kritik doğrulamaları zorunlu tut.
+    if (!_validateProfileStep()) {
+      if (mounted) {
+        setState(() {
+          _isFinishing = false;
+          _currentPage = _profileAnswerPage;
+        });
+        _pageController.animateToPage(
+          _profileAnswerPage,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      return;
+    }
+    if (!_validateBirthStep()) {
+      if (mounted) {
+        setState(() {
+          _isFinishing = false;
+          _currentPage = _birthAnswerPage;
+        });
+        _pageController.animateToPage(
+          _birthAnswerPage,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      return;
+    }
+
     if (widget.sandboxMode) {
       ref.read(signupSetupStepProvider.notifier).state = 0;
       if (mounted) {

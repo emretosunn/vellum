@@ -109,7 +109,7 @@ class VellumApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       builder: (context, child) {
-        return appConfigAsync.when(
+        final content = appConfigAsync.when(
           loading: () => child ?? const SizedBox.shrink(),
           error: (_, __) => child ?? const SizedBox.shrink(),
           data: (config) {
@@ -121,6 +121,16 @@ class VellumApp extends ConsumerWidget {
             }
             return child ?? const SizedBox.shrink();
           },
+        );
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) {
+            final focus = FocusManager.instance.primaryFocus;
+            if (focus != null && !focus.hasPrimaryFocus) {
+              focus.unfocus();
+            }
+          },
+          child: content,
         );
       },
       localizationsDelegates: [

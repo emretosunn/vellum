@@ -116,6 +116,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (!_ensureTermsAcceptedIfSigningUp()) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -142,6 +144,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithFacebook() async {
+    if (!_ensureTermsAcceptedIfSigningUp()) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -154,6 +158,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.signInWithFacebookOAuth();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _authErrorMessage(e);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    if (!_ensureTermsAcceptedIfSigningUp()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    ref.read(signupSetupPendingProvider.notifier).state = false;
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      await authRepo.signInWithAppleOAuth();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -188,6 +217,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
       _entryStage = _AuthEntryStage.methodChoice;
     });
+  }
+
+  bool _ensureTermsAcceptedIfSigningUp() {
+    if (_isLogin || _acceptedTerms) return true;
+    setState(() {
+      _errorMessage = _auth(
+        'auth.accept_terms_required',
+        'Kayıt olabilmek için kullanım şartlarını kabul etmelisiniz.',
+      );
+    });
+    return false;
   }
 
   Future<void> _showLegalDialog() async {
@@ -578,9 +618,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             if (showApple)
               _MethodChoiceButton(
                 text: 'Apple',
-                onTap: () {},
+                onTap: _isLoading ? null : _signInWithApple,
                 leading: const Icon(Icons.apple_rounded, size: 24),
               ),
+            if (!_isLogin) ...[
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Checkbox(
+                      value: _acceptedTerms,
+                      onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
+                      activeColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _showLegalDialog,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Text(
+                        _auth('auth.accept_terms', 'Kullanım şartlarını kabul ediyorum'),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 42),
             Text(
               _auth('auth.or', 'veya'),
@@ -889,7 +963,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     _SocialCircleIcon(
                       icon: Icons.apple_rounded,
                       onTap: () {
-                        // Apple ile giriş – ileride bağlanacak
+                        if (_isLoading) return;
+                        _signInWithApple();
                       },
                     ),
                     const SizedBox(width: 14),

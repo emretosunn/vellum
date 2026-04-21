@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/auth_repository.dart';
 import '../domain/author_post.dart';
+import 'user_block_repository.dart';
 
 /// Yazar paylaşımları (sadece metin).
 class AuthorPostRepository {
@@ -17,7 +18,9 @@ class AuthorPostRepository {
         .eq('author_id', authorId)
         .order('created_at', ascending: false)
         .limit(limit);
-    return (data as List<dynamic>).map((e) => AuthorPost.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    return (data as List<dynamic>)
+        .map((e) => AuthorPost.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   /// Takip edilen yazarların postlarını getir (feed, en yeni önce).
@@ -35,7 +38,9 @@ class AuthorPostRepository {
         .inFilter('author_id', ids)
         .order('created_at', ascending: false)
         .limit(limit);
-    return (data as List<dynamic>).map((e) => AuthorPost.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    return (data as List<dynamic>)
+        .map((e) => AuthorPost.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   /// Post oluştur (sadece metin).
@@ -49,8 +54,8 @@ class AuthorPostRepository {
           'content': trimmed,
         })
         .select()
-        .single() as Map<String, dynamic>;
-    return AuthorPost.fromJson(data);
+        .single();
+    return AuthorPost.fromJson(Map<String, dynamic>.from(data));
   }
 
   /// Post sil (sadece kendi postu).
@@ -73,5 +78,8 @@ final authorPostsProvider =
 final followingFeedProvider = FutureProvider.autoDispose<List<AuthorPost>>((ref) async {
   final userId = ref.watch(authRepositoryProvider).currentUser?.id;
   if (userId == null) return [];
-  return ref.read(authorPostRepositoryProvider).getFeedForFollower(userId);
+  final posts = await ref.read(authorPostRepositoryProvider).getFeedForFollower(userId);
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return posts;
+  return posts.where((p) => !blockedIds.contains(p.authorId)).toList();
 });

@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/theme_preferences.dart';
 import '../../../localization/translate_preferences.dart';
@@ -88,6 +89,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         0,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  Future<void> _requestAccountDeletion() async {
+    final confirmWord = translate('settings.delete_account_confirm_word');
+    final textController = TextEditingController();
+    var canSubmit = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(translate('settings.delete_account_title')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(translate('settings.delete_account_confirm')),
+                  const SizedBox(height: 12),
+                  Text(
+                    translate('settings.delete_account_type_hint', args: {
+                      'word': confirmWord,
+                    }),
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: textController,
+                    autofocus: true,
+                    onChanged: (v) {
+                      setDialogState(() {
+                        canSubmit = v.trim().toUpperCase() ==
+                            confirmWord.trim().toUpperCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: confirmWord,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(translate('common.cancel')),
+                ),
+                FilledButton(
+                  onPressed:
+                      canSubmit ? () => Navigator.pop(ctx, true) : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                  ),
+                  child: Text(translate('settings.delete_account_cta')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    textController.dispose();
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(authRepositoryProvider).requestAccountDeletion();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(translate('settings.delete_account_requested')),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await ref.read(authRepositoryProvider).signOut();
+      ref.invalidate(isProProvider);
+    } catch (_) {
+      final userEmail =
+          ref.read(authRepositoryProvider).currentUser?.email ?? '';
+      final subject = Uri.encodeComponent('Account deletion request');
+      final body = Uri.encodeComponent(
+        'Please delete my Vellum account.\n\nEmail: $userEmail',
+      );
+      final uri = Uri.parse('mailto:vexorabyte@gmail.com?subject=$subject&body=$body');
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            opened
+                ? translate('settings.delete_account_mail_fallback')
+                : translate('settings.delete_account_mail_fallback_error'),
+          ),
+          backgroundColor: opened ? AppColors.primary : AppColors.error,
+        ),
       );
     }
   }
@@ -174,6 +272,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     MaterialPageRoute(
                         builder: (_) => const _NotificationsPage()),
                   ),
+                ),
+                _SettingsTile(
+                  icon: Icons.delete_forever_rounded,
+                  label: translate('settings.delete_account'),
+                  subtitle: translate('settings.delete_account_subtitle'),
+                  onTap: _requestAccountDeletion,
                 ),
               ],
             ),

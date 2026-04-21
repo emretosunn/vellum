@@ -82,6 +82,34 @@ class AuthRepository {
     );
   }
 
+  /// Apple OAuth ile giriş yap.
+  Future<void> signInWithAppleOAuth() async {
+    final redirectTo =
+        kIsWeb ? '${Uri.base.origin}/auth/callback' : _mobileAuthRedirect;
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: redirectTo,
+      authScreenLaunchMode: LaunchMode.externalApplication,
+    );
+  }
+
+  /// Uygulama içinden hesap silme talebi oluştur.
+  /// Not: Gerçek silme işlemi backend/operasyon tarafından tamamlanır.
+  Future<void> requestAccountDeletion({
+    String reason = 'user_requested_in_app',
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      throw Exception('Oturum bulunamadı');
+    }
+    await _client.from('account_deletion_requests').insert({
+      'user_id': user.id,
+      'email': user.email,
+      'reason': reason,
+      'status': 'pending',
+    });
+  }
+
   // ─── Profile ──────────────────────────────────────
 
   /// Mevcut kullanıcının profilini al

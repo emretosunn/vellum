@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../../constants/app_colors.dart';
 import '../../../utils/user_friendly_error.dart';
@@ -160,6 +163,29 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     );
 
     if (confirmed != true || !context.mounted) return;
+
+    if (!kIsWeb && Platform.isIOS) {
+      final opened = await launchUrl(
+        Uri.parse('https://apps.apple.com/account/subscriptions'),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translate('subscription.manage_store_error')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translate('subscription.manage_store_hint_ios')),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       await ref

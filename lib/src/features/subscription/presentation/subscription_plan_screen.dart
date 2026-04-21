@@ -103,6 +103,7 @@ class _SubscriptionPlanModalContentState
     extends ConsumerState<_SubscriptionPlanModalContent> {
   bool _isYearly = true;
   bool _isLoading = false;
+  bool _isRestoring = false;
   bool _loadingPrices = false;
   ProductDetails? _monthlyProduct;
   ProductDetails? _yearlyProduct;
@@ -200,7 +201,9 @@ class _SubscriptionPlanModalContentState
                 icon: const Icon(Icons.close_rounded),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: (_isLoading || _isRestoring || userId == null)
+                    ? null
+                    : () => _restore(userId),
                 child: Text(_sub('subscription.restore', 'Restore')),
               ),
             ],
@@ -272,7 +275,9 @@ class _SubscriptionPlanModalContentState
           SizedBox(
             height: 54,
             child: ElevatedButton(
-              onPressed: (_isLoading || userId == null) ? null : () => _subscribe(userId),
+              onPressed: (_isLoading || _isRestoring || userId == null)
+                  ? null
+                  : () => _subscribe(userId),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -362,6 +367,55 @@ class _SubscriptionPlanModalContentState
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _restore(String userId) async {
+    setState(() => _isRestoring = true);
+    try {
+      final restored = await widget.ref
+          .read(subscriptionPurchaseServiceProvider)
+          .restoreSubscription(userId: userId);
+
+      if (!mounted) return;
+      if (!restored) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _sub('subscription.restore_not_found', 'Geri yüklenecek abonelik bulunamadı.'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _sub('subscription.restore_success', 'Aboneliğiniz geri yüklendi.'),
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+
+      await _showSuccessDialog();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _sub(
+              'subscription.restore_error',
+              toUserFriendlyErrorMessage(e),
+            ),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRestoring = false);
+      }
     }
   }
 

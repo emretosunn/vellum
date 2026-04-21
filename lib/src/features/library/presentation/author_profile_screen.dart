@@ -15,6 +15,7 @@ import '../data/book_like_repository.dart';
 import '../data/book_repository.dart';
 import '../data/follow_repository.dart';
 import '../data/read_books_repository.dart';
+import '../data/user_block_repository.dart';
 import '../domain/book.dart';
 
 String _t(String key, String fallback) {
@@ -306,6 +307,9 @@ class _ProfileHeaderSliver extends ConsumerWidget {
     final isFollowingAsync = currentUserId != null && !isOwnProfile
         ? ref.watch(isFollowingProvider((followerId: currentUserId, followingId: authorId)))
         : null;
+    final isBlockedAsync = currentUserId != null && !isOwnProfile
+        ? ref.watch(isBlockedUserProvider(authorId))
+        : null;
 
     // Yükseklik: avatar + isim + rozet + (Takip et butonu) — taşmayı önlemek için yeterli
     const double expandedHeight = 320;
@@ -522,26 +526,90 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                         curve: Curves.easeOutBack,
                       ),
 
-                  // Takip et / Takipten çık
-                  if (!isOwnProfile && currentUserId != null && isFollowingAsync != null)
+                  // Takip + Engelle aksiyonları
+                  if (!isOwnProfile &&
+                      currentUserId != null &&
+                      isFollowingAsync != null &&
+                      isBlockedAsync != null)
                     isFollowingAsync.when(
-                      data: (following) => Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: _FollowActionButton(
-                          isFollowing: following,
-                          onPressed: () async {
-                            final repo = ref.read(followRepositoryProvider);
-                            if (following) {
-                              await repo.unfollow(followerId: currentUserId, followingId: authorId);
-                            } else {
-                              await repo.follow(followerId: currentUserId, followingId: authorId);
-                            }
-                            ref.invalidate(isFollowingProvider((followerId: currentUserId, followingId: authorId)));
-                            ref.invalidate(followingIdsProvider);
-                            ref.invalidate(followingFeedProvider);
-                            ref.invalidate(followerCountProvider(authorId));
-                          },
+                      data: (following) => isBlockedAsync.when(
+                        data: (isBlocked) => Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Column(
+                            children: [
+                              _FollowActionButton(
+                                isFollowing: following,
+                                onPressed: isBlocked
+                                    ? () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              translate('profile.unblock_for_follow'),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    : () async {
+                                        final repo = ref.read(followRepositoryProvider);
+                                        if (following) {
+                                          await repo.unfollow(
+                                            followerId: currentUserId,
+                                            followingId: authorId,
+                                          );
+                                        } else {
+                                          await repo.follow(
+                                            followerId: currentUserId,
+                                            followingId: authorId,
+                                          );
+                                        }
+                                        ref.invalidate(
+                                          isFollowingProvider(
+                                            (followerId: currentUserId, followingId: authorId),
+                                          ),
+                                        );
+                                        ref.invalidate(followingIdsProvider);
+                                        ref.invalidate(followingFeedProvider);
+                                        ref.invalidate(followerCountProvider(authorId));
+                                      },
+                              ),
+                              const SizedBox(height: 10),
+                              _BlockActionButton(
+                                isBlocked: isBlocked,
+                                onPressed: () async {
+                                  final blockRepo = ref.read(userBlockRepositoryProvider);
+                                  final followRepo = ref.read(followRepositoryProvider);
+                                  if (isBlocked) {
+                                    await blockRepo.unblockUser(
+                                      userId: currentUserId,
+                                      blockedUserId: authorId,
+                                    );
+                                  } else {
+                                    await blockRepo.blockUser(
+                                      userId: currentUserId,
+                                      blockedUserId: authorId,
+                                    );
+                                    await followRepo.unfollow(
+                                      followerId: currentUserId,
+                                      followingId: authorId,
+                                    );
+                                  }
+                                  ref.invalidate(isBlockedUserProvider(authorId));
+                                  ref.invalidate(blockedUserIdsProvider);
+                                  ref.invalidate(
+                                    isFollowingProvider(
+                                      (followerId: currentUserId, followingId: authorId),
+                                    ),
+                                  );
+                                  ref.invalidate(followingIdsProvider);
+                                  ref.invalidate(followingFeedProvider);
+                                  ref.invalidate(followerCountProvider(authorId));
+                                },
+                              ),
+                            ],
+                          ),
                         ),
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
                       ),
                       loading: () => const Padding(
                         padding: EdgeInsets.only(top: 12),
@@ -552,7 +620,10 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                             child: SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -631,6 +702,49 @@ class _FollowActionButton extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.2, curve: Curves.easeOut);
+  }
+}
+
+class _BlockActionButton extends StatelessWidget {
+  const _BlockActionButton({
+    required this.isBlocked,
+    required this.onPressed,
+  });
+
+  final bool isBlocked;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isBlocked ? Colors.white : AppColors.error,
+          backgroundColor:
+              isBlocked ? AppColors.error.withValues(alpha: 0.85) : Colors.white,
+          side: BorderSide(
+            color: isBlocked
+                ? Colors.white.withValues(alpha: 0.4)
+                : AppColors.error.withValues(alpha: 0.45),
+            width: 1.4,
+          ),
+          minimumSize: const Size.fromHeight(46),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: Icon(
+          isBlocked ? Icons.block_flipped : Icons.block_outlined,
+          size: 18,
+        ),
+        label: Text(
+          isBlocked ? translate('profile.unblock_user') : translate('profile.block_user'),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.15, curve: Curves.easeOut);
   }
 }
 

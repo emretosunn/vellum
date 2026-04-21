@@ -10,6 +10,17 @@
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>vellum-auth-callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>vellum</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -49,5 +60,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Vellum, kitap kapağı veya profil fotoğrafı seçebilmeniz için fotoğraf galerisine erişim ister.</string>
 	<!-- Bildirimler (beğeni vb. bildirimleri göstermek için) - iOS sistem izni, ek açıklama gerekmez -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

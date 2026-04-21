@@ -18,6 +18,8 @@ import '../../library/data/book_like_repository.dart';
 import '../../library/data/book_repository.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/data/review_repository.dart';
+import '../../library/data/review_report_repository.dart';
+import '../../library/data/user_block_repository.dart';
 import '../../library/domain/book.dart';
 import '../../library/domain/chapter.dart';
 import '../../library/domain/review.dart';
@@ -1294,6 +1296,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final reviewsAsync = ref.watch(bookReviewsProvider(widget.bookId));
+    final blockedUsersAsync = ref.watch(blockedUserIdsProvider);
     final statsAsync = ref.watch(bookRatingStatsProvider(widget.bookId));
     final currentUser = ref.watch(currentProfileProvider).valueOrNull;
 
@@ -1391,7 +1394,11 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
             child: Text(translate('library.reviews_load_error')),
           ),
           data: (reviews) {
-            if (reviews.isEmpty) {
+            final blockedIds = blockedUsersAsync.valueOrNull ?? const <String>[];
+            final visibleReviews = reviews
+                .where((r) => !blockedIds.contains(r.userId))
+                .toList();
+            if (visibleReviews.isEmpty) {
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -1426,11 +1433,65 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
             }
 
             return Column(
-              children: reviews
+              children: visibleReviews
                   .map((r) => _ReviewCard(
                         review: r,
                         isDark: isDark,
                         isOwn: r.userId == currentUser?.id,
+                        onReport: currentUser != null && r.userId != currentUser.id
+                            ? () async {
+                                final controller = TextEditingController();
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text(translate('library.report_review')),
+                                    content: TextField(
+                                      controller: controller,
+                                      maxLines: 3,
+                                      maxLength: 300,
+                                      decoration: InputDecoration(
+                                        hintText: translate('library.report_hint'),
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: Text(translate('common.cancel')),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: AppColors.error,
+                                        ),
+                                        child: Text(translate('library.report_review')),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                final reason = controller.text.trim();
+                                controller.dispose();
+                                if (confirmed != true || !context.mounted) return;
+                                try {
+                                  await ref.read(reviewReportRepositoryProvider).createReport(
+                                        reviewId: r.id,
+                                        reporterUserId: currentUser.id,
+                                        reason: reason,
+                                      );
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(translate('library.review_reported')),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
+                                  );
+                                }
+                              }
+                            : null,
                         onDelete: () async {
                           await ref
                               .read(reviewRepositoryProvider)
@@ -1634,12 +1695,14 @@ class _ReviewCard extends StatelessWidget {
     required this.isDark,
     required this.isOwn,
     required this.onDelete,
+    this.onReport,
   });
 
   final Review review;
   final bool isDark;
   final bool isOwn;
   final VoidCallback onDelete;
+  final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -1725,7 +1788,7 @@ class _ReviewCard extends StatelessWidget {
                 }),
               ),
 
-              // Silme (kendi yorumu ise)
+              // İşlemler
               if (isOwn) ...[
                 const SizedBox(width: 4),
                 IconButton(
@@ -1735,6 +1798,19 @@ class _ReviewCard extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: translate('library.delete_review'),
+                ),
+              ] else if (onReport != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onReport,
+                  icon: Icon(
+                    Icons.flag_outlined,
+                    size: 18,
+                    color: theme.colorScheme.error,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: translate('library.report_review'),
                 ),
               ],
             ],

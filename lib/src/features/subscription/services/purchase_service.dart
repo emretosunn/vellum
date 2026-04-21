@@ -140,6 +140,49 @@ class SubscriptionPurchaseService {
       await sub.cancel();
     }
   }
+
+  Future<bool> restoreSubscription({required String userId}) async {
+    final available = await _iap.isAvailable();
+    if (!available) {
+      throw Exception('Mağaza şu anda kullanılamıyor.');
+    }
+
+    final completer = Completer<List<PurchaseDetails>>();
+    late final StreamSubscription<List<PurchaseDetails>> sub;
+    final restored = <PurchaseDetails>[];
+
+    sub = _iap.purchaseStream.listen((purchases) async {
+      for (final p in purchases) {
+        if (p.productID != _monthlyId && p.productID != _yearlyId) continue;
+        if (p.status == PurchaseStatus.purchased ||
+            p.status == PurchaseStatus.restored) {
+          restored.add(p);
+          if (p.pendingCompletePurchase) {
+            await _iap.completePurchase(p);
+          }
+        }
+      }
+      if (!completer.isCompleted) {
+        completer.complete(List<PurchaseDetails>.from(restored));
+      }
+    });
+
+    try {
+      await _iap.restorePurchases();
+      final restoredPurchases = await completer.future;
+      if (restoredPurchases.isEmpty) return false;
+
+      final hasYearly = restoredPurchases.any((p) => p.productID == _yearlyId);
+      final days = hasYearly ? 365 : 30;
+      await _ref.read(subscriptionRepositoryProvider).activateSubscription(
+            userId: userId,
+            durationDays: days,
+          );
+      return true;
+    } finally {
+      await sub.cancel();
+    }
+  }
 }
 
 final subscriptionPurchaseServiceProvider =
