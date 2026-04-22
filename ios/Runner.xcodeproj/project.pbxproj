@@ -378,7 +378,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			shellScript = "ENV_JSON_PATH=\"${SRCROOT}/../.env.json\"\nif [ -f \"$ENV_JSON_PATH\" ]; then\n  DART_DEFINES_FROM_FILE=$(python3 - \"$ENV_JSON_PATH\" <<'PY'\nimport base64\nimport json\nimport sys\n\npath = sys.argv[1]\nwith open(path, 'r', encoding='utf-8') as f:\n    data = json.load(f)\n\nparts = []\nfor key, value in data.items():\n    if isinstance(value, bool):\n        val = 'true' if value else 'false'\n    elif value is None:\n        val = ''\n    else:\n        val = str(value)\n    parts.append(base64.b64encode(f\"{key}={val}\".encode('utf-8')).decode('utf-8'))\n\nprint(','.join(parts))\nPY\n)\n  if [ -n \"$DART_DEFINES_FROM_FILE\" ]; then\n    export DART_DEFINES=\"$DART_DEFINES_FROM_FILE\"\n    echo \"Loaded DART_DEFINES from .env.json\"\n  fi\nfi\n\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
 /* End PBXShellScriptBuildPhase section */
 
