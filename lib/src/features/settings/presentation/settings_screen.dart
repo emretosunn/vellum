@@ -20,6 +20,8 @@ import '../../onboarding/presentation/signup_setup_screen.dart';
 import '../services/notification_permission_service.dart';
 import '../../library/data/book_report_repository.dart';
 import '../../library/data/book_repository.dart';
+import '../../library/data/review_report_repository.dart';
+import '../../library/data/user_block_repository.dart';
 import '../../library/domain/book_report.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import '../../../config/version.dart';
@@ -34,19 +36,22 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 /// Bildirim tercihleri için geçici (sadece oturum içi) state.
 /// Gerçek kaynak Supabase'deki `profiles.notification_preferences`.
 /// Bu provider sadece ekranda anında güncelleme (optimistic UI) için kullanılıyor.
-final notificationSettingsProvider =
-    StateProvider<Map<String, bool>>((ref) => {});
+final notificationSettingsProvider = StateProvider<Map<String, bool>>(
+  (ref) => {},
+);
 
 final fontSizeProvider = StateProvider<String>((ref) => 'Orta');
 
 /// "Sistem dili" seçili mi? Dil ayarları sayfasından dönünce yenilenir.
-final useSystemLocaleProvider =
-    FutureProvider<bool>((ref) => VellumTranslatePreferences.getUseSystemLocale());
+final useSystemLocaleProvider = FutureProvider<bool>(
+  (ref) => VellumTranslatePreferences.getUseSystemLocale(),
+);
 
 /// Sistem bildirim izni durumu (yenilemek için invalidate edin).
 /// Web/desktop gibi izin API'si olmayan platformlarda [PermissionStatus.granted] kabul edilir.
-final notificationPermissionStatusProvider =
-    FutureProvider<PermissionStatus>((ref) async {
+final notificationPermissionStatusProvider = FutureProvider<PermissionStatus>((
+  ref,
+) async {
   try {
     return await NotificationPermissionService.status;
   } catch (_) {
@@ -112,9 +117,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(translate('settings.delete_account_confirm')),
                   const SizedBox(height: 12),
                   Text(
-                    translate('settings.delete_account_type_hint', args: {
-                      'word': confirmWord,
-                    }),
+                    translate(
+                      'settings.delete_account_type_hint',
+                      args: {'word': confirmWord},
+                    ),
                     style: Theme.of(ctx).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -123,13 +129,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     autofocus: true,
                     onChanged: (v) {
                       setDialogState(() {
-                        canSubmit = v.trim().toUpperCase() ==
+                        canSubmit =
+                            v.trim().toUpperCase() ==
                             confirmWord.trim().toUpperCase();
                       });
                     },
-                    decoration: InputDecoration(
-                      hintText: confirmWord,
-                    ),
+                    decoration: InputDecoration(hintText: confirmWord),
                   ),
                 ],
               ),
@@ -139,8 +144,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Text(translate('common.cancel')),
                 ),
                 FilledButton(
-                  onPressed:
-                      canSubmit ? () => Navigator.pop(ctx, true) : null,
+                  onPressed: canSubmit ? () => Navigator.pop(ctx, true) : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.error,
                   ),
@@ -174,7 +178,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final body = Uri.encodeComponent(
         'Please delete my Vellum account.\n\nEmail: $userEmail',
       );
-      final uri = Uri.parse('mailto:vexorabyte@gmail.com?subject=$subject&body=$body');
+      final uri = Uri.parse(
+        'mailto:vexorabyte@gmail.com?subject=$subject&body=$body',
+      );
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,9 +256,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => _ProfileEditPage(
-                        profile: profileAsync.valueOrNull,
-                      ),
+                      builder: (_) =>
+                          _ProfileEditPage(profile: profileAsync.valueOrNull),
                     ),
                   ),
                 ),
@@ -270,7 +275,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const _NotificationsPage()),
+                      builder: (_) => const _NotificationsPage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.block_outlined,
+                  label: translate('settings.blocked_users'),
+                  subtitle: translate('settings.blocked_users_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _BlockedUsersPage(),
+                    ),
                   ),
                 ),
                 _SettingsTile(
@@ -335,13 +352,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _SettingsTile(
                   icon: Icons.language_rounded,
                   label: translate('settings.language'),
-                  subtitle: ref.watch(useSystemLocaleProvider).when(
+                  subtitle: ref
+                      .watch(useSystemLocaleProvider)
+                      .when(
                         data: (useSystem) {
                           if (useSystem) {
                             return translate('settings.language_system');
                           }
-                          final locale =
-                              LocalizedApp.of(context).delegate.currentLocale;
+                          final locale = LocalizedApp.of(
+                            context,
+                          ).delegate.currentLocale;
                           return locale.languageCode == 'tr'
                               ? translate('settings.language_turkish')
                               : translate('settings.language_english');
@@ -369,57 +389,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 isDark: isDark,
                 items: [
                   _SettingsTile(
-                    icon: Icons.science_outlined,
-                    label: translate('settings.onboarding_test_title'),
-                    subtitle: translate('settings.onboarding_test_subtitle'),
+                    icon: Icons.developer_mode_rounded,
+                    label: translate('settings.developer_tools'),
+                    subtitle: translate('settings.developer_tools_subtitle'),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const _DeveloperOnboardingTestPage(),
-                      ),
-                    ),
-                  ),
-                  _SettingsTile(
-                    icon: Icons.settings_applications_rounded,
-                    label: translate('settings.app_config_title'),
-                    subtitle: translate('settings.app_config_subtitle'),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const _DeveloperAppConfigPage(),
-                      ),
-                    ),
-                  ),
-                  _SettingsTile(
-                    icon: Icons.workspace_premium_rounded,
-                    label: translate('settings.exclusive_title'),
-                    subtitle: translate('settings.exclusive_subtitle'),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const _DeveloperExclusivePage(),
-                      ),
-                    ),
-                  ),
-                  _SettingsTile(
-                    icon: Icons.verified_outlined,
-                    label: translate('settings.author_badges_title'),
-                    subtitle: translate('settings.author_badges_subtitle'),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const _DeveloperAuthorBadgesPage(),
-                      ),
-                    ),
-                  ),
-                  _SettingsTile(
-                    icon: Icons.flag_outlined,
-                    label: translate('settings.book_reports'),
-                    subtitle: translate('settings.book_reports_subtitle'),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const _DeveloperReportsPage(),
+                        builder: (_) => const _DeveloperHubPage(),
                       ),
                     ),
                   ),
@@ -493,8 +469,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: Text(translate('settings.logout')),
-                      content: Text(
-                          translate('settings.logout_confirm')),
+                      content: Text(translate('settings.logout_confirm')),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -616,7 +591,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     if (birthDate == null) return null;
     final now = DateTime.now();
     var age = now.year - birthDate.year;
-    final passed = now.month > birthDate.month ||
+    final passed =
+        now.month > birthDate.month ||
         (now.month == birthDate.month && now.day >= birthDate.day);
     if (!passed) age--;
     return age;
@@ -624,7 +600,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
   Future<void> _pickBirthDate() async {
     final now = DateTime.now();
-    final current = _parseBirthDate(_birthDateController.text) ??
+    final current =
+        _parseBirthDate(_birthDateController.text) ??
         DateTime(now.year - 18, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
@@ -654,11 +631,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       final userId = ref.read(authRepositoryProvider).currentUser?.id;
       if (userId == null) return;
 
-      final url = await ref.read(authRepositoryProvider).uploadAvatar(
-            userId: userId,
-            filePath: image.name,
-            fileBytes: bytes,
-          );
+      final url = await ref
+          .read(authRepositoryProvider)
+          .uploadAvatar(userId: userId, filePath: image.name, fileBytes: bytes);
 
       setState(() {
         _avatarBytes = bytes;
@@ -691,9 +666,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -864,7 +837,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(authRepositoryProvider).updateProfile(
+      await ref
+          .read(authRepositoryProvider)
+          .updateProfile(
             id: userId,
             username: _usernameController.text.trim(),
             age: age,
@@ -946,7 +921,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                 ),
                 padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
                 child: Column(
-          children: [
+                  children: [
                     // Avatar Container
                     GestureDetector(
                       onTap: _uploadingAvatar ? null : _pickAvatar,
@@ -968,7 +943,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -984,15 +961,15 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                       height: 132,
                                     )
                                   : _avatarUrl != null
-                                      ? Image.network(
-                                          _avatarUrl!,
-                                          fit: BoxFit.cover,
-                                          width: 132,
-                                          height: 132,
-                                          errorBuilder: (_, __, ___) =>
-                                              _buildAvatarPlaceholder(),
-                                        )
-                                      : _buildAvatarPlaceholder(),
+                                  ? Image.network(
+                                      _avatarUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 132,
+                                      height: 132,
+                                      errorBuilder: (_, __, ___) =>
+                                          _buildAvatarPlaceholder(),
+                                    )
+                                  : _buildAvatarPlaceholder(),
                             ),
                           ),
                           // Camera Button
@@ -1003,7 +980,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                    color: AppColors.primary,
+                                color: AppColors.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: isDark
@@ -1076,7 +1053,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -1097,19 +1076,21 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                           const SizedBox(height: 20),
 
                           // Kullanıcı Adı
-            TextFormField(
-              controller: _usernameController,
+                          TextFormField(
+                            controller: _usernameController,
                             style: theme.textTheme.bodyLarge,
-              decoration: InputDecoration(
+                            decoration: InputDecoration(
                               labelText: translate('settings.username_hint'),
                               hintText: translate('settings.username_hint'),
-                              prefixIcon: const Icon(Icons.alternate_email_rounded),
+                              prefixIcon: const Icon(
+                                Icons.alternate_email_rounded,
+                              ),
                               filled: true,
                               fillColor: isDark
                                   ? Colors.white.withValues(alpha: 0.05)
                                   : Colors.black.withValues(alpha: 0.02),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
@@ -1130,18 +1111,18 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 16,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return translate('settings.username_empty');
-                }
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return translate('settings.username_empty');
+                              }
                               if (value.trim().length < 3) {
                                 return translate('settings.username_min');
                               }
-                return null;
-              },
-            ),
+                              return null;
+                            },
+                          ),
                           const SizedBox(height: 16),
 
                           // Doğum Tarihi
@@ -1151,10 +1132,16 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                             onTap: _pickBirthDate,
                             style: theme.textTheme.bodyLarge,
                             decoration: InputDecoration(
-                              labelText: translate('onboarding.setup_birth_date_label'),
-                              hintText: translate('onboarding.setup_birth_date_placeholder'),
+                              labelText: translate(
+                                'onboarding.setup_birth_date_label',
+                              ),
+                              hintText: translate(
+                                'onboarding.setup_birth_date_placeholder',
+                              ),
                               prefixIcon: const Icon(Icons.cake_outlined),
-                              suffixIcon: const Icon(Icons.calendar_month_outlined),
+                              suffixIcon: const Icon(
+                                Icons.calendar_month_outlined,
+                              ),
                               filled: true,
                               fillColor: isDark
                                   ? Colors.white.withValues(alpha: 0.05)
@@ -1186,22 +1173,22 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                           ),
                           const SizedBox(height: 16),
 
-            // E-posta (salt okunur)
-            TextFormField(
-              initialValue: email,
-              enabled: false,
+                          // E-posta (salt okunur)
+                          TextFormField(
+                            initialValue: email,
+                            enabled: false,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
-              decoration: InputDecoration(
+                            decoration: InputDecoration(
                               labelText: translate('auth.email'),
-                prefixIcon: const Icon(Icons.email_outlined),
+                              prefixIcon: const Icon(Icons.email_outlined),
                               filled: true,
                               fillColor: isDark
                                   ? Colors.white.withValues(alpha: 0.03)
                                   : Colors.black.withValues(alpha: 0.01),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
                                 borderSide: BorderSide.none,
                               ),
                               disabledBorder: OutlineInputBorder(
@@ -1246,7 +1233,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -1330,7 +1319,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -1375,21 +1366,24 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                     width: 64,
                                     height: 64,
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
                                       Icons.link_off_rounded,
                                       size: 32,
-                                      color: AppColors.primary.withValues(alpha: 0.6),
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.6,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
                                     translate('settings.no_links'),
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -1397,8 +1391,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                   Text(
                                     translate('settings.social_links_hint'),
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme
-                                          .colorScheme.onSurfaceVariant
+                                      color: theme.colorScheme.onSurfaceVariant
                                           .withValues(alpha: 0.6),
                                     ),
                                   ),
@@ -1432,8 +1425,12 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                           colors: [
-                                            AppColors.primary.withValues(alpha: 0.15),
-                                            AppColors.secondary.withValues(alpha: 0.1),
+                                            AppColors.primary.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            AppColors.secondary.withValues(
+                                              alpha: 0.1,
+                                            ),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(12),
@@ -1447,20 +1444,23 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                     const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             link['title'] ?? '',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             link['url'] ?? '',
-                                            style: theme.textTheme.bodySmall?.copyWith(
-                                              color: AppColors.primary,
-                                            ),
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: AppColors.primary,
+                                                ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -1471,7 +1471,9 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
                                       icon: Icon(
                                         Icons.delete_outline_rounded,
                                         size: 20,
-                                        color: AppColors.error.withValues(alpha: 0.7),
+                                        color: AppColors.error.withValues(
+                                          alpha: 0.7,
+                                        ),
                                       ),
                                       onPressed: () => _removeLink(index),
                                       tooltip: 'Sil',
@@ -1604,9 +1606,7 @@ class _SecurityPageState extends State<_SecurityPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.security_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.security_title'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -1621,17 +1621,21 @@ class _SecurityPageState extends State<_SecurityPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.shield_outlined,
-                      color: AppColors.primary, size: 28),
+                  Icon(
+                    Icons.shield_outlined,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
-                      child: Text(
-                        translate('settings.security_hint'),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.7),
+                    child: Text(
+                      translate('settings.security_hint'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
                         ),
                       ),
+                    ),
                   ),
                 ],
               ),
@@ -1641,8 +1645,9 @@ class _SecurityPageState extends State<_SecurityPage> {
             // Mevcut şifre
             Text(
               translate('settings.current_password'),
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -1652,12 +1657,13 @@ class _SecurityPageState extends State<_SecurityPage> {
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
                   icon: Icon(
-                      _showCurrent ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () =>
-                      setState(() => _showCurrent = !_showCurrent),
+                    _showCurrent ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () => setState(() => _showCurrent = !_showCurrent),
                 ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               validator: (v) => (v == null || v.isEmpty)
                   ? translate('settings.field_required')
@@ -1668,8 +1674,9 @@ class _SecurityPageState extends State<_SecurityPage> {
             // Yeni şifre
             Text(
               translate('settings.new_password'),
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -1678,12 +1685,14 @@ class _SecurityPageState extends State<_SecurityPage> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_rounded),
                 suffixIcon: IconButton(
-                  icon:
-                      Icon(_showNew ? Icons.visibility_off : Icons.visibility),
+                  icon: Icon(
+                    _showNew ? Icons.visibility_off : Icons.visibility,
+                  ),
                   onPressed: () => setState(() => _showNew = !_showNew),
                 ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               validator: (v) {
                 if (v == null || v.length < 6) {
@@ -1697,8 +1706,9 @@ class _SecurityPageState extends State<_SecurityPage> {
             // Tekrar
             Text(
               translate('settings.new_password_again'),
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -1708,12 +1718,13 @@ class _SecurityPageState extends State<_SecurityPage> {
                 prefixIcon: const Icon(Icons.lock_rounded),
                 suffixIcon: IconButton(
                   icon: Icon(
-                      _showConfirm ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () =>
-                      setState(() => _showConfirm = !_showConfirm),
+                    _showConfirm ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () => setState(() => _showConfirm = !_showConfirm),
                 ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               validator: (v) {
                 if (v != _newPw.text) {
@@ -1735,7 +1746,9 @@ class _SecurityPageState extends State<_SecurityPage> {
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.check_rounded),
                 label: Text(
@@ -1776,10 +1789,9 @@ class _NotificationsPage extends ConsumerWidget {
     ref.read(notificationSettingsProvider.notifier).state = updated;
 
     try {
-      await ref.read(authRepositoryProvider).updateNotificationPreferences(
-            userId: userId,
-            preferences: updated,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .updateNotificationPreferences(userId: userId, preferences: updated);
     } catch (e) {
       // Hata durumunda toggle'ı geri sar.
       ref.read(notificationSettingsProvider.notifier).state = previous;
@@ -1801,19 +1813,13 @@ class _NotificationsPage extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.notification_settings')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.notification_settings'))),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Text(toUserFriendlyErrorMessage(err)),
-        ),
+        error: (err, _) => Center(child: Text(toUserFriendlyErrorMessage(err))),
         data: (profile) {
           if (profile == null) {
-            return Center(
-              child: Text(translate('settings.profile_not_found')),
-            );
+            return Center(child: Text(translate('settings.profile_not_found')));
           }
 
           final backendPrefs = profile.notificationPreferences;
@@ -1841,7 +1847,8 @@ class _NotificationsPage extends ConsumerWidget {
           };
 
           final bottomNavExtra =
-              MediaQuery.paddingOf(context).bottom + 92; // glass bottom nav boşluğu
+              MediaQuery.paddingOf(context).bottom +
+              92; // glass bottom nav boşluğu
           return ListView(
             padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomNavExtra),
             children: [
@@ -1855,15 +1862,19 @@ class _NotificationsPage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.tune_rounded,
-                        color: AppColors.primary, size: 28),
+                    Icon(
+                      Icons.tune_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         translate('settings.notification_hint'),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ),
@@ -1911,7 +1922,8 @@ class _NotificationsPage extends ConsumerWidget {
                 title: translate('settings.weekly_digest'),
                 subtitle: translate('settings.weekly_digest_sub'),
                 value: prefs['weeklyDigest'] ?? true,
-                onChanged: (v) => _toggle(context, ref, prefs, 'weeklyDigest', v),
+                onChanged: (v) =>
+                    _toggle(context, ref, prefs, 'weeklyDigest', v),
               ),
             ],
           );
@@ -1975,7 +1987,9 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
           context,
           isDark: isDark,
           icon: Icons.notifications_off_rounded,
-          iconColor: isPermanentlyDenied ? AppColors.warning : AppColors.primary,
+          iconColor: isPermanentlyDenied
+              ? AppColors.warning
+              : AppColors.primary,
           title: isPermanentlyDenied
               ? translate('settings.notifications_off')
               : translate('settings.notifications_off_prompt'),
@@ -2058,7 +2072,9 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
                       Text(
                         body,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],
@@ -2069,11 +2085,7 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
           ),
           if (actions.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: actions,
-            ),
+            Wrap(spacing: 10, runSpacing: 8, children: actions),
           ],
         ],
       ),
@@ -2082,10 +2094,7 @@ class _SystemNotificationPermissionCard extends ConsumerWidget {
 }
 
 class _PermissionButton extends StatelessWidget {
-  const _PermissionButton({
-    required this.label,
-    required this.onPressed,
-  });
+  const _PermissionButton({required this.label, required this.onPressed});
   final String label;
   final VoidCallback onPressed;
 
@@ -2154,9 +2163,12 @@ class _NotificationTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: theme.textTheme.bodyLarge
-                        ?.copyWith(fontWeight: FontWeight.w500)),
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
@@ -2224,8 +2236,7 @@ class _LanguagePageState extends State<_LanguagePage> {
   }
 
   Future<void> _loadCurrentSelection(LocalizationDelegate delegate) async {
-    final useSystem =
-        await VellumTranslatePreferences.getUseSystemLocale();
+    final useSystem = await VellumTranslatePreferences.getUseSystemLocale();
     if (!mounted) return;
     final locale = delegate.currentLocale;
     setState(() {
@@ -2245,9 +2256,11 @@ class _LanguagePageState extends State<_LanguagePage> {
       await VellumTranslatePreferences.setUseSystemLocale(true);
       final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
       final langCode = deviceLocale.languageCode;
-      final supported = langCode == 'tr' || langCode == 'en' || langCode == 'de';
+      final supported =
+          langCode == 'tr' || langCode == 'en' || langCode == 'de';
       await delegate.changeLocale(
-          localeFromString(supported ? langCode : 'tr'));
+        localeFromString(supported ? langCode : 'tr'),
+      );
       state.onLocaleChanged();
     } else {
       await delegate.changeLocale(localeFromString(code));
@@ -2257,10 +2270,10 @@ class _LanguagePageState extends State<_LanguagePage> {
     final name = code == 'system'
         ? translate('settings.language_system')
         : code == 'tr'
-            ? translate('settings.language_turkish')
-            : code == 'de'
-                ? translate('settings.language_german')
-                : translate('settings.language_english');
+        ? translate('settings.language_turkish')
+        : code == 'de'
+        ? translate('settings.language_german')
+        : translate('settings.language_english');
     navigator.pop();
     messenger.showSnackBar(
       SnackBar(
@@ -2292,65 +2305,68 @@ class _LanguagePageState extends State<_LanguagePage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.separated(
-        padding: const EdgeInsets.all(24),
-        itemCount: _languages.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final lang = _languages[index];
+              padding: const EdgeInsets.all(24),
+              itemCount: _languages.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final lang = _languages[index];
                 final isSelected = lang['code'] == selected;
 
-          return InkWell(
-                  onTap: () =>
-                      setState(() => _selected = lang['code']!),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
+                return InkWell(
+                  onTap: () => setState(() => _selected = lang['code']!),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : Colors.black.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.4)
-                      : isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.06),
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  SvgPicture.asset(
-                    lang['flag']!,
-                    width: 34,
-                    height: 22,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary.withValues(alpha: 0.4)
+                            : isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        SvgPicture.asset(
+                          lang['flag']!,
+                          width: 34,
+                          height: 22,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
                             translate(lang['nameKey']!),
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                            style: theme.textTheme.bodyLarge?.copyWith(
                               fontWeight: isSelected
                                   ? FontWeight.w600
                                   : FontWeight.normal,
-                        color: isSelected ? AppColors.primary : null,
-                      ),
+                              color: isSelected ? AppColors.primary : null,
+                            ),
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                          ),
+                      ],
                     ),
                   ),
-                  if (isSelected)
-                    const Icon(Icons.check_circle_rounded,
-                        color: AppColors.primary),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }
@@ -2398,8 +2414,11 @@ class _FontSizePage extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                Icon(Icons.text_fields_rounded,
-                    color: AppColors.primary, size: 32),
+                Icon(
+                  Icons.text_fields_rounded,
+                  color: AppColors.primary,
+                  size: 32,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'Vellum ile keşfetmenin tadını çıkarın.',
@@ -2425,25 +2444,26 @@ class _FontSizePage extends ConsumerWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: InkWell(
-                onTap: () =>
-                    ref.read(fontSizeProvider.notifier).state = option,
+                onTap: () => ref.read(fontSizeProvider.notifier).state = option,
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary.withValues(alpha: 0.1)
                         : isDark
-                            ? Colors.white.withValues(alpha: 0.06)
-                            : Colors.black.withValues(alpha: 0.03),
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primary.withValues(alpha: 0.4)
                           : isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.06),
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06),
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -2470,8 +2490,10 @@ class _FontSizePage extends ConsumerWidget {
                         ),
                       ),
                       if (isSelected)
-                        const Icon(Icons.check_circle_rounded,
-                            color: AppColors.primary),
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                        ),
                     ],
                   ),
                 ),
@@ -2490,22 +2512,13 @@ class _HelpPage extends StatelessWidget {
   const _HelpPage();
 
   static const _faqItems = [
-    {
-      'qKey': 'settings.faq_what_is',
-      'aKey': 'settings.faq_what_is_a',
-    },
-    {
-      'qKey': 'settings.faq_how_author',
-      'aKey': 'settings.faq_how_author_a',
-    },
+    {'qKey': 'settings.faq_what_is', 'aKey': 'settings.faq_what_is_a'},
+    {'qKey': 'settings.faq_how_author', 'aKey': 'settings.faq_how_author_a'},
     {
       'qKey': 'settings.faq_subscription',
       'aKey': 'settings.faq_subscription_a',
     },
-    {
-      'qKey': 'settings.faq_cancel_sub',
-      'aKey': 'settings.faq_cancel_sub_a',
-    },
+    {'qKey': 'settings.faq_cancel_sub', 'aKey': 'settings.faq_cancel_sub_a'},
     {
       'qKey': 'settings.faq_delete_account',
       'aKey': 'settings.faq_delete_account_a',
@@ -2517,9 +2530,7 @@ class _HelpPage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.help_faq_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.help_faq_title'))),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -2531,15 +2542,17 @@ class _HelpPage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.help_outline_rounded,
-                    color: AppColors.primary, size: 28),
+                Icon(
+                  Icons.help_outline_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     translate('settings.help_faq_subtitle'),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.7),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ),
@@ -2570,19 +2583,19 @@ class _HelpPage extends StatelessWidget {
                 title: Text(
                   translate(item['qKey']!),
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                childrenPadding:
-                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
                   Text(
                     translate(item['aKey']!),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.7),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       height: 1.5,
                     ),
                   ),
@@ -2714,30 +2727,26 @@ class _ProfileCard extends StatelessWidget {
                       width: 56,
                       height: 56,
                       errorBuilder: (_, __, ___) => Center(
-              child: Text(
-                          username.isNotEmpty
-                              ? username[0].toUpperCase()
-                              : '?',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                        child: Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     )
                   : Center(
                       child: Text(
-                        username.isNotEmpty
-                            ? username[0].toUpperCase()
-                            : '?',
+                        username.isNotEmpty ? username[0].toUpperCase() : '?',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                ),
-              ),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 16),
@@ -2788,13 +2797,10 @@ class _SectionTitle extends StatelessWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
-              letterSpacing: 0.5,
-            ),
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -2891,8 +2897,9 @@ class _SettingsTile extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ],
@@ -2954,10 +2961,9 @@ class _ThemeChip extends StatelessWidget {
               size: 16,
               color: isSelected
                   ? AppColors.primary
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.5),
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 6),
             Text(
@@ -2967,10 +2973,9 @@ class _ThemeChip extends StatelessWidget {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected
                     ? AppColors.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -2982,6 +2987,263 @@ class _ThemeChip extends StatelessWidget {
 
 // ─── İçerik Metinleri ────────────────────────────────
 // Kullanım Şartları ve Gizlilik metinleri i18n üzerinden render edilir.
+
+class _BlockedUsersPage extends ConsumerWidget {
+  const _BlockedUsersPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final blockedAsync = ref.watch(blockedUserIdsProvider);
+    final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(translate('settings.blocked_users'))),
+      body: blockedAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text(toUserFriendlyErrorMessage(err))),
+        data: (blockedIds) {
+          if (blockedIds.isEmpty) {
+            return Center(
+              child: Text(
+                translate('settings.blocked_users_empty'),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: blockedIds.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final blockedUserId = blockedIds[index];
+              return FutureBuilder<Profile?>(
+                future: ref
+                    .read(authRepositoryProvider)
+                    .getProfileById(blockedUserId),
+                builder: (context, snapshot) {
+                  final username =
+                      snapshot.data?.username ?? blockedUserId.substring(0, 8);
+                  return ListTile(
+                    tileColor: theme.colorScheme.surfaceContainerLowest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline_rounded),
+                    ),
+                    title: Text(username),
+                    subtitle: Text(blockedUserId),
+                    trailing: TextButton(
+                      onPressed: currentUserId == null
+                          ? null
+                          : () async {
+                              await ref
+                                  .read(userBlockRepositoryProvider)
+                                  .unblockUser(
+                                    userId: currentUserId,
+                                    blockedUserId: blockedUserId,
+                                  );
+                              ref.invalidate(blockedUserIdsProvider);
+                            },
+                      child: Text(translate('profile.unblock_user')),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DeveloperHubPage extends StatelessWidget {
+  const _DeveloperHubPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      appBar: AppBar(title: Text(translate('settings.developer_tools'))),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            _SettingsGroup(
+              isDark: isDark,
+              items: [
+                _SettingsTile(
+                  icon: Icons.science_outlined,
+                  label: translate('settings.onboarding_test_title'),
+                  subtitle: translate('settings.onboarding_test_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperOnboardingTestPage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.settings_applications_rounded,
+                  label: translate('settings.app_config_title'),
+                  subtitle: translate('settings.app_config_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperAppConfigPage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.workspace_premium_rounded,
+                  label: translate('settings.exclusive_title'),
+                  subtitle: translate('settings.exclusive_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperExclusivePage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.verified_outlined,
+                  label: translate('settings.author_badges_title'),
+                  subtitle: translate('settings.author_badges_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperAuthorBadgesPage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.flag_outlined,
+                  label: translate('settings.book_reports'),
+                  subtitle: translate('settings.book_reports_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperReportsPage(),
+                    ),
+                  ),
+                ),
+                _SettingsTile(
+                  icon: Icons.rate_review_outlined,
+                  label: translate('settings.review_reports'),
+                  subtitle: translate('settings.review_reports_subtitle'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _DeveloperReviewReportsPage(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeveloperReviewReportsPage extends ConsumerWidget {
+  const _DeveloperReviewReportsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportsAsync = ref.watch(reviewReportsProvider);
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(translate('settings.review_reports'))),
+      body: reportsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text(toUserFriendlyErrorMessage(err))),
+        data: (reports) {
+          if (reports.isEmpty) {
+            return Center(
+              child: Text(
+                translate('settings.review_reports_empty'),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: reports.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final report = reports[index];
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${translate('settings.review_id')}: ${report.reviewId}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${translate('settings.report_reason')}: ${report.reason}',
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${translate('settings.status')}: ${report.status}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () async {
+                              await ref
+                                  .read(reviewReportRepositoryProvider)
+                                  .updateStatus(
+                                    reportId: report.id,
+                                    status: 'reviewed',
+                                  );
+                              ref.invalidate(reviewReportsProvider);
+                            },
+                            child: Text(translate('settings.mark_reviewed')),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () async {
+                              await ref
+                                  .read(reviewReportRepositoryProvider)
+                                  .updateStatus(
+                                    reportId: report.id,
+                                    status: 'resolved',
+                                  );
+                              ref.invalidate(reviewReportsProvider);
+                            },
+                            child: Text(translate('settings.mark_resolved')),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
 
 // ─── Geliştirici: Kitap şikayetleri sayfası ─────────
 
@@ -3030,12 +3292,9 @@ class _DeveloperAppConfigPageState
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.app_config_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.app_config_title'))),
       body: configAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Hata: $err')),
         data: (_) {
           return SingleChildScrollView(
@@ -3045,52 +3304,46 @@ class _DeveloperAppConfigPageState
               children: [
                 Text(
                   translate('settings.maintenance_title'),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
                   title: Text(translate('settings.maintenance_active')),
-                  subtitle: Text(
-                      translate('settings.maintenance_subtitle')),
+                  subtitle: Text(translate('settings.maintenance_subtitle')),
                   value: _maintenanceEnabled,
-                  onChanged: (v) =>
-                      setState(() => _maintenanceEnabled = v),
+                  onChanged: (v) => setState(() => _maintenanceEnabled = v),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _maintenanceController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText:
-                        translate('settings.maintenance_message_label'),
-                    hintText:
-                        translate('settings.maintenance_message_hint'),
+                    labelText: translate('settings.maintenance_message_label'),
+                    hintText: translate('settings.maintenance_message_hint'),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   translate('settings.announcement_title'),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
                   title: Text(translate('settings.announcement_active')),
-                  subtitle: Text(
-                      translate('settings.announcement_subtitle')),
+                  subtitle: Text(translate('settings.announcement_subtitle')),
                   value: _announcementEnabled,
-                  onChanged: (v) =>
-                      setState(() => _announcementEnabled = v),
+                  onChanged: (v) => setState(() => _announcementEnabled = v),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _announcementTitleController,
                   decoration: InputDecoration(
-                    labelText:
-                        translate('settings.announcement_heading_label'),
-                    hintText:
-                        translate('settings.announcement_heading_hint'),
+                    labelText: translate('settings.announcement_heading_label'),
+                    hintText: translate('settings.announcement_heading_hint'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -3098,10 +3351,8 @@ class _DeveloperAppConfigPageState
                   controller: _announcementBodyController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText:
-                        translate('settings.announcement_body_label'),
-                    hintText:
-                        translate('settings.announcement_body_hint'),
+                    labelText: translate('settings.announcement_body_label'),
+                    hintText: translate('settings.announcement_body_hint'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -3113,18 +3364,19 @@ class _DeveloperAppConfigPageState
                   items: [
                     DropdownMenuItem(
                       value: 'info',
-                      child: Text(
-                          translate('settings.announcement_type_info')),
+                      child: Text(translate('settings.announcement_type_info')),
                     ),
                     DropdownMenuItem(
                       value: 'success',
                       child: Text(
-                          translate('settings.announcement_type_success')),
+                        translate('settings.announcement_type_success'),
+                      ),
                     ),
                     DropdownMenuItem(
                       value: 'warning',
                       child: Text(
-                          translate('settings.announcement_type_warning')),
+                        translate('settings.announcement_type_warning'),
+                      ),
                     ),
                   ],
                   onChanged: (v) {
@@ -3141,20 +3393,22 @@ class _DeveloperAppConfigPageState
                         : () async {
                             setState(() => _isSaving = true);
                             try {
-                              final current =
-                                  await ref.read(appConfigRepositoryProvider)
-                                      .fetch();
+                              final current = await ref
+                                  .read(appConfigRepositoryProvider)
+                                  .fetch();
                               final updated = current.copyWith(
                                 maintenanceEnabled: _maintenanceEnabled,
                                 maintenanceMessage:
                                     _maintenanceController.text.trim().isEmpty
-                                        ? null
-                                        : _maintenanceController.text.trim(),
+                                    ? null
+                                    : _maintenanceController.text.trim(),
                                 announcementEnabled: _announcementEnabled,
-                                announcementTitle:
-                                    _announcementTitleController.text.trim(),
-                                announcementBody:
-                                    _announcementBodyController.text.trim(),
+                                announcementTitle: _announcementTitleController
+                                    .text
+                                    .trim(),
+                                announcementBody: _announcementBodyController
+                                    .text
+                                    .trim(),
                                 announcementLevel: _announcementLevel,
                               );
                               await ref
@@ -3165,8 +3419,7 @@ class _DeveloperAppConfigPageState
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      translate(
-                                          'settings.app_config_saved'),
+                                      translate('settings.app_config_saved'),
                                     ),
                                   ),
                                 );
@@ -3177,7 +3430,8 @@ class _DeveloperAppConfigPageState
                                   SnackBar(
                                     content: Text(
                                       translate(
-                                          'settings.app_config_save_failed'),
+                                        'settings.app_config_save_failed',
+                                      ),
                                     ),
                                   ),
                                 );
@@ -3192,8 +3446,7 @@ class _DeveloperAppConfigPageState
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_rounded, size: 18),
                     label: Text(translate('common.save')),
@@ -3264,11 +3517,13 @@ class _DeveloperExclusivePageState
       final books = await repo.getExclusiveBooks(limit: 50);
       setState(() {
         _books = books
-            .map((b) => _ExclusiveBookEntry(
-                  id: b.id,
-                  title: b.title,
-                  isExclusive: true,
-                ))
+            .map(
+              (b) => _ExclusiveBookEntry(
+                id: b.id,
+                title: b.title,
+                isExclusive: true,
+              ),
+            )
             .toList();
       });
     } finally {
@@ -3289,11 +3544,13 @@ class _DeveloperExclusivePageState
       // Exclusive bilgisi modelde yok, varsayılan false, toggle edildiğinde güncellenecek.
       setState(() {
         _books = books
-            .map((b) => _ExclusiveBookEntry(
-                  id: b.id,
-                  title: b.title,
-                  isExclusive: false,
-                ))
+            .map(
+              (b) => _ExclusiveBookEntry(
+                id: b.id,
+                title: b.title,
+                isExclusive: false,
+              ),
+            )
             .toList();
       });
     } finally {
@@ -3304,8 +3561,7 @@ class _DeveloperExclusivePageState
   Future<void> _toggleExclusive(_ExclusiveBookEntry entry, bool value) async {
     setState(() {
       _books = _books
-          .map((b) =>
-              b.id == entry.id ? b.copyWith(isExclusive: value) : b)
+          .map((b) => b.id == entry.id ? b.copyWith(isExclusive: value) : b)
           .toList();
     });
     await ref.read(bookRepositoryProvider).setExclusive(entry.id, value);
@@ -3317,9 +3573,7 @@ class _DeveloperExclusivePageState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.exclusive_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.exclusive_title'))),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -3349,38 +3603,36 @@ class _DeveloperExclusivePageState
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _books.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Hiç kitap bulunamadı.',
-                            style:
-                                theme.textTheme.bodyMedium?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: _books.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final entry = _books[index];
-                            return ListTile(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 4, vertical: 4),
-                              title: Text(
-                                entry.title,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              trailing: Switch(
-                                value: entry.isExclusive,
-                                onChanged: (value) =>
-                                    _toggleExclusive(entry, value),
-                              ),
-                            );
-                          },
+                  ? Center(
+                      child: Text(
+                        'Hiç kitap bulunamadı.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _books.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final entry = _books[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          title: Text(
+                            entry.title,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          trailing: Switch(
+                            value: entry.isExclusive,
+                            onChanged: (value) =>
+                                _toggleExclusive(entry, value),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -3401,10 +3653,10 @@ class _ExclusiveBookEntry {
   final bool isExclusive;
 
   _ExclusiveBookEntry copyWith({bool? isExclusive}) => _ExclusiveBookEntry(
-        id: id,
-        title: title,
-        isExclusive: isExclusive ?? this.isExclusive,
-      );
+    id: id,
+    title: title,
+    isExclusive: isExclusive ?? this.isExclusive,
+  );
 }
 
 // ─── Geliştirici: Yazar Rozetleri yönetimi ─────────────
@@ -3450,18 +3702,15 @@ class _DeveloperAuthorBadgesPageState
     setState(() {
       _authors = _authors
           .map(
-            (a) => a.id == author.id
-                ? a.copyWith(isVerifiedAuthor: value)
-                : a,
+            (a) => a.id == author.id ? a.copyWith(isVerifiedAuthor: value) : a,
           )
           .toList();
     });
 
     try {
-      await ref.read(authRepositoryProvider).setVerifiedAuthor(
-            targetUserId: author.id,
-            value: value,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .setVerifiedAuthor(targetUserId: author.id, value: value);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -3474,7 +3723,10 @@ class _DeveloperAuthorBadgesPageState
               .toList();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -3485,9 +3737,7 @@ class _DeveloperAuthorBadgesPageState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.author_badges_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.author_badges_title'))),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -3517,50 +3767,48 @@ class _DeveloperAuthorBadgesPageState
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _authors.isEmpty
-                      ? Center(
-                          child: Text(
-                            translate('home.following_empty_body'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: _authors.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final author = _authors[index];
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              leading: CircleAvatar(
-                                child: Text(
-                                  author.username.isNotEmpty
-                                      ? author.username[0].toUpperCase()
-                                      : '?',
-                                ),
-                              ),
-                              title: Text(
-                                author.username,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              subtitle: Text(
-                                author.isVerifiedAuthor
-                                    ? translate('profile.pro_author')
-                                    : '',
-                              ),
-                              trailing: Switch(
-                                value: author.isVerifiedAuthor,
-                                onChanged: (value) =>
-                                    _toggleBadge(author, value),
-                              ),
-                            );
-                          },
+                  ? Center(
+                      child: Text(
+                        translate('home.following_empty_body'),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _authors.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final author = _authors[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          leading: CircleAvatar(
+                            child: Text(
+                              author.username.isNotEmpty
+                                  ? author.username[0].toUpperCase()
+                                  : '?',
+                            ),
+                          ),
+                          title: Text(
+                            author.username,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          subtitle: Text(
+                            author.isVerifiedAuthor
+                                ? translate('profile.pro_author')
+                                : '',
+                          ),
+                          trailing: Switch(
+                            value: author.isVerifiedAuthor,
+                            onChanged: (value) => _toggleBadge(author, value),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -3576,7 +3824,8 @@ Future<void> _showWarnAuthorDialog(
 ) async {
   final theme = Theme.of(context);
   final controller = TextEditingController(
-    text: '"${report.bookTitle ?? report.bookId}" hakkında alınan şikayetler nedeniyle size uyarı gönderiliyor. Lütfen içeriğinizi gözden geçirin.',
+    text:
+        '"${report.bookTitle ?? report.bookId}" hakkında alınan şikayetler nedeniyle size uyarı gönderiliyor. Lütfen içeriğinizi gözden geçirin.',
   );
 
   final confirmed = await showDialog<bool>(
@@ -3618,9 +3867,13 @@ Future<void> _showWarnAuthorDialog(
 
   if (confirmed != true || !context.mounted) return;
 
-  await ref.read(bookReportRepositoryProvider).warnAuthor(
+  await ref
+      .read(bookReportRepositoryProvider)
+      .warnAuthor(
         bookId: report.bookId,
-        customMessage: controller.text.trim().isEmpty ? null : controller.text.trim(),
+        customMessage: controller.text.trim().isEmpty
+            ? null
+            : controller.text.trim(),
       );
   ref.invalidate(bookReportsListProvider);
 
@@ -3689,18 +3942,23 @@ class _DeveloperReportsPage extends ConsumerWidget {
     final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kitap şikayetleri'),
-      ),
+      appBar: AppBar(title: Text(translate('settings.book_reports'))),
       body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 16),
-              Text('Yüklenemedi: $err', textAlign: TextAlign.center),
+              Text(
+                toUserFriendlyErrorMessage(err),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -3710,12 +3968,16 @@ class _DeveloperReportsPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.flag_outlined,
-                      size: 64,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.flag_outlined,
+                    size: 64,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.5,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
-                    'Henüz şikayet yok',
+                    translate('settings.reports_empty'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -3734,7 +3996,9 @@ class _DeveloperReportsPage extends ConsumerWidget {
                 isDark: isDark,
                 currentUserId: currentUserId ?? '',
                 onMarkRead: () async {
-                  await ref.read(bookReportRepositoryProvider).markAsRead(
+                  await ref
+                      .read(bookReportRepositoryProvider)
+                      .markAsRead(
                         reportId: report.id,
                         readByUserId: currentUserId!,
                         reporterUserId: report.reporterUserId,
@@ -3763,9 +4027,7 @@ class _DeveloperOnboardingTestPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(translate('settings.onboarding_test_title')),
-      ),
+      appBar: AppBar(title: Text(translate('settings.onboarding_test_title'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -3777,14 +4039,9 @@ class _DeveloperOnboardingTestPage extends StatelessWidget {
                   icon: Icons.auto_awesome_rounded,
                   label: translate('settings.onboarding_flow_title'),
                   subtitle: translate('settings.onboarding_flow_subtitle'),
-                  onTap: () => Navigator.of(
-                    context,
-                    rootNavigator: true,
-                  ).push(
+                  onTap: () => Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
-                      builder: (_) => const OnboardingScreen(
-                        sandboxMode: true,
-                      ),
+                      builder: (_) => const OnboardingScreen(sandboxMode: true),
                     ),
                   ),
                 ),
@@ -3792,14 +4049,10 @@ class _DeveloperOnboardingTestPage extends StatelessWidget {
                   icon: Icons.tune_rounded,
                   label: translate('settings.signup_setup_flow_title'),
                   subtitle: translate('settings.signup_setup_flow_subtitle'),
-                  onTap: () => Navigator.of(
-                    context,
-                    rootNavigator: true,
-                  ).push(
+                  onTap: () => Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
-                      builder: (_) => const SignupSetupScreen(
-                        sandboxMode: true,
-                      ),
+                      builder: (_) =>
+                          const SignupSetupScreen(sandboxMode: true),
                     ),
                   ),
                 ),
@@ -3879,9 +4132,14 @@ class _ReportCard extends StatelessWidget {
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -3901,15 +4159,14 @@ class _ReportCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              report.message,
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text(report.message, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 8),
             Text(
               _formatDate(report.createdAt),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -3928,9 +4185,7 @@ class _ReportCard extends StatelessWidget {
                   onPressed: onRemoveBook,
                   icon: const Icon(Icons.delete_forever_rounded, size: 18),
                   label: const Text('Kitabı Kaldır'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                 ),
               ],
             ),

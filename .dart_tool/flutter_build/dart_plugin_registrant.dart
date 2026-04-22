@@ -6,44 +6,44 @@
 // @dart = 3.9
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
-import 'package:image_picker_android/image_picker_android.dart' as image_picker_android;
-import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
-import 'package:quill_native_bridge_android/quill_native_bridge_android.dart' as quill_native_bridge_android;
-import 'package:shared_preferences_android/shared_preferences_android.dart' as shared_preferences_android;
-import 'package:sqflite_android/sqflite_android.dart' as sqflite_android;
-import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
-import 'package:image_picker_ios/image_picker_ios.dart' as image_picker_ios;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:quill_native_bridge_ios/quill_native_bridge_ios.dart' as quill_native_bridge_ios;
-import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
-import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
-import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
-import 'package:app_links_linux/app_links_linux.dart' as app_links_linux;
-import 'package:connectivity_plus/connectivity_plus.dart' as connectivity_plus;
-import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
-import 'package:flutter_keyboard_visibility_linux/flutter_keyboard_visibility_linux.dart' as flutter_keyboard_visibility_linux;
-import 'package:image_picker_linux/image_picker_linux.dart' as image_picker_linux;
-import 'package:package_info_plus/package_info_plus.dart' as package_info_plus;
-import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_linux;
-import 'package:quill_native_bridge/quill_native_bridge.dart' as quill_native_bridge;
-import 'package:shared_preferences_linux/shared_preferences_linux.dart' as shared_preferences_linux;
-import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
-import 'package:file_selector_macos/file_selector_macos.dart' as file_selector_macos;
-import 'package:flutter_keyboard_visibility_macos/flutter_keyboard_visibility_macos.dart' as flutter_keyboard_visibility_macos;
-import 'package:image_picker_macos/image_picker_macos.dart' as image_picker_macos;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:quill_native_bridge_macos/quill_native_bridge_macos.dart' as quill_native_bridge_macos;
-import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
-import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
-import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
-import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
-import 'package:flutter_keyboard_visibility_windows/flutter_keyboard_visibility_windows.dart' as flutter_keyboard_visibility_windows;
-import 'package:image_picker_windows/image_picker_windows.dart' as image_picker_windows;
-import 'package:package_info_plus/package_info_plus.dart' as package_info_plus;
-import 'package:path_provider_windows/path_provider_windows.dart' as path_provider_windows;
-import 'package:quill_native_bridge_windows/quill_native_bridge_windows.dart' as quill_native_bridge_windows;
-import 'package:shared_preferences_windows/shared_preferences_windows.dart' as shared_preferences_windows;
-import 'package:url_launcher_windows/url_launcher_windows.dart' as url_launcher_windows;
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:path_provider_android/path_provider_android.dart';
+import 'package:quill_native_bridge_android/quill_native_bridge_android.dart';
+import 'package:shared_preferences_android/shared_preferences_android.dart';
+import 'package:sqflite_android/sqflite_android.dart';
+import 'package:url_launcher_android/url_launcher_android.dart';
+import 'package:image_picker_ios/image_picker_ios.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:quill_native_bridge_ios/quill_native_bridge_ios.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
+import 'package:sqflite_darwin/sqflite_darwin.dart';
+import 'package:url_launcher_ios/url_launcher_ios.dart';
+import 'package:app_links_linux/app_links_linux.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:file_selector_linux/file_selector_linux.dart';
+import 'package:flutter_keyboard_visibility_linux/flutter_keyboard_visibility_linux.dart';
+import 'package:image_picker_linux/image_picker_linux.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider_linux/path_provider_linux.dart';
+import 'package:quill_native_bridge/quill_native_bridge.dart';
+import 'package:shared_preferences_linux/shared_preferences_linux.dart';
+import 'package:url_launcher_linux/url_launcher_linux.dart';
+import 'package:file_selector_macos/file_selector_macos.dart';
+import 'package:flutter_keyboard_visibility_macos/flutter_keyboard_visibility_macos.dart';
+import 'package:image_picker_macos/image_picker_macos.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:quill_native_bridge_macos/quill_native_bridge_macos.dart';
+import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
+import 'package:sqflite_darwin/sqflite_darwin.dart';
+import 'package:url_launcher_macos/url_launcher_macos.dart';
+import 'package:file_selector_windows/file_selector_windows.dart';
+import 'package:flutter_keyboard_visibility_windows/flutter_keyboard_visibility_windows.dart';
+import 'package:image_picker_windows/image_picker_windows.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider_windows/path_provider_windows.dart';
+import 'package:quill_native_bridge_windows/quill_native_bridge_windows.dart';
+import 'package:shared_preferences_windows/shared_preferences_windows.dart';
+import 'package:url_launcher_windows/url_launcher_windows.dart';
 
 @pragma('vm:entry-point')
 class _PluginRegistrant {
@@ -52,7 +52,7 @@ class _PluginRegistrant {
   static void register() {
     if (Platform.isAndroid) {
       try {
-        image_picker_android.ImagePickerAndroid.registerWith();
+        ImagePickerAndroid.registerWith();
       } catch (err) {
         print(
           '`image_picker_android` threw an error: $err. '
@@ -61,7 +61,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_android.PathProviderAndroid.registerWith();
+        PathProviderAndroid.registerWith();
       } catch (err) {
         print(
           '`path_provider_android` threw an error: $err. '
@@ -70,7 +70,7 @@ class _PluginRegistrant {
       }
 
       try {
-        quill_native_bridge_android.QuillNativeBridgeAndroid.registerWith();
+        QuillNativeBridgeAndroid.registerWith();
       } catch (err) {
         print(
           '`quill_native_bridge_android` threw an error: $err. '
@@ -79,7 +79,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_android.SharedPreferencesAndroid.registerWith();
+        SharedPreferencesAndroid.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_android` threw an error: $err. '
@@ -88,7 +88,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_android.SqfliteAndroid.registerWith();
+        SqfliteAndroid.registerWith();
       } catch (err) {
         print(
           '`sqflite_android` threw an error: $err. '
@@ -97,7 +97,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_android.UrlLauncherAndroid.registerWith();
+        UrlLauncherAndroid.registerWith();
       } catch (err) {
         print(
           '`url_launcher_android` threw an error: $err. '
@@ -107,7 +107,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isIOS) {
       try {
-        image_picker_ios.ImagePickerIOS.registerWith();
+        ImagePickerIOS.registerWith();
       } catch (err) {
         print(
           '`image_picker_ios` threw an error: $err. '
@@ -116,7 +116,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -125,7 +125,7 @@ class _PluginRegistrant {
       }
 
       try {
-        quill_native_bridge_ios.QuillNativeBridgeIos.registerWith();
+        QuillNativeBridgeIos.registerWith();
       } catch (err) {
         print(
           '`quill_native_bridge_ios` threw an error: $err. '
@@ -134,7 +134,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_foundation.SharedPreferencesFoundation.registerWith();
+        SharedPreferencesFoundation.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_foundation` threw an error: $err. '
@@ -143,7 +143,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_darwin.SqfliteDarwin.registerWith();
+        SqfliteDarwin.registerWith();
       } catch (err) {
         print(
           '`sqflite_darwin` threw an error: $err. '
@@ -152,7 +152,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_ios.UrlLauncherIOS.registerWith();
+        UrlLauncherIOS.registerWith();
       } catch (err) {
         print(
           '`url_launcher_ios` threw an error: $err. '
@@ -162,7 +162,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isLinux) {
       try {
-        app_links_linux.AppLinksPluginLinux.registerWith();
+        AppLinksPluginLinux.registerWith();
       } catch (err) {
         print(
           '`app_links_linux` threw an error: $err. '
@@ -171,7 +171,7 @@ class _PluginRegistrant {
       }
 
       try {
-        connectivity_plus.ConnectivityPlusLinuxPlugin.registerWith();
+        ConnectivityPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`connectivity_plus` threw an error: $err. '
@@ -180,7 +180,7 @@ class _PluginRegistrant {
       }
 
       try {
-        file_selector_linux.FileSelectorLinux.registerWith();
+        FileSelectorLinux.registerWith();
       } catch (err) {
         print(
           '`file_selector_linux` threw an error: $err. '
@@ -189,7 +189,7 @@ class _PluginRegistrant {
       }
 
       try {
-        flutter_keyboard_visibility_linux.FlutterKeyboardVisibilityPluginLinux.registerWith();
+        FlutterKeyboardVisibilityPluginLinux.registerWith();
       } catch (err) {
         print(
           '`flutter_keyboard_visibility_linux` threw an error: $err. '
@@ -198,7 +198,7 @@ class _PluginRegistrant {
       }
 
       try {
-        image_picker_linux.ImagePickerLinux.registerWith();
+        ImagePickerLinux.registerWith();
       } catch (err) {
         print(
           '`image_picker_linux` threw an error: $err. '
@@ -207,7 +207,7 @@ class _PluginRegistrant {
       }
 
       try {
-        package_info_plus.PackageInfoPlusLinuxPlugin.registerWith();
+        PackageInfoPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`package_info_plus` threw an error: $err. '
@@ -216,7 +216,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_linux.PathProviderLinux.registerWith();
+        PathProviderLinux.registerWith();
       } catch (err) {
         print(
           '`path_provider_linux` threw an error: $err. '
@@ -225,7 +225,7 @@ class _PluginRegistrant {
       }
 
       try {
-        quill_native_bridge.QuillNativeBridgeStub.registerWith();
+        QuillNativeBridgeStub.registerWith();
       } catch (err) {
         print(
           '`quill_native_bridge` threw an error: $err. '
@@ -234,7 +234,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_linux.SharedPreferencesLinux.registerWith();
+        SharedPreferencesLinux.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_linux` threw an error: $err. '
@@ -243,7 +243,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_linux.UrlLauncherLinux.registerWith();
+        UrlLauncherLinux.registerWith();
       } catch (err) {
         print(
           '`url_launcher_linux` threw an error: $err. '
@@ -253,7 +253,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isMacOS) {
       try {
-        file_selector_macos.FileSelectorMacOS.registerWith();
+        FileSelectorMacOS.registerWith();
       } catch (err) {
         print(
           '`file_selector_macos` threw an error: $err. '
@@ -262,7 +262,7 @@ class _PluginRegistrant {
       }
 
       try {
-        flutter_keyboard_visibility_macos.FlutterKeyboardVisibilityPluginMacos.registerWith();
+        FlutterKeyboardVisibilityPluginMacos.registerWith();
       } catch (err) {
         print(
           '`flutter_keyboard_visibility_macos` threw an error: $err. '
@@ -271,7 +271,7 @@ class _PluginRegistrant {
       }
 
       try {
-        image_picker_macos.ImagePickerMacOS.registerWith();
+        ImagePickerMacOS.registerWith();
       } catch (err) {
         print(
           '`image_picker_macos` threw an error: $err. '
@@ -280,7 +280,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -289,7 +289,7 @@ class _PluginRegistrant {
       }
 
       try {
-        quill_native_bridge_macos.QuillNativeBridgeMacOS.registerWith();
+        QuillNativeBridgeMacOS.registerWith();
       } catch (err) {
         print(
           '`quill_native_bridge_macos` threw an error: $err. '
@@ -298,7 +298,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_foundation.SharedPreferencesFoundation.registerWith();
+        SharedPreferencesFoundation.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_foundation` threw an error: $err. '
@@ -307,7 +307,7 @@ class _PluginRegistrant {
       }
 
       try {
-        sqflite_darwin.SqfliteDarwin.registerWith();
+        SqfliteDarwin.registerWith();
       } catch (err) {
         print(
           '`sqflite_darwin` threw an error: $err. '
@@ -316,7 +316,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_macos.UrlLauncherMacOS.registerWith();
+        UrlLauncherMacOS.registerWith();
       } catch (err) {
         print(
           '`url_launcher_macos` threw an error: $err. '
@@ -326,7 +326,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isWindows) {
       try {
-        file_selector_windows.FileSelectorWindows.registerWith();
+        FileSelectorWindows.registerWith();
       } catch (err) {
         print(
           '`file_selector_windows` threw an error: $err. '
@@ -335,7 +335,7 @@ class _PluginRegistrant {
       }
 
       try {
-        flutter_keyboard_visibility_windows.FlutterKeyboardVisibilityPluginWindows.registerWith();
+        FlutterKeyboardVisibilityPluginWindows.registerWith();
       } catch (err) {
         print(
           '`flutter_keyboard_visibility_windows` threw an error: $err. '
@@ -344,7 +344,7 @@ class _PluginRegistrant {
       }
 
       try {
-        image_picker_windows.ImagePickerWindows.registerWith();
+        ImagePickerWindows.registerWith();
       } catch (err) {
         print(
           '`image_picker_windows` threw an error: $err. '
@@ -353,7 +353,7 @@ class _PluginRegistrant {
       }
 
       try {
-        package_info_plus.PackageInfoPlusWindowsPlugin.registerWith();
+        PackageInfoPlusWindowsPlugin.registerWith();
       } catch (err) {
         print(
           '`package_info_plus` threw an error: $err. '
@@ -362,7 +362,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_windows.PathProviderWindows.registerWith();
+        PathProviderWindows.registerWith();
       } catch (err) {
         print(
           '`path_provider_windows` threw an error: $err. '
@@ -371,7 +371,7 @@ class _PluginRegistrant {
       }
 
       try {
-        quill_native_bridge_windows.QuillNativeBridgeWindows.registerWith();
+        QuillNativeBridgeWindows.registerWith();
       } catch (err) {
         print(
           '`quill_native_bridge_windows` threw an error: $err. '
@@ -380,7 +380,7 @@ class _PluginRegistrant {
       }
 
       try {
-        shared_preferences_windows.SharedPreferencesWindows.registerWith();
+        SharedPreferencesWindows.registerWith();
       } catch (err) {
         print(
           '`shared_preferences_windows` threw an error: $err. '
@@ -389,7 +389,7 @@ class _PluginRegistrant {
       }
 
       try {
-        url_launcher_windows.UrlLauncherWindows.registerWith();
+        UrlLauncherWindows.registerWith();
       } catch (err) {
         print(
           '`url_launcher_windows` threw an error: $err. '

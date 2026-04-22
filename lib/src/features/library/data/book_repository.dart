@@ -5,12 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/domain/profile.dart';
 import '../domain/book.dart';
+import 'user_block_repository.dart';
 
 /// Sıralama türü (ana sayfa filtre)
-enum BookSortOrder {
-  recent,
-  rating,
-}
+enum BookSortOrder { recent, rating }
 
 /// Kitap CRUD repository
 class BookRepository {
@@ -26,10 +24,7 @@ class BookRepository {
     String? category,
     String? languageCode,
   }) async {
-    final base = _client
-        .from('books')
-        .select()
-        .eq('status', 'published');
+    final base = _client.from('books').select().eq('status', 'published');
 
     final filteredByLanguage = (languageCode != null && languageCode.isNotEmpty)
         ? base.eq('language_code', languageCode)
@@ -82,8 +77,11 @@ class BookRepository {
 
   /// Tek kitap detayı
   Future<Book?> getBookById(String bookId) async {
-    final data =
-        await _client.from('books').select().eq('id', bookId).maybeSingle();
+    final data = await _client
+        .from('books')
+        .select()
+        .eq('id', bookId)
+        .maybeSingle();
 
     if (data == null) return null;
     final book = Book.fromJson(data);
@@ -95,15 +93,9 @@ class BookRepository {
   /// Birden fazla kitabı ID listesine göre getirir (sıra korunur).
   Future<List<Book>> getBooksByIds(List<String> bookIds) async {
     if (bookIds.isEmpty) return [];
-    final data = await _client
-        .from('books')
-        .select()
-        .inFilter('id', bookIds);
+    final data = await _client.from('books').select().inFilter('id', bookIds);
     final byId = {for (final j in data) j['id'] as String: Book.fromJson(j)};
-    final books = bookIds
-        .map((id) => byId[id])
-        .whereType<Book>()
-        .toList();
+    final books = bookIds.map((id) => byId[id]).whereType<Book>().toList();
     return _applyAgeGate(books);
   }
 
@@ -173,7 +165,9 @@ class BookRepository {
     bool? isAdult18,
     List<String>? contentWarnings,
   }) async {
-    final updates = <String, dynamic>{'updated_at': DateTime.now().toIso8601String()};
+    final updates = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
     if (title != null) updates['title'] = title;
     if (summary != null) updates['summary'] = summary;
     if (coverImageUrl != null) updates['cover_image_url'] = coverImageUrl;
@@ -275,15 +269,20 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 
 /// Yayınlanan kitaplar
 final publishedBooksProvider = FutureProvider<List<Book>>((ref) async {
-  return ref.read(bookRepositoryProvider).getPublishedBooks();
+  final books = await ref.read(bookRepositoryProvider).getPublishedBooks();
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });
 
 /// Vitrin / Editörün Seçimi: puana göre üst sıradaki kitaplar (hero alanı)
 final featuredBooksProvider = FutureProvider<List<Book>>((ref) async {
-  return ref.read(bookRepositoryProvider).getPublishedBooks(
-    limit: 5,
-    sortOrder: BookSortOrder.rating,
-  );
+  final books = await ref
+      .read(bookRepositoryProvider)
+      .getPublishedBooks(limit: 5, sortOrder: BookSortOrder.rating);
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });
 
 /// Yazarın kendi kitapları
@@ -294,14 +293,24 @@ final myBooksProvider = FutureProvider<List<Book>>((ref) async {
 });
 
 /// Tek kitap detayı (family provider)
-final bookDetailProvider =
-    FutureProvider.family<Book?, String>((ref, bookId) async {
-  return ref.read(bookRepositoryProvider).getBookById(bookId);
+final bookDetailProvider = FutureProvider.family<Book?, String>((
+  ref,
+  bookId,
+) async {
+  final book = await ref.read(bookRepositoryProvider).getBookById(bookId);
+  if (book == null) return null;
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.contains(book.authorId)) return null;
+  return book;
 });
 
 /// Bir yazarın yayınlanmış kitapları (family provider)
-final authorBooksProvider =
-    FutureProvider.family<List<Book>, String>((ref, authorId) async {
+final authorBooksProvider = FutureProvider.family<List<Book>, String>((
+  ref,
+  authorId,
+) async {
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.contains(authorId)) return [];
   return ref.read(bookRepositoryProvider).getPublishedBooksByAuthor(authorId);
 });
 
@@ -309,7 +318,9 @@ final authorBooksProvider =
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 /// Filtre: sıralama ve kategori (ana sayfa)
-final bookSortOrderProvider = StateProvider<BookSortOrder>((ref) => BookSortOrder.recent);
+final bookSortOrderProvider = StateProvider<BookSortOrder>(
+  (ref) => BookSortOrder.recent,
+);
 final bookCategoryFilterProvider = StateProvider<String?>((ref) => null);
 final bookLanguageFilterProvider = StateProvider<String?>((ref) => null);
 
@@ -321,21 +332,33 @@ final searchedBooksProvider = FutureProvider<List<Book>>((ref) async {
   final languageCode = ref.watch(bookLanguageFilterProvider);
 
   if (query.trim().isNotEmpty) {
-    return ref.read(bookRepositoryProvider).searchBooks(
-          query.trim(),
-          languageCode: languageCode,
-        );
+    final books = await ref
+        .read(bookRepositoryProvider)
+        .searchBooks(query.trim(), languageCode: languageCode);
+    final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+    if (blockedIds.isEmpty) return books;
+    return books.where((b) => !blockedIds.contains(b.authorId)).toList();
   }
-  return ref.read(bookRepositoryProvider).getPublishedBooks(
+  final books = await ref
+      .read(bookRepositoryProvider)
+      .getPublishedBooks(
         sortOrder: sortOrder,
         category: category,
         languageCode: languageCode,
       );
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });
 
 /// Vellum Exclusive rafı için kitaplar
 final exclusiveBooksProvider = FutureProvider<List<Book>>((ref) async {
-  return ref.read(bookRepositoryProvider).getExclusiveBooks(limit: 10);
+  final books = await ref
+      .read(bookRepositoryProvider)
+      .getExclusiveBooks(limit: 10);
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });
 
 /// Aranan yazarlar (global arama için)
@@ -347,16 +370,20 @@ final searchAuthorsProvider = FutureProvider<List<Profile>>((ref) async {
 
 /// Ana sayfada "Yeni Eklenenler" için son 5 kitap
 final recentBooksProvider = FutureProvider<List<Book>>((ref) async {
-  return ref.read(bookRepositoryProvider).getPublishedBooks(
-    limit: 5,
-    sortOrder: BookSortOrder.recent,
-  );
+  final books = await ref
+      .read(bookRepositoryProvider)
+      .getPublishedBooks(limit: 5, sortOrder: BookSortOrder.recent);
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });
 
 /// "Tümünü Gör" sayfası: en fazla 25 kitap (son eklenenler)
 final allBooksProvider = FutureProvider<List<Book>>((ref) async {
-  return ref.read(bookRepositoryProvider).getPublishedBooks(
-    limit: 25,
-    sortOrder: BookSortOrder.recent,
-  );
+  final books = await ref
+      .read(bookRepositoryProvider)
+      .getPublishedBooks(limit: 25, sortOrder: BookSortOrder.recent);
+  final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+  if (blockedIds.isEmpty) return books;
+  return books.where((b) => !blockedIds.contains(b.authorId)).toList();
 });

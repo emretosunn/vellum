@@ -11,7 +11,10 @@ class AuthorPostRepository {
   final SupabaseClient _client;
 
   /// Bir yazarın postlarını getir (en yeni önce).
-  Future<List<AuthorPost>> getPostsByAuthor(String authorId, {int limit = 50}) async {
+  Future<List<AuthorPost>> getPostsByAuthor(
+    String authorId, {
+    int limit = 50,
+  }) async {
     final data = await _client
         .from('author_posts')
         .select()
@@ -24,13 +27,19 @@ class AuthorPostRepository {
   }
 
   /// Takip edilen yazarların postlarını getir (feed, en yeni önce).
-  Future<List<AuthorPost>> getFeedForFollower(String followerId, {int limit = 100}) async {
+  Future<List<AuthorPost>> getFeedForFollower(
+    String followerId, {
+    int limit = 100,
+  }) async {
     if (followerId.isEmpty) return [];
     final followings = await _client
         .from('user_follows')
         .select('following_id')
         .eq('follower_id', followerId);
-    final ids = (followings as List).map((e) => e['following_id'] as String).toSet().toList();
+    final ids = (followings as List)
+        .map((e) => e['following_id'] as String)
+        .toSet()
+        .toList();
     if (ids.isEmpty) return [];
     final data = await _client
         .from('author_posts')
@@ -44,15 +53,15 @@ class AuthorPostRepository {
   }
 
   /// Post oluştur (sadece metin).
-  Future<AuthorPost> createPost({required String authorId, required String content}) async {
+  Future<AuthorPost> createPost({
+    required String authorId,
+    required String content,
+  }) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) throw Exception('İçerik boş olamaz.');
     final data = await _client
         .from('author_posts')
-        .insert({
-          'author_id': authorId,
-          'content': trimmed,
-        })
+        .insert({'author_id': authorId, 'content': trimmed})
         .select()
         .single();
     return AuthorPost.fromJson(Map<String, dynamic>.from(data));
@@ -60,7 +69,11 @@ class AuthorPostRepository {
 
   /// Post sil (sadece kendi postu).
   Future<void> deletePost(String postId, String authorId) async {
-    await _client.from('author_posts').delete().eq('id', postId).eq('author_id', authorId);
+    await _client
+        .from('author_posts')
+        .delete()
+        .eq('id', postId)
+        .eq('author_id', authorId);
   }
 }
 
@@ -69,16 +82,22 @@ final authorPostRepositoryProvider = Provider<AuthorPostRepository>((ref) {
 });
 
 /// Bir yazarın post listesi.
-final authorPostsProvider =
-    FutureProvider.autoDispose.family<List<AuthorPost>, String>((ref, authorId) async {
-  return ref.read(authorPostRepositoryProvider).getPostsByAuthor(authorId);
-});
+final authorPostsProvider = FutureProvider.autoDispose
+    .family<List<AuthorPost>, String>((ref, authorId) async {
+      final blockedIds = await ref.watch(blockedUserIdsProvider.future);
+      if (blockedIds.contains(authorId)) return [];
+      return ref.read(authorPostRepositoryProvider).getPostsByAuthor(authorId);
+    });
 
 /// Takip Edilenler feed: takip ettiğim yazarların postları.
-final followingFeedProvider = FutureProvider.autoDispose<List<AuthorPost>>((ref) async {
+final followingFeedProvider = FutureProvider.autoDispose<List<AuthorPost>>((
+  ref,
+) async {
   final userId = ref.watch(authRepositoryProvider).currentUser?.id;
   if (userId == null) return [];
-  final posts = await ref.read(authorPostRepositoryProvider).getFeedForFollower(userId);
+  final posts = await ref
+      .read(authorPostRepositoryProvider)
+      .getFeedForFollower(userId);
   final blockedIds = await ref.watch(blockedUserIdsProvider.future);
   if (blockedIds.isEmpty) return posts;
   return posts.where((p) => !blockedIds.contains(p.authorId)).toList();

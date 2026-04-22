@@ -40,7 +40,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Vellum, kitap kapağı veya profil fotoğrafı seçebilmeniz için fotoğraf galerisine erişim ister.</string>
+	<string>Vellum, profil fotoğrafınızı güncellemeniz, kitap kapak görseli seçmeniz ve içeriklerinizi görsel olarak kişiselleştirmeniz için Fotoğraflar arşivinize erişim izni ister. Bu izin yalnızca sizin seçtiğiniz görselleri uygulama içinde kullanmak amacıyla talep edilir.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Vellum, oluşturduğunuz veya düzenlediğiniz görselleri isterseniz Fotoğraflar arşivinize kaydedebilmeniz için ekleme izni ister. Uygulama, siz onay vermeden arşivinize otomatik kayıt yapmaz.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Vellum, profil fotoğrafı veya kitap kapağı için doğrudan yeni bir fotoğraf çekebilmeniz amacıyla kamera erişim izni ister. Kamera yalnızca fotoğraf çekme işlemi sırasında, sizin açık eyleminizle kullanılır.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
