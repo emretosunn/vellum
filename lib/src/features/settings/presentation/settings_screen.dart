@@ -876,8 +876,8 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       ref.invalidate(currentProfileProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profil guncellendi'),
+          SnackBar(
+            content: Text(translate('settings.profile_updated')),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -887,7 +887,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hata: $e'),
+            content: Text(toUserFriendlyErrorMessage(e)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -1588,7 +1588,7 @@ class _SecurityPageState extends State<_SecurityPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Hata: $e'),
+            content: Text(toUserFriendlyErrorMessage(e)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -1760,26 +1760,39 @@ class _NotificationsPage extends ConsumerWidget {
   const _NotificationsPage();
 
   void _toggle(
+    BuildContext context,
     WidgetRef ref,
     Map<String, bool> current,
     String key,
     bool value,
-  ) {
+  ) async {
     final userId = ref.read(authRepositoryProvider).currentUser?.id;
     if (userId == null) return;
 
+    final previous = Map<String, bool>.from(current);
     final updated = {...current, key: value};
 
     // Anında UI güncelle (optimistic update)
     ref.read(notificationSettingsProvider.notifier).state = updated;
 
-    // Supabase'e kaydet
-    ref.read(authRepositoryProvider).updateNotificationPreferences(
-          userId: userId,
-          preferences: updated,
+    try {
+      await ref.read(authRepositoryProvider).updateNotificationPreferences(
+            userId: userId,
+            preferences: updated,
+          );
+    } catch (e) {
+      // Hata durumunda toggle'ı geri sar.
+      ref.read(notificationSettingsProvider.notifier).state = previous;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(toUserFriendlyErrorMessage(e)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-    // Profil cache'ini güncelle ki diğer ekranlar güncel tercihleri görsün
-    ref.invalidate(currentProfileProvider);
+      }
+    }
   }
 
   @override
@@ -1863,42 +1876,42 @@ class _NotificationsPage extends ConsumerWidget {
                 title: translate('settings.new_chapter'),
                 subtitle: translate('settings.new_chapter_sub'),
                 value: prefs['newChapter'] ?? true,
-                onChanged: (v) => _toggle(ref, prefs, 'newChapter', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'newChapter', v),
               ),
               _NotificationTile(
                 icon: Icons.chat_bubble_outline_rounded,
                 title: translate('settings.comments'),
                 subtitle: translate('settings.comments_sub'),
                 value: prefs['comments'] ?? true,
-                onChanged: (v) => _toggle(ref, prefs, 'comments', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'comments', v),
               ),
               _NotificationTile(
                 icon: Icons.favorite_rounded,
                 title: translate('settings.likes'),
                 subtitle: translate('settings.likes_sub'),
                 value: prefs['bookLike'] ?? true,
-                onChanged: (v) => _toggle(ref, prefs, 'bookLike', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'bookLike', v),
               ),
               _NotificationTile(
                 icon: Icons.star_rounded,
                 title: translate('settings.reviews'),
                 subtitle: translate('settings.reviews_sub'),
                 value: prefs['reviews'] ?? true,
-                onChanged: (v) => _toggle(ref, prefs, 'reviews', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'reviews', v),
               ),
               _NotificationTile(
                 icon: Icons.local_offer_outlined,
                 title: translate('settings.promotions'),
                 subtitle: translate('settings.promotions_sub'),
                 value: prefs['promotions'] ?? false,
-                onChanged: (v) => _toggle(ref, prefs, 'promotions', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'promotions', v),
               ),
               _NotificationTile(
                 icon: Icons.summarize_outlined,
                 title: translate('settings.weekly_digest'),
                 subtitle: translate('settings.weekly_digest_sub'),
                 value: prefs['weeklyDigest'] ?? true,
-                onChanged: (v) => _toggle(ref, prefs, 'weeklyDigest', v),
+                onChanged: (v) => _toggle(context, ref, prefs, 'weeklyDigest', v),
               ),
             ],
           );

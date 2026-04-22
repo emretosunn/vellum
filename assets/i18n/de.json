@@ -513,6 +513,7 @@
     "mark_all_read": "Alle als gelesen markieren",
     "mark_all_read_snackbar": "Alle wurden als gelesen markiert",
     "deleted_snackbar": "Benachrichtigung gelöscht",
+    "showing_cached": "Du bist offline. Die zuletzt geladenen Benachrichtigungen werden angezeigt.",
     "empty_title": "Keine Benachrichtigungen",
     "empty_body": "Deine neuen Benachrichtigungen erscheinen hier.",
     "book_removed_title": "Dein Buch wurde entfernt",

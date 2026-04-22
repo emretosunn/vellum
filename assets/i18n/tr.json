@@ -514,6 +514,7 @@
     "mark_all_read": "Tümünü Oku",
     "mark_all_read_snackbar": "Tümü okundu olarak işaretlendi",
     "deleted_snackbar": "Bildirim silindi",
+    "showing_cached": "Çevrimdışısınız. Son alınan bildirimler gösteriliyor.",
     "empty_title": "Bildirim Yok",
     "empty_body": "Yeni bildirimleriniz burada görünecek.",
     "book_removed_title": "Kitabınız kaldırıldı",

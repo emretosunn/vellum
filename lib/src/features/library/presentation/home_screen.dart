@@ -493,10 +493,13 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
                           children: [
                             Icon(Icons.cloud_off_rounded, size: 20, color: theme.colorScheme.onSurfaceVariant),
                             const SizedBox(width: 8),
-                            Text(
-                              translate('home.offline_banner'),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                            Expanded(
+                              child: Text(
+                                translate('home.offline_banner'),
+                                softWrap: true,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
                           ],

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../utils/user_friendly_error.dart';
 import '../../settings/data/app_config_repository.dart';
 
 // ─── Bildirim Modeli ───────────────────────────────────
@@ -137,6 +138,9 @@ final unreadNotificationCountProvider =
   return ref.read(notificationRepoProvider).getUnreadCount();
 });
 
+final cachedNotificationsProvider =
+    StateProvider<List<NotificationItem>>((ref) => const []);
+
 // ═════════════════════════════════════════════════════════
 // BİLDİRİMLER EKRANI
 // ═════════════════════════════════════════════════════════
@@ -147,9 +151,19 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationsAsync = ref.watch(notificationsListProvider);
+    final cachedNotifications = ref.watch(cachedNotificationsProvider);
     final appConfigAsync = ref.watch(appConfigProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    ref.listen<AsyncValue<List<NotificationItem>>>(
+      notificationsListProvider,
+      (_, next) {
+        next.whenData((data) {
+          ref.read(cachedNotificationsProvider.notifier).state = data;
+        });
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -186,71 +200,173 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: notificationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text(translate('subscription.error', args: {'error': err.toString()}))),
+        error: (err, _) {
+          if (cachedNotifications.isNotEmpty) {
+            return _NotificationsListView(
+              notifications: cachedNotifications,
+              isDark: isDark,
+              appConfigAsync: appConfigAsync,
+              showCachedBanner: true,
+              onRefresh: () async {
+                ref.invalidate(notificationsListProvider);
+                ref.invalidate(unreadNotificationCountProvider);
+                ref.invalidate(appConfigProvider);
+              },
+              onTapNotification: (notification) async {
+                if (!notification.isRead) {
+                  await ref
+                      .read(notificationRepoProvider)
+                      .markAsRead(notification.id);
+                  ref.invalidate(notificationsListProvider);
+                  ref.invalidate(unreadNotificationCountProvider);
+                }
+                if (context.mounted &&
+                    notification.refType == 'book' &&
+                    notification.refId != null) {
+                  context.push('/book/${notification.refId}');
+                }
+              },
+              onDismissNotification: (notification) async {
+                await ref
+                    .read(notificationRepoProvider)
+                    .deleteNotification(notification.id);
+                ref.invalidate(notificationsListProvider);
+                ref.invalidate(unreadNotificationCountProvider);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(translate('notifications.deleted_snackbar')),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+            );
+          }
+          return Center(child: Text(toUserFriendlyErrorMessage(err)));
+        },
         data: (notifications) {
           if (notifications.isEmpty) {
             return _EmptyNotifications(theme: theme);
           }
-
-          return RefreshIndicator(
+          return _NotificationsListView(
+            notifications: notifications,
+            isDark: isDark,
+            appConfigAsync: appConfigAsync,
+            showCachedBanner: false,
             onRefresh: () async {
               ref.invalidate(notificationsListProvider);
               ref.invalidate(unreadNotificationCountProvider);
               ref.invalidate(appConfigProvider);
             },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              children: [
-                appConfigAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (config) {
-                    if (!config.announcementEnabled ||
-                        config.announcementTitle.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return _SystemAnnouncementCard(config: config);
-                  },
-                ),
-                ...notifications.map(
-                  (notification) => _NotificationCard(
-                    notification: notification,
-                    isDark: isDark,
-                    onTap: () async {
-                      if (!notification.isRead) {
-                        await ref
-                            .read(notificationRepoProvider)
-                            .markAsRead(notification.id);
-                        ref.invalidate(notificationsListProvider);
-                        ref.invalidate(unreadNotificationCountProvider);
-                      }
-                      if (context.mounted &&
-                          notification.refType == 'book' &&
-                          notification.refId != null) {
-                        context.push('/book/${notification.refId}');
-                      }
-                    },
-                    onDismiss: () async {
-                      await ref
-                          .read(notificationRepoProvider)
-                          .deleteNotification(notification.id);
-                      ref.invalidate(notificationsListProvider);
-                      ref.invalidate(unreadNotificationCountProvider);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(translate('notifications.deleted_snackbar')),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    },
+            onTapNotification: (notification) async {
+              if (!notification.isRead) {
+                await ref
+                    .read(notificationRepoProvider)
+                    .markAsRead(notification.id);
+                ref.invalidate(notificationsListProvider);
+                ref.invalidate(unreadNotificationCountProvider);
+              }
+              if (context.mounted &&
+                  notification.refType == 'book' &&
+                  notification.refId != null) {
+                context.push('/book/${notification.refId}');
+              }
+            },
+            onDismissNotification: (notification) async {
+              await ref
+                  .read(notificationRepoProvider)
+                  .deleteNotification(notification.id);
+              ref.invalidate(notificationsListProvider);
+              ref.invalidate(unreadNotificationCountProvider);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(translate('notifications.deleted_snackbar')),
+                    behavior: SnackBarBehavior.floating,
                   ),
-                ),
-              ],
-            ),
+                );
+              }
+            },
           );
         },
+      ),
+    );
+  }
+}
+
+class _NotificationsListView extends StatelessWidget {
+  const _NotificationsListView({
+    required this.notifications,
+    required this.isDark,
+    required this.appConfigAsync,
+    required this.showCachedBanner,
+    required this.onRefresh,
+    required this.onTapNotification,
+    required this.onDismissNotification,
+  });
+
+  final List<NotificationItem> notifications;
+  final bool isDark;
+  final AsyncValue<RemoteAppConfig> appConfigAsync;
+  final bool showCachedBanner;
+  final Future<void> Function() onRefresh;
+  final Future<void> Function(NotificationItem) onTapNotification;
+  final Future<void> Function(NotificationItem) onDismissNotification;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        children: [
+          if (showCachedBanner)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off_rounded, size: 18, color: AppColors.warning),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      translate('notifications.showing_cached'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          appConfigAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (config) {
+              if (!config.announcementEnabled || config.announcementTitle.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return _SystemAnnouncementCard(config: config);
+            },
+          ),
+          ...notifications.map(
+            (notification) => _NotificationCard(
+              notification: notification,
+              isDark: isDark,
+              onTap: () => onTapNotification(notification),
+              onDismiss: () => onDismissNotification(notification),
+            ),
+          ),
+        ],
       ),
     );
   }

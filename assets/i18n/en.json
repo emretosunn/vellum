@@ -514,6 +514,7 @@
     "mark_all_read": "Mark all read",
     "mark_all_read_snackbar": "All marked as read",
     "deleted_snackbar": "Notification deleted",
+    "showing_cached": "You're offline. Showing your most recent notifications.",
     "empty_title": "No Notifications",
     "empty_body": "Your new notifications will appear here.",
     "book_removed_title": "Your book was removed",
