@@ -126,7 +126,7 @@ class VellumApp extends ConsumerWidget {
           behavior: HitTestBehavior.translucent,
           onPointerDown: (_) {
             final focus = FocusManager.instance.primaryFocus;
-            if (focus != null && !focus.hasPrimaryFocus) {
+            if (focus != null) {
               focus.unfocus();
             }
           },

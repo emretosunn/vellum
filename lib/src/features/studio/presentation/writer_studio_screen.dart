@@ -12,6 +12,7 @@ import '../../library/presentation/create_post_sheet.dart';
 import '../../subscription/services/subscription_status_service.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
 import 'create_book_screen.dart';
+import '../../../utils/user_friendly_error.dart';
 
 const int _freeBookLimit = 1;
 
@@ -131,7 +132,7 @@ class _WriterStudioScreenState extends ConsumerState<WriterStudioScreen> {
               loading: () => const SizedBox.shrink(),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(translate('studio.load_error', args: {'error': '$err'})),
+                child: Text(toUserFriendlyErrorMessage(err)),
               ),
               data: (profile) {
                 if (profile == null) {
@@ -213,9 +214,7 @@ class _WriterStudioScreenState extends ConsumerState<WriterStudioScreen> {
             error: (err, _) => SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                    child: Text(
-                      translate('studio.load_error', args: {'error': '$err'}),
-                    ),
+                child: Text(toUserFriendlyErrorMessage(err)),
               ),
             ),
             data: (books) {
@@ -301,6 +300,7 @@ class _WriterStudioScreenState extends ConsumerState<WriterStudioScreen> {
                                   ref.invalidate(publishedBooksProvider);
                                   ref.invalidate(searchedBooksProvider);
 
+                                  if (!context.mounted) return true;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -629,65 +629,75 @@ class _PlanBadge extends StatelessWidget {
               ]
             : null,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isPro
-                  ? Colors.white.withValues(alpha: 0.2)
-                  : theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isPro ? Icons.workspace_premium_rounded : Icons.person_outline_rounded,
-              color: isPro ? Colors.white : AppColors.primary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isPro
-                      ? 'Vellum Pro'
-                      : translate('subscription.free_plan'),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: isPro
-                        ? Colors.white
-                        : theme.colorScheme.onSurface,
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isPro
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 2),
-                Text(
+                child: Icon(
                   isPro
-                      ? translate('subscription.pro_plan_description')
-                      : translate(
-                          'studio.free_plan_summary',
-                          args: {'limit': '$_freeBookLimit'},
-                        ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isPro
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
+                      ? Icons.workspace_premium_rounded
+                      : Icons.person_outline_rounded,
+                  color: isPro ? Colors.white : AppColors.primary,
+                  size: 24,
                 ),
-              ],
-            ),
-          ),
-          if (!isPro)
-            TextButton(
-              onPressed: () => context.go('/subscription'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
-              child: Text(translate('subscription.subscribe_cta')),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isPro ? 'Vellum Pro' : translate('subscription.free_plan'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: isPro ? Colors.white : theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isPro
+                          ? translate('subscription.pro_plan_description')
+                          : translate(
+                              'studio.free_plan_summary',
+                              args: {'limit': '$_freeBookLimit'},
+                            ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isPro
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          if (!isPro) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.go('/subscription'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                ),
+                child: Text(translate('subscription.subscribe_cta')),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -702,8 +712,6 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = theme.brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Center(
@@ -1020,7 +1028,6 @@ class _ProFeaturesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(24),

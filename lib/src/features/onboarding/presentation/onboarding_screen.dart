@@ -154,10 +154,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: _pageColors.first,
-      body: Stack(
-        children: [
-          PageView.builder(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Stack(
+          children: [
+            PageView.builder(
             controller: _pageController,
             physics: const BouncingScrollPhysics(),
             itemCount: _totalPages,
@@ -197,6 +201,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
           ],
         ),
+      ),
     );
   }
 }
@@ -492,64 +497,83 @@ class _NameCapturePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final insets = MediaQuery.viewInsetsOf(context);
     return Container(
       color: Colors.white,
       child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(size.width * 0.08, 72, size.width * 0.08, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                translate('onboarding.name_title'),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 44,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.1,
-                  height: 1.05,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                translate('onboarding.name_subtitle'),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 36),
-              TextField(
-                controller: controller,
-                onChanged: (_) => onChanged(),
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  hintText: translate('onboarding.name_hint'),
-                  errorText: errorText,
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.only(bottom: insets.bottom),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(size.width * 0.08, 72, size.width * 0.08, 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: size.height * 0.58),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    translate('onboarding.name_title'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 44,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.1,
+                      height: 1.05,
+                      color: Colors.black,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.2)),
+                  const SizedBox(height: 12),
+                  Text(
+                    translate('onboarding.name_subtitle'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Colors.black, width: 1.4),
+                  const SizedBox(height: 36),
+                  TextField(
+                    controller: controller,
+                    onChanged: (_) => onChanged(),
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) =>
+                        FocusManager.instance.primaryFocus?.unfocus(),
+                    onSubmitted: (_) =>
+                        FocusManager.instance.primaryFocus?.unfocus(),
+                    decoration: InputDecoration(
+                      hintText: translate('onboarding.name_hint'),
+                      errorText: errorText,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide:
+                            BorderSide(color: Colors.black.withValues(alpha: 0.2)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide:
+                            const BorderSide(color: Colors.black, width: 1.4),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
