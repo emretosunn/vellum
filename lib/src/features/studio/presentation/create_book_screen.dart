@@ -90,8 +90,8 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
   String _languageDisplayName(String code) =>
       _languageRegionLabels[code] != null
-          ? translate(_languageRegionLabels[code]!)
-          : code;
+      ? translate(_languageRegionLabels[code]!)
+      : code;
 
   String _contentWarningDisplayName(String label) =>
       translate(_contentWarningKeys[label] ?? label);
@@ -99,13 +99,24 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
   Future<void> _pickCoverImage() async {
     final service = ref.read(imageUploadServiceProvider);
     final file = await service.pickImage();
-    if (file != null) {
-      final bytes = await file.readAsBytes();
-      setState(() {
-        _pickedImage = file;
-        _pickedImageBytes = bytes;
-      });
+    if (file == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              translate('settings.cover_photos_permission_required'),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
     }
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _pickedImage = file;
+      _pickedImageBytes = bytes;
+    });
   }
 
   Future<void> _createBook() async {
@@ -130,7 +141,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
         final coverBookId = _isEditMode
             ? widget.initialBook!.id
             : DateTime.now().millisecondsSinceEpoch.toString();
-        coverUrl = await ref.read(imageUploadServiceProvider).uploadCoverImage(
+        coverUrl = await ref
+            .read(imageUploadServiceProvider)
+            .uploadCoverImage(
               userId: profile.id,
               bookId: coverBookId,
               file: _pickedImage!,
@@ -138,7 +151,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
       }
 
       if (_isEditMode) {
-        await ref.read(bookRepositoryProvider).updateBook(
+        await ref
+            .read(bookRepositoryProvider)
+            .updateBook(
               bookId: widget.initialBook!.id,
               title: title,
               summary: _summaryController.text.trim(),
@@ -160,7 +175,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
           Navigator.pop(context);
         }
       } else {
-        await ref.read(bookRepositoryProvider).createBook(
+        await ref
+            .read(bookRepositoryProvider)
+            .createBook(
               authorId: profile.id,
               title: title,
               summary: _summaryController.text.trim(),
@@ -184,9 +201,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(toUserFriendlyErrorMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(toUserFriendlyErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _isCreating = false);
@@ -242,17 +259,26 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                       maxLength: 500,
                     ),
                     const SizedBox(height: 26),
-                    _buildSectionTitle(theme, translate('studio.category_section')),
+                    _buildSectionTitle(
+                      theme,
+                      translate('studio.category_section'),
+                    ),
                     const SizedBox(height: 10),
                     _buildCategorySelector(theme, isDark),
                     const SizedBox(height: 26),
-                    _buildSectionTitle(theme, translate('studio.language_region_title')),
+                    _buildSectionTitle(
+                      theme,
+                      translate('studio.language_region_title'),
+                    ),
                     const SizedBox(height: 10),
                     _buildLanguageSelector(theme, isDark),
                     const SizedBox(height: 22),
                     _buildAdult18Card(theme, isDark),
                     const SizedBox(height: 22),
-                    _buildSectionTitle(theme, translate('studio.content_warnings_optional')),
+                    _buildSectionTitle(
+                      theme,
+                      translate('studio.content_warnings_optional'),
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       translate('studio.content_warnings_hint'),
@@ -310,7 +336,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isEditMode ? translate('studio.create_book_edit_title') : translate('studio.create_book_title'),
+                  _isEditMode
+                      ? translate('studio.create_book_edit_title')
+                      : translate('studio.create_book_title'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -345,7 +373,10 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                 onTap: _createBook,
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [AppColors.primary, AppColors.primaryDark],
@@ -362,10 +393,16 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_rounded, color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
-                        _isEditMode ? translate('studio.create_book_save') : translate('studio.create_book_btn'),
+                        _isEditMode
+                            ? translate('studio.create_book_save')
+                            : translate('studio.create_book_btn'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -392,15 +429,12 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
     );
   }
 
-  Widget _buildCoverPicker(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildCoverPicker(BuildContext context, ThemeData theme, bool isDark) {
     final existingCoverUrl =
-        (widget.initialBook?.coverImageUrl != null && widget.initialBook!.coverImageUrl!.isNotEmpty)
-            ? widget.initialBook!.coverImageUrl
-            : null;
+        (widget.initialBook?.coverImageUrl != null &&
+            widget.initialBook!.coverImageUrl!.isNotEmpty)
+        ? widget.initialBook!.coverImageUrl
+        : null;
 
     return Center(
       child: GestureDetector(
@@ -415,14 +449,14 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               color: _pickedImageBytes != null
                   ? AppColors.primary
                   : (isDark
-                      ? Colors.white.withValues(alpha: 0.12)
-                      : Colors.black.withValues(alpha: 0.08)),
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.black.withValues(alpha: 0.08)),
               width: 2,
             ),
             color: _pickedImageBytes == null
                 ? (isDark
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : Colors.black.withValues(alpha: 0.03))
+                      ? Colors.white.withValues(alpha: 0.04)
+                      : Colors.black.withValues(alpha: 0.03))
                 : null,
             gradient: _pickedImageBytes == null
                 ? LinearGradient(
@@ -436,10 +470,13 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                 : null,
             boxShadow: [
               BoxShadow(
-                color: (_pickedImageBytes != null
-                        ? AppColors.primary
-                        : Colors.black)
-                    .withValues(alpha: _pickedImageBytes != null ? 0.25 : 0.06),
+                color:
+                    (_pickedImageBytes != null
+                            ? AppColors.primary
+                            : Colors.black)
+                        .withValues(
+                          alpha: _pickedImageBytes != null ? 0.25 : 0.06,
+                        ),
                 blurRadius: _pickedImageBytes != null ? 20 : 12,
                 offset: const Offset(0, 6),
               ),
@@ -450,11 +487,11 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                     fit: BoxFit.cover,
                   )
                 : existingCoverUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(existingCoverUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
+                ? DecorationImage(
+                    image: NetworkImage(existingCoverUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
           ),
           child: _pickedImageBytes == null && existingCoverUrl == null
               ? Column(
@@ -562,8 +599,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
           counterText: maxLength != null ? null : '',
         ),
         autofocus: controller == _titleController,
-        textInputAction:
-            maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+        textInputAction: maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.next,
       ),
     );
   }
@@ -605,13 +643,16 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  _selectedCategory == null ? translate('studio.select_placeholder') : _categoryDisplayName(_selectedCategory!),
+                  _selectedCategory == null
+                      ? translate('studio.select_placeholder')
+                      : _categoryDisplayName(_selectedCategory!),
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: _selectedCategory != null
                         ? theme.colorScheme.onSurface
                         : theme.colorScheme.onSurfaceVariant,
-                    fontWeight:
-                        _selectedCategory != null ? FontWeight.w600 : null,
+                    fontWeight: _selectedCategory != null
+                        ? FontWeight.w600
+                        : null,
                   ),
                 ),
               ),
@@ -734,7 +775,7 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
+                child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                   child: Container(
                     decoration: BoxDecoration(
@@ -789,22 +830,16 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ...[
-                                    null,
-                                    ...bookCategories,
-                                  ].map((c) {
-                                    final selected =
-                                        _selectedCategory == c;
+                                  ...[null, ...bookCategories].map((c) {
+                                    final selected = _selectedCategory == c;
                                     return Material(
                                       color: Colors.transparent,
                                       child: InkWell(
                                         onTap: () {
-                                          setState(
-                                              () => _selectedCategory = c);
+                                          setState(() => _selectedCategory = c);
                                           Navigator.of(ctx).pop();
                                         },
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                             vertical: 12,
@@ -813,32 +848,34 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                                             children: [
                                               Icon(
                                                 selected
-                                                    ? Icons
-                                                        .check_circle_rounded
+                                                    ? Icons.check_circle_rounded
                                                     : Icons.circle_outlined,
                                                 size: 22,
                                                 color: selected
                                                     ? AppColors.primary
                                                     : Colors.white.withValues(
-                                                        alpha: 0.7),
+                                                        alpha: 0.7,
+                                                      ),
                                               ),
                                               const SizedBox(width: 12),
                                               Text(
                                                 c == null
-                                                    ? translate('studio.select_placeholder')
+                                                    ? translate(
+                                                        'studio.select_placeholder',
+                                                      )
                                                     : _categoryDisplayName(c),
-                                                style: theme
-                                                    .textTheme.bodyLarge
+                                                style: theme.textTheme.bodyLarge
                                                     ?.copyWith(
-                                                  fontWeight: selected
-                                                      ? FontWeight.w600
-                                                      : null,
-                                                  color: Colors.white
-                                                      .withValues(
-                                                    alpha:
-                                                        selected ? 1.0 : 0.9,
-                                                  ),
-                                                ),
+                                                      fontWeight: selected
+                                                          ? FontWeight.w600
+                                                          : null,
+                                                      color: Colors.white
+                                                          .withValues(
+                                                            alpha: selected
+                                                                ? 1.0
+                                                                : 0.9,
+                                                          ),
+                                                    ),
                                               ),
                                             ],
                                           ),
@@ -870,15 +907,15 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
         color: _isAdult18
             ? Colors.orange.withValues(alpha: 0.12)
             : (isDark
-                ? Colors.white.withValues(alpha: 0.04)
-                : Colors.black.withValues(alpha: 0.03)),
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : Colors.black.withValues(alpha: 0.03)),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: _isAdult18
               ? Colors.orange.withValues(alpha: 0.4)
               : (isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.06)),
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06)),
         ),
       ),
       child: Row(
@@ -955,24 +992,28 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
                 color: selected
                     ? AppColors.primary.withValues(alpha: 0.18)
                     : (isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : Colors.black.withValues(alpha: 0.04)),
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.04)),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: selected
                       ? AppColors.primary.withValues(alpha: 0.5)
                       : (isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.06)),
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06)),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    selected ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.add_circle_outline_rounded,
                     size: 18,
-                    color: selected ? AppColors.primary : theme.colorScheme.onSurfaceVariant,
+                    color: selected
+                        ? AppColors.primary
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Text(

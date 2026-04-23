@@ -47,10 +47,7 @@ const Map<String, String> _languageRegionLabels = {
   'other': 'home.language_region_other',
 };
 
-enum HomeTab {
-  explore,
-  following,
-}
+enum HomeTab { explore, following }
 
 final homeTabProvider = StateProvider<HomeTab>((ref) => HomeTab.explore);
 
@@ -61,10 +58,10 @@ class _HomeHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
-    final cachedUsernameAsync = ref.watch(cachedUsernameProvider);
-    final cachedUsername = cachedUsernameAsync.valueOrNull;
-    final avatarSeed = profileAsync.valueOrNull?.username ?? cachedUsername ?? '';
-    final avatarInitial = avatarSeed.isNotEmpty ? avatarSeed.substring(0, 1).toUpperCase() : 'O';
+    final avatarSeed = profileAsync.valueOrNull?.username ?? '';
+    final avatarInitial = avatarSeed.isNotEmpty
+        ? avatarSeed.substring(0, 1).toUpperCase()
+        : 'O';
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final languageCode = ref.watch(bookLanguageFilterProvider);
@@ -85,11 +82,17 @@ class _HomeHeader extends ConsumerWidget {
                   backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
                       ? NetworkImage(avatarUrl)
                       : null,
-                  onBackgroundImageError: (avatarUrl != null && avatarUrl.isNotEmpty) ? (_, __) {} : null,
+                  onBackgroundImageError:
+                      (avatarUrl != null && avatarUrl.isNotEmpty)
+                      ? (_, __) {}
+                      : null,
                   child: avatarUrl == null || avatarUrl.isEmpty
                       ? Text(
                           avatarInitial,
-                          style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         )
                       : null,
                 ),
@@ -99,7 +102,13 @@ class _HomeHeader extends ConsumerWidget {
             error: (_, __) => CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-              child: Text('O', style: theme.textTheme.titleLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              child: Text(
+                'O',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -109,19 +118,23 @@ class _HomeHeader extends ConsumerWidget {
               children: [
                 Text(
                   _timeBasedGreeting(),
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                  ),
                 ),
                 profileAsync.when(
                   data: (profile) => Text(
-                    profile?.username ??
-                        cachedUsername ??
-                        translate('home.reader_fallback'),
-                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    profile?.username ?? translate('home.reader_fallback'),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   loading: () => const SizedBox(height: 26),
                   error: (_, __) => Text(
-                    cachedUsername ?? translate('home.reader_fallback'),
-                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    translate('home.reader_fallback'),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -129,12 +142,15 @@ class _HomeHeader extends ConsumerWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Consumer(
               builder: (context, ref, _) {
-                final count = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+                final count =
+                    ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -147,14 +163,17 @@ class _HomeHeader extends ConsumerWidget {
                           selected: languageCode,
                           onSelected: (value) {
                             ref
-                                .read(bookLanguageFilterProvider.notifier)
-                                .state = value;
+                                    .read(bookLanguageFilterProvider.notifier)
+                                    .state =
+                                value;
                           },
                         ),
                       ),
                       icon: Icon(
                         Icons.language_rounded,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.75,
+                        ),
                         size: 22,
                       ),
                     ),
@@ -163,7 +182,9 @@ class _HomeHeader extends ConsumerWidget {
                       onPressed: () async {
                         await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
                         );
                         ref.invalidate(unreadNotificationCountProvider);
                       },
@@ -198,8 +219,7 @@ class _LanguagePickerDialog extends StatefulWidget {
   final ValueChanged<String?> onSelected;
 
   @override
-  State<_LanguagePickerDialog> createState() =>
-      _LanguagePickerDialogState();
+  State<_LanguagePickerDialog> createState() => _LanguagePickerDialogState();
 }
 
 class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
@@ -230,20 +250,15 @@ class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
     // En fazla 5 öğe görünsün, fazlası liste içinde scroll ile açılsın.
     const tileHeight = 40.0;
     final visibleCount = filtered.length < 5 ? filtered.length : 5;
-    final listHeight =
-        (tileHeight * visibleCount) + ((visibleCount - 1) * 1);
+    final listHeight = (tileHeight * visibleCount) + ((visibleCount - 1) * 1);
 
     return Dialog(
-      backgroundColor:
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.98),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.98,
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 320,
-          maxHeight: 360,
-        ),
+        constraints: const BoxConstraints(maxWidth: 320, maxHeight: 360),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -275,7 +290,9 @@ class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
                 decoration: InputDecoration(
                   prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.85,
+                    ),
                   ),
                   hintText: translate('home.language_filter_search_hint'),
                   filled: true,
@@ -321,8 +338,9 @@ class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
                             : Colors.transparent,
                         child: ListTile(
                           dense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 6),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                          ),
                           leading: isSelected
                               ? Icon(
                                   Icons.check_rounded,
@@ -334,8 +352,9 @@ class _LanguagePickerDialogState extends State<_LanguagePickerDialog> {
                             opt.label,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight:
-                                  isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                             ),
                           ),
                           onTap: () {
@@ -366,7 +385,13 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned(left: 0, top: 0, right: 0, bottom: 0, child: InAppUpdateTrigger()),
+          const Positioned(
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            child: InAppUpdateTrigger(),
+          ),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -381,7 +406,8 @@ class HomeScreen extends ConsumerWidget {
                           color: theme.scaffoldBackgroundColor,
                           child: TabBar(
                             labelColor: AppColors.primary,
-                            unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                            unselectedLabelColor: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
                             indicatorColor: AppColors.primary,
                             tabs: [
                               Tab(text: translate('home.tab_explore')),
@@ -391,10 +417,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                         Expanded(
                           child: TabBarView(
-                            children: [
-                              _DiscoverTab(),
-                              _FollowingFeedTab(),
-                            ],
+                            children: [_DiscoverTab(), _FollowingFeedTab()],
                           ),
                         ),
                       ],
@@ -405,9 +428,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           Positioned.fill(
-            child: IgnorePointer(
-              child: _GrainOverlay(isDark: isDark),
-            ),
+            child: IgnorePointer(child: _GrainOverlay(isDark: isDark)),
           ),
         ],
       ),
@@ -485,171 +506,161 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-                  if (isOffline) ...[
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-                        child: Row(
-                          children: [
-                            Icon(Icons.cloud_off_rounded, size: 20, color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                translate('home.offline_banner'),
-                                softWrap: true,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+            if (isOffline) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                    _IndirilenlerSliver(offlineBooksAsync: offlineBooksAsync, theme: theme, isDark: isDark),
-                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
-                  ] else ...[
-                  // ─── Arama ─────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                      child: Container(
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : Colors.black.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.05),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          translate('home.offline_banner'),
+                          softWrap: true,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 14),
-                            Icon(
-                              Icons.search_rounded,
-                              size: 22,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.4),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  hintText: translate('home.search_hint'),
-                                  hintStyle: TextStyle(
-                                    fontSize: 15,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.4),
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
-                                ),
-                                onChanged: (value) {
-                                  ref.read(searchQueryProvider.notifier).state =
-                                      value;
-                                },
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => _showFilterSheet(context, ref),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.tune_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _IndirilenlerSliver(
+                offlineBooksAsync: offlineBooksAsync,
+                theme: theme,
+                isDark: isDark,
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            ] else ...[
+              // ─── Arama ─────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  child: Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.05),
                       ),
                     ),
-                  ),
-                  // Yazar sonuçları (varsa)
-                  SliverToBoxAdapter(
-                    child: authorsAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                      data: (authors) {
-                        if (authors.isEmpty) return const SizedBox.shrink();
-                        return Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Yazarlar',
-                                style: theme.textTheme.titleMedium
-                                    ?.copyWith(
-                                  fontWeight: FontWeight.w700,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 14),
+                        Icon(
+                          Icons.search_rounded,
+                          size: 22,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: translate('home.search_hint'),
+                              hintStyle: TextStyle(
+                                fontSize: 15,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.4,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Column(
-                                children: authors
-                                    .take(5)
-                                    .map(
-                                      (author) => _AuthorSearchTile(
-                                        profile: author,
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                            ),
+                            onChanged: (value) {
+                              ref.read(searchQueryProvider.notifier).state =
+                                  value;
+                            },
                           ),
-                        );
-                      },
+                        ),
+                        GestureDetector(
+                          onTap: () => _showFilterSheet(context, ref),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              ),
+              // Yazar sonuçları (varsa)
+              SliverToBoxAdapter(
+                child: authorsAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (authors) {
+                    if (authors.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Yazarlar',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Column(
+                            children: authors
+                                .take(5)
+                                .map(
+                                  (author) =>
+                                      _AuthorSearchTile(profile: author),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
 
-                  // ─── Hero / Vitrin: Önce Vellum Exclusive, yoksa editörün seçimi ─────────
-                  SliverToBoxAdapter(
-                    child: Consumer(
-                      builder: (context, ref, _) {
-                        final exclusiveAsync =
-                            ref.watch(exclusiveBooksProvider);
-                        final featuredAsync =
-                            ref.watch(featuredBooksProvider);
+              // ─── Hero / Vitrin: Önce Vellum Exclusive, yoksa editörün seçimi ─────────
+              SliverToBoxAdapter(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final exclusiveAsync = ref.watch(exclusiveBooksProvider);
+                    final featuredAsync = ref.watch(featuredBooksProvider);
 
-                        return exclusiveAsync.when(
-                          data: (exclusive) {
-                            if (exclusive.isNotEmpty) {
-                              return _HeroShowcase(books: exclusive);
+                    return exclusiveAsync.when(
+                      data: (exclusive) {
+                        if (exclusive.isNotEmpty) {
+                          return _HeroShowcase(books: exclusive);
+                        }
+                        // Exclusive yoksa eski featured mantığına düş
+                        return featuredAsync.when(
+                          data: (featured) {
+                            if (featured.isEmpty) {
+                              return const SizedBox.shrink();
                             }
-                            // Exclusive yoksa eski featured mantığına düş
-                            return featuredAsync.when(
-                              data: (featured) {
-                                if (featured.isEmpty) {
-                                  return const SizedBox.shrink();
-                                }
-                                return _HeroShowcase(books: featured);
-                              },
-                              loading: () => const SizedBox(
-                                height: 200,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 28,
-                                    height: 28,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              error: (_, __) => const SizedBox.shrink(),
-                            );
+                            return _HeroShowcase(books: featured);
                           },
                           loading: () => const SizedBox(
                             height: 200,
@@ -663,261 +674,282 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
                               ),
                             ),
                           ),
-                          error: (_, __) {
-                            // Exclusive hata verirse featured'a düş
-                            return featuredAsync.when(
-                              data: (featured) {
-                                if (featured.isEmpty) {
-                                  return const SizedBox.shrink();
-                                }
-                                return _HeroShowcase(books: featured);
-                              },
-                              loading: () => const SizedBox(
-                                height: 200,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 28,
-                                    height: 28,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              error: (_, __) => const SizedBox.shrink(),
-                            );
-                          },
+                          error: (_, __) => const SizedBox.shrink(),
                         );
                       },
-                    ),
-                  ),
-
-                  // ─── İndirilenler (online iken de listele) ─────────────────
-                  _IndirilenlerSliver(
-                    offlineBooksAsync: offlineBooksAsync,
-                    theme: theme,
-                    isDark: isDark,
-                    showWhenEmpty: false,
-                  ),
-
-                  // ─── Kitaplar İçeriği ─────────────────────
-                  booksAsync.when(
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, _) => SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.error_outline,
-                          size: 48, color: theme.colorScheme.error),
-                      const SizedBox(height: 16),
-                      Text(translate('home.error_generic'),
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      FilledButton.tonal(
-                        onPressed: () =>
-                            ref.invalidate(publishedBooksProvider),
-                        child: Text(translate('common.retry')),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              data: (books) {
-                if (books.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.auto_stories_outlined,
-                              size: 64,
-                              color: theme.colorScheme.onSurfaceVariant),
-                          const SizedBox(height: 16),
-                          Text(
-                            translate('home.no_published_books'),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            translate('home.first_write_prompt'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                final displayBooks = books.take(5).toList();
-                return recentAsync.when(
-                  loading: () => SliverList(
-                    delegate: SliverChildListDelegate([
-                      _SectionHeader(
-                        title: translate('home.popular'),
-                        onSeeAll: null,
-                      ),
-                      SizedBox(
-                        height: 302,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: displayBooks.length,
-                          itemBuilder: (context, index) {
-                            final book = displayBooks[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HorizontalBookCard(book: book)
-                                  .animate()
-                                  .fadeIn(
-                                    delay: Duration(milliseconds: index * 60),
-                                  )
-                                  .slideX(begin: 0.1),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _SectionHeader(
-                        title: translate('library.new_additions'),
-                        onSeeAll: null,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.all(24),
+                      loading: () => const SizedBox(
+                        height: 200,
                         child: Center(
                           child: SizedBox(
-                            width: 24,
-                            height: 24,
+                            width: 28,
+                            height: 28,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 100),
-                    ]),
-                  ),
-                  error: (_, __) => SliverList(
-                    delegate: SliverChildListDelegate([
-                      _SectionHeader(
-                        title: translate('home.popular'),
-                        onSeeAll: null,
-                      ),
-                      SizedBox(
-                        height: 302,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: displayBooks.length,
-                          itemBuilder: (context, index) {
-                            final book = displayBooks[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: _HorizontalBookCard(book: book)
-                                  .animate()
-                                  .fadeIn(
-                                    delay: Duration(milliseconds: index * 60),
-                                  )
-                                  .slideX(begin: 0.1),
-                            );
+                      error: (_, __) {
+                        // Exclusive hata verirse featured'a düş
+                        return featuredAsync.when(
+                          data: (featured) {
+                            if (featured.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return _HeroShowcase(books: featured);
                           },
+                          loading: () => const SizedBox(
+                            height: 200,
+                            child: Center(
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => const SizedBox.shrink(),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+
+              // ─── İndirilenler (online iken de listele) ─────────────────
+              _IndirilenlerSliver(
+                offlineBooksAsync: offlineBooksAsync,
+                theme: theme,
+                isDark: isDark,
+                showWhenEmpty: false,
+              ),
+
+              // ─── Kitaplar İçeriği ─────────────────────
+              booksAsync.when(
+                loading: () => const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, _) => SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: theme.colorScheme.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          translate('home.error_generic'),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.tonal(
+                          onPressed: () =>
+                              ref.invalidate(publishedBooksProvider),
+                          child: Text(translate('common.retry')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                data: (books) {
+                  if (books.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_stories_outlined,
+                              size: 64,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              translate('home.no_published_books'),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              translate('home.first_write_prompt'),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _SectionHeader(
-                        title: translate('library.new_additions'),
-                        onSeeAll: () => context.push('/books'),
-                      ),
-                      const SizedBox(height: 100),
-                    ]),
-                  ),
-                  data: (recentBooks) {
-                    return SliverList(
+                    );
+                  }
+
+                  final displayBooks = books.take(5).toList();
+                  return recentAsync.when(
+                    loading: () => SliverList(
                       delegate: SliverChildListDelegate([
-                        // ─── Devam Et (yarıda kalan okumalar) ──────
-                        const _ContinueReadingSection(),
-                        const SizedBox(height: 28),
-                        // ─── Popüler Kitaplar (Yatay, en fazla 5) ──────
                         _SectionHeader(
                           title: translate('home.popular'),
                           onSeeAll: null,
                         ),
-                        const SizedBox(height: 14),
                         SizedBox(
                           height: 302,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount: displayBooks.length,
                             itemBuilder: (context, index) {
                               final book = displayBooks[index];
                               return Padding(
-                                padding: const EdgeInsets.only(right: 16),
+                                padding: const EdgeInsets.only(right: 14),
                                 child: _HorizontalBookCard(book: book)
                                     .animate()
                                     .fadeIn(
-                                      delay: Duration(
-                                          milliseconds: index * 60),
+                                      delay: Duration(milliseconds: index * 60),
                                     )
                                     .slideX(begin: 0.1),
                               );
                             },
                           ),
                         ),
-                        const SizedBox(height: 28),
-                        // ─── Beğenilenler ──────
-                        const _LikedBooksSection(),
-                        const SizedBox(height: 28),
-                        // ─── Sizin İçin Seçilenler (son 5, görüntülenme + beğeni) ──────
+                        const SizedBox(height: 8),
                         _SectionHeader(
-                          title: translate('home.recommended'),
+                          title: translate('library.new_additions'),
+                          onSeeAll: null,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 100),
+                      ]),
+                    ),
+                    error: (_, __) => SliverList(
+                      delegate: SliverChildListDelegate([
+                        _SectionHeader(
+                          title: translate('home.popular'),
+                          onSeeAll: null,
+                        ),
+                        SizedBox(
+                          height: 302,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: displayBooks.length,
+                            itemBuilder: (context, index) {
+                              final book = displayBooks[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 14),
+                                child: _HorizontalBookCard(book: book)
+                                    .animate()
+                                    .fadeIn(
+                                      delay: Duration(milliseconds: index * 60),
+                                    )
+                                    .slideX(begin: 0.1),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _SectionHeader(
+                          title: translate('library.new_additions'),
                           onSeeAll: () => context.push('/books'),
                         ),
-                        const SizedBox(height: 14),
-                        ...recentBooks.asMap().entries.map((entry) {
-                          final card = Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 8,
-                            ),
-                            child: _VerticalBookCard(book: entry.value),
-                          );
-
-                          if (_homeVerticalListAnimated) {
-                            return card;
-                          }
-
-                          final animated = card
-                              .animate()
-                              .fadeIn(
-                                delay: Duration(
-                                  milliseconds: entry.key * 80,
-                                ),
-                              )
-                              .slideY(begin: 0.05);
-
-                          if (entry.key == recentBooks.length - 1) {
-                            _homeVerticalListAnimated = true;
-                          }
-
-                          return animated;
-                        }),
-                        const SizedBox(height: 120),
+                        const SizedBox(height: 100),
                       ]),
-                    );
-                  },
-                );
-              },
-            ),
-                  ], // else branch (online content)
-                ],
+                    ),
+                    data: (recentBooks) {
+                      return SliverList(
+                        delegate: SliverChildListDelegate([
+                          // ─── Devam Et (yarıda kalan okumalar) ──────
+                          const _ContinueReadingSection(),
+                          const SizedBox(height: 28),
+                          // ─── Popüler Kitaplar (Yatay, en fazla 5) ──────
+                          _SectionHeader(
+                            title: translate('home.popular'),
+                            onSeeAll: null,
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            height: 302,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              itemCount: displayBooks.length,
+                              itemBuilder: (context, index) {
+                                final book = displayBooks[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 16),
+                                  child: _HorizontalBookCard(book: book)
+                                      .animate()
+                                      .fadeIn(
+                                        delay: Duration(
+                                          milliseconds: index * 60,
+                                        ),
+                                      )
+                                      .slideX(begin: 0.1),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          // ─── Beğenilenler ──────
+                          const _LikedBooksSection(),
+                          const SizedBox(height: 28),
+                          // ─── Sizin İçin Seçilenler (son 5, görüntülenme + beğeni) ──────
+                          _SectionHeader(
+                            title: translate('home.recommended'),
+                            onSeeAll: () => context.push('/books'),
+                          ),
+                          const SizedBox(height: 14),
+                          ...recentBooks.asMap().entries.map((entry) {
+                            final card = Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 8,
+                              ),
+                              child: _VerticalBookCard(book: entry.value),
+                            );
+
+                            if (_homeVerticalListAnimated) {
+                              return card;
+                            }
+
+                            final animated = card
+                                .animate()
+                                .fadeIn(
+                                  delay: Duration(milliseconds: entry.key * 80),
+                                )
+                                .slideY(begin: 0.05);
+
+                            if (entry.key == recentBooks.length - 1) {
+                              _homeVerticalListAnimated = true;
+                            }
+
+                            return animated;
+                          }),
+                          const SizedBox(height: 120),
+                        ]),
+                      );
+                    },
+                  );
+                },
               ),
-            ),
-          );
+            ], // else branch (online content)
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -943,8 +975,7 @@ class _AuthorSearchTile extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor:
-                  theme.colorScheme.primary.withValues(alpha: 0.2),
+              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
               child: Text(
                 profile.username.isNotEmpty
                     ? profile.username[0].toUpperCase()
@@ -1026,9 +1057,16 @@ class _FollowingFeedTabState extends ConsumerState<_FollowingFeedTab> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(height: 16),
-                Text(translate('home.following_error'), style: theme.textTheme.titleMedium),
+                Text(
+                  translate('home.following_error'),
+                  style: theme.textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(followingFeedProvider),
@@ -1044,18 +1082,26 @@ class _FollowingFeedTabState extends ConsumerState<_FollowingFeedTab> {
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
               children: [
-                Icon(Icons.people_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.people_outline,
+                  size: 64,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   translate('home.following_empty_title'),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   translate('home.following_empty_body'),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             );
@@ -1107,8 +1153,7 @@ class _FeedPostCard extends ConsumerWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color:
-                      Colors.black.withValues(alpha: isDark ? 0.26 : 0.12),
+                  color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.12),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -1124,21 +1169,23 @@ class _FeedPostCard extends ConsumerWidget {
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.18),
-                          backgroundImage: profile?.avatarUrl != null &&
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.18,
+                          ),
+                          backgroundImage:
+                              profile?.avatarUrl != null &&
                                   profile!.avatarUrl!.isNotEmpty
                               ? NetworkImage(profile.avatarUrl!)
                               : null,
-                          child: (profile?.avatarUrl == null ||
+                          child:
+                              (profile?.avatarUrl == null ||
                                   (profile?.avatarUrl ?? '').isEmpty)
                               ? Text(
                                   (profile?.username.isNotEmpty == true
                                           ? profile!.username[0]
                                           : '?')
                                       .toUpperCase(),
-                                  style:
-                                      theme.textTheme.titleSmall?.copyWith(
+                                  style: theme.textTheme.titleSmall?.copyWith(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1178,9 +1225,7 @@ class _FeedPostCard extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Text(
                     post.content,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      height: 1.5,
-                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                     maxLines: 6,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1233,7 +1278,10 @@ class _HeroShowcase extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -1380,8 +1428,9 @@ class _FollowingFeedSliver extends ConsumerWidget {
                     translate('home.following_empty_body'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.9,
+                      ),
                     ),
                   ),
                 ],
@@ -1391,16 +1440,13 @@ class _FollowingFeedSliver extends ConsumerWidget {
         }
 
         return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final post = posts[index];
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                child: _AuthorPostCard(post: post, isDark: isDark),
-              );
-            },
-            childCount: posts.length,
-          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = posts[index];
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+              child: _AuthorPostCard(post: post, isDark: isDark),
+            );
+          }, childCount: posts.length),
         );
       },
     );
@@ -1450,12 +1496,13 @@ class _AuthorPostCard extends ConsumerWidget {
                   final avatarUrl = profile?.avatarUrl;
                   return CircleAvatar(
                     radius: 18,
-                    backgroundColor:
-                        AppColors.primary.withValues(alpha: 0.15),
-                    backgroundImage:
-                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                    onBackgroundImageError:
-                        avatarUrl != null ? (_, __) {} : null,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                    backgroundImage: avatarUrl != null
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    onBackgroundImageError: avatarUrl != null
+                        ? (_, __) {}
+                        : null,
                     child: avatarUrl == null
                         ? Text(
                             (profile?.username.isNotEmpty == true
@@ -1499,17 +1546,16 @@ class _AuthorPostCard extends ConsumerWidget {
                         height: 12,
                         color: Colors.grey.withValues(alpha: 0.3),
                       ),
-                      error: (_, __) => Text(
-                        'Yazar',
-                        style: theme.textTheme.bodyMedium,
-                      ),
+                      error: (_, __) =>
+                          Text('Yazar', style: theme.textTheme.bodyMedium),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       dateText,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],
@@ -1520,9 +1566,7 @@ class _AuthorPostCard extends ConsumerWidget {
           const SizedBox(height: 10),
           Text(
             post.content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              height: 1.4,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
           ),
         ],
       ),
@@ -1562,10 +1606,7 @@ class _HeroBookCard extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [
-                    baseColor,
-                    const Color(0xFF181824),
-                  ]
+                ? [baseColor, const Color(0xFF181824)]
                 : [
                     Colors.white,
                     Colors.white,
@@ -1593,7 +1634,8 @@ class _HeroBookCard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               child: AspectRatio(
                 aspectRatio: 3 / 4,
-                child: (book.coverImageUrl != null &&
+                child:
+                    (book.coverImageUrl != null &&
                         book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
@@ -1631,15 +1673,18 @@ class _HeroBookCard extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.75,
+                      ),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(999),
@@ -1719,8 +1764,7 @@ class _GrainPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = (isDark ? Colors.white : Colors.black)
-          .withValues(alpha: 0.015);
+      ..color = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.015);
     final r = 0.8;
     for (var i = 0; i < 1200; i++) {
       final x = (i * 31.7 + 13) % (size.width + 20) - 10;
@@ -1745,6 +1789,7 @@ class _IndirilenlerSliver extends StatelessWidget {
   final AsyncValue<List<OfflineBook>> offlineBooksAsync;
   final ThemeData theme;
   final bool isDark;
+
   /// Çevrimdışı modda true (boşken de mesaj göster). Online modda false (boşken satır gösterme).
   final bool showWhenEmpty;
 
@@ -1755,7 +1800,13 @@ class _IndirilenlerSliver extends StatelessWidget {
         loading: () => showWhenEmpty
             ? const Padding(
                 padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
-                child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
               )
             : const SizedBox.shrink(),
         error: (_, __) => showWhenEmpty
@@ -1763,7 +1814,9 @@ class _IndirilenlerSliver extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 child: Text(
                   translate('home.downloads_error'),
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               )
             : const SizedBox.shrink(),
@@ -1879,7 +1932,8 @@ class _OfflineBookCard extends StatelessWidget {
                 child: (offlineBook.coverImage.isNotEmpty)
                     ? (() {
                         final cover = offlineBook.coverImage;
-                        final isRemote = cover.startsWith('http://') ||
+                        final isRemote =
+                            cover.startsWith('http://') ||
                             cover.startsWith('https://');
                         if (isRemote) {
                           return Image.network(
@@ -1971,7 +2025,10 @@ class _SectionHeader extends StatelessWidget {
               onPressed: onSeeAll,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
               ),
               child: Text(
                 translate('home.see_all'),
@@ -2006,7 +2063,10 @@ class _ContinueReadingSection extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _SectionHeader(title: translate('home.continue_reading'), onSeeAll: null),
+              child: _SectionHeader(
+                title: translate('home.continue_reading'),
+                onSeeAll: null,
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -2020,7 +2080,9 @@ class _ContinueReadingSection extends ConsumerWidget {
                   return Padding(
                     padding: const EdgeInsets.only(right: 16),
                     child: GestureDetector(
-                      onTap: () => context.push('/reader/${item.book.id}?chapter=${item.chapterIndex}'),
+                      onTap: () => context.push(
+                        '/reader/${item.book.id}?chapter=${item.chapterIndex}',
+                      ),
                       child: _HorizontalBookCard(book: item.book),
                     ),
                   );
@@ -2053,7 +2115,10 @@ class _LikedBooksSection extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _SectionHeader(title: translate('home.liked'), onSeeAll: null),
+              child: _SectionHeader(
+                title: translate('home.liked'),
+                onSeeAll: null,
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -2120,7 +2185,9 @@ class _HorizontalBookCard extends ConsumerWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                child:
+                    (book.coverImageUrl != null &&
+                        book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
@@ -2180,7 +2247,11 @@ class _HorizontalBookCard extends ConsumerWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.visibility_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.visibility_outlined,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   _formatCount(book.viewCount),
@@ -2196,7 +2267,11 @@ class _HorizontalBookCard extends ConsumerWidget {
                       data: (count) => Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.favorite_border_rounded, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.favorite_border_rounded,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             _formatCount(count),
@@ -2278,7 +2353,9 @@ class _VerticalBookCard extends ConsumerWidget {
               child: SizedBox(
                 width: _coverWidth,
                 height: _coverHeight,
-                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                child:
+                    (book.coverImageUrl != null &&
+                        book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
@@ -2302,7 +2379,10 @@ class _VerticalBookCard extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -2340,20 +2420,23 @@ class _VerticalBookCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    book.summary.isNotEmpty
-                        ? book.summary
-                        : 'Açıklama yok',
+                    book.summary.isNotEmpty ? book.summary : 'Açıklama yok',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.55),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.55,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.visibility_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(
+                        Icons.visibility_outlined,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         _formatCount(book.viewCount),
@@ -2364,12 +2447,18 @@ class _VerticalBookCard extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Consumer(
                         builder: (context, ref, _) {
-                          final likeAsync = ref.watch(bookLikeCountProvider(book.id));
+                          final likeAsync = ref.watch(
+                            bookLikeCountProvider(book.id),
+                          );
                           return likeAsync.when(
                             data: (count) => Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.favorite_border_rounded, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                                Icon(
+                                  Icons.favorite_border_rounded,
+                                  size: 14,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatCount(count),
@@ -2405,7 +2494,9 @@ class _VerticalBookCard extends ConsumerWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: book.status == BookStatus.published
                               ? Colors.green.withValues(alpha: 0.15)
@@ -2547,7 +2638,9 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 24),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.25,
+                        ),
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
@@ -2572,7 +2665,9 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                               width: 32,
                               height: 3,
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.35,
+                                ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
@@ -2587,13 +2682,17 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.06,
+                              ),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
                               Icons.close_rounded,
                               size: 22,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -2613,252 +2712,272 @@ class _BookFilterSheetState extends ConsumerState<_BookFilterSheet> {
                   children: [
                     // Sıralama — segmentli özel görünüm
                     Text(
-            translate('home.sort_label'),
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 56,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: isDark ? 0.4 : 0.6,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _SortSegment(
-                      label: translate('home.sort_recent'),
-                      icon: Icons.schedule_rounded,
-                      isSelected: sortOrder == BookSortOrder.recent,
-                      onTap: () {
-                        ref.read(bookSortOrderProvider.notifier).state =
-                            BookSortOrder.recent;
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: _SortSegment(
-                      label: translate('home.sort_rating'),
-                      icon: Icons.star_rounded,
-                      isSelected: sortOrder == BookSortOrder.rating,
-                      onTap: () {
-                        ref.read(bookSortOrderProvider.notifier).state =
-                            BookSortOrder.rating;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Kategori — özel kart dropdown
-          Text(
-            translate('home.category_label'),
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonHideUnderline(
-            child: DropdownButton2<String?>(
-              valueListenable: _categoryValue,
-              isExpanded: true,
-              customButton: Container(
-                height: 56,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: isDark ? 0.4 : 0.6,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.category_rounded,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        category == null
-                            ? translate('home.category_all_hint')
-                            : category,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      translate('home.sort_label'),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: theme.colorScheme.onSurfaceVariant,
-                      size: 26,
-                    ),
-                  ],
-                ),
-              ),
-              onChanged: (v) {
-                _categoryValue.value = v;
-                ref.read(bookCategoryFilterProvider.notifier).state = v;
-              },
-              items: [
-                DropdownItem<String?>(
-                  value: null,
-                  height: 44,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: Row(
-                      children: [
-                        if (category == null)
-                          Icon(
-                            Icons.check_rounded,
-                            color: theme.colorScheme.primary,
-                          )
-                        else
-                          const SizedBox(width: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            translate('home.category_all'),
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: category == null
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: isDark ? 0.4 : 0.6),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.2 : 0.06,
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                ...bookCategories.map(
-                  (c) => DropdownItem<String?>(
-                    value: c,
-                    height: 44,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      child: Row(
-                        children: [
-                          if (category == c)
-                            Icon(
-                              Icons.check_rounded,
-                              color: theme.colorScheme.primary,
-                            )
-                          else
-                            const SizedBox(width: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              c,
-                              style:
-                                  theme.textTheme.bodyLarge?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontWeight: category == c
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _SortSegment(
+                                label: translate('home.sort_recent'),
+                                icon: Icons.schedule_rounded,
+                                isSelected: sortOrder == BookSortOrder.recent,
+                                onTap: () {
+                                  ref
+                                          .read(bookSortOrderProvider.notifier)
+                                          .state =
+                                      BookSortOrder.recent;
+                                },
+                              ),
+                            ),
+                            Expanded(
+                              child: _SortSegment(
+                                label: translate('home.sort_rating'),
+                                icon: Icons.star_rounded,
+                                isSelected: sortOrder == BookSortOrder.rating,
+                                onTap: () {
+                                  ref
+                                          .read(bookSortOrderProvider.notifier)
+                                          .state =
+                                      BookSortOrder.rating;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-              buttonStyleData: ButtonStyleData(
-                height: 56,
-                width: double.infinity,
-                padding: EdgeInsets.zero,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              dropdownStyleData: DropdownStyleData(
-                maxHeight: 176,
-                padding: EdgeInsets.zero,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
-                ),
-                scrollbarTheme: ScrollbarThemeData(
-                  radius: const Radius.circular(16),
-                  thickness: WidgetStateProperty.all(6),
-                  thumbVisibility: WidgetStateProperty.all(true),
-                ),
-              ),
-              menuItemStyleData: const MenuItemStyleData(
-                padding: EdgeInsets.zero,
-              ),
-              iconStyleData: const IconStyleData(
-                icon: SizedBox.shrink(),
-                iconSize: 0,
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
-          // Filtreleri uygula butonu (düz)
-          FilledButton.icon(
-            onPressed: widget.onApply,
-            style: FilledButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              elevation: 0,
-              shadowColor: Colors.transparent,
-            ),
-            icon: const Icon(Icons.check_rounded, size: 22),
-            label: Text(
-              translate('home.apply_filters'),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
+                    // Kategori — özel kart dropdown
+                    Text(
+                      translate('home.category_label'),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton2<String?>(
+                        valueListenable: _categoryValue,
+                        isExpanded: true,
+                        customButton: Container(
+                          height: 56,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: isDark ? 0.4 : 0.6),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.15,
+                              ),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.15 : 0.04,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.category_rounded,
+                                size: 20,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  category == null
+                                      ? translate('home.category_all_hint')
+                                      : category,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                size: 26,
+                              ),
+                            ],
+                          ),
+                        ),
+                        onChanged: (v) {
+                          _categoryValue.value = v;
+                          ref.read(bookCategoryFilterProvider.notifier).state =
+                              v;
+                        },
+                        items: [
+                          DropdownItem<String?>(
+                            value: null,
+                            height: 44,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                              ),
+                              child: Row(
+                                children: [
+                                  if (category == null)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      color: theme.colorScheme.primary,
+                                    )
+                                  else
+                                    const SizedBox(width: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      translate('home.category_all'),
+                                      style: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontWeight: category == null
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          ...bookCategories.map(
+                            (c) => DropdownItem<String?>(
+                              value: c,
+                              height: 44,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (category == c)
+                                      Icon(
+                                        Icons.check_rounded,
+                                        color: theme.colorScheme.primary,
+                                      )
+                                    else
+                                      const SizedBox(width: 20),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        c,
+                                        style: theme.textTheme.bodyLarge
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              fontWeight: category == c
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                            ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        buttonStyleData: ButtonStyleData(
+                          height: 56,
+                          width: double.infinity,
+                          padding: EdgeInsets.zero,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        dropdownStyleData: DropdownStyleData(
+                          maxHeight: 176,
+                          padding: EdgeInsets.zero,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.15,
+                              ),
+                              width: 1,
+                            ),
+                          ),
+                          scrollbarTheme: ScrollbarThemeData(
+                            radius: const Radius.circular(16),
+                            thickness: WidgetStateProperty.all(6),
+                            thumbVisibility: WidgetStateProperty.all(true),
+                          ),
+                        ),
+                        menuItemStyleData: const MenuItemStyleData(
+                          padding: EdgeInsets.zero,
+                        ),
+                        iconStyleData: const IconStyleData(
+                          icon: SizedBox.shrink(),
+                          iconSize: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Filtreleri uygula butonu (düz)
+                    FilledButton.icon(
+                      onPressed: widget.onApply,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                      ),
+                      icon: const Icon(Icons.check_rounded, size: 22),
+                      label: Text(
+                        translate('home.apply_filters'),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -2897,9 +3016,7 @@ class _SortSegment extends StatelessWidget {
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : Colors.transparent,
+            color: isSelected ? theme.colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Center(

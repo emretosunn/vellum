@@ -288,6 +288,8 @@
     "notifications_off_prompt": "Bildirimlere izin verin",
     "notifications_off_body": "Bildirim almak için uygulama ayarlarından izin açın.",
     "notifications_request_body": "Yeni bölüm, beğeni ve yorum gibi bildirimleri almak için izin verin.",
+    "photos_permission_required": "Fotoğraf seçmek için galeri izni vermeniz gerekiyor.",
+    "cover_photos_permission_required": "Kapak seçmek için galeri izni vermeniz gerekiyor.",
     "allow": "İzin ver",
     "language_choice": "Dil Seçimi",
     "language_system": "Sistem dili",

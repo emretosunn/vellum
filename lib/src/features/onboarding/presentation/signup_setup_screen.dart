@@ -12,18 +12,17 @@ import '../../../app.dart';
 import '../../../localization/translate_preferences.dart';
 import '../../../config/theme_preferences.dart';
 import '../../../utils/user_friendly_error.dart';
-import '../../library/data/book_repository.dart' show bookLanguageFilterProvider;
-import '../../settings/presentation/settings_screen.dart' show themeModeProvider;
+import '../../library/data/book_repository.dart'
+    show bookLanguageFilterProvider;
+import '../../settings/presentation/settings_screen.dart'
+    show themeModeProvider;
 import '../../settings/services/notification_permission_service.dart';
 import 'onboarding_screen.dart' show markOnboardingCompleted;
 import '../../auth/data/auth_repository.dart'
-    show authRepositoryProvider, currentProfileProvider;
+    show authRepositoryProvider, currentProfileProvider, profileByIdProvider;
 
 class SignupSetupScreen extends ConsumerStatefulWidget {
-  const SignupSetupScreen({
-    super.key,
-    this.sandboxMode = false,
-  });
+  const SignupSetupScreen({super.key, this.sandboxMode = false});
 
   final bool sandboxMode;
 
@@ -81,8 +80,10 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
   @override
   void initState() {
     super.initState();
-    _currentPage =
-        ref.read(signupSetupStepProvider).clamp(0, _totalPages - 1).toInt();
+    _currentPage = ref
+        .read(signupSetupStepProvider)
+        .clamp(0, _totalPages - 1)
+        .toInt();
     _pageController = PageController(initialPage: _currentPage);
     _selectedThemeMode = ref.read(themeModeProvider);
 
@@ -101,7 +102,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
       final useSystem = await VellumTranslatePreferences.getUseSystemLocale();
       if (!mounted) return;
 
-      final currentLang = LocalizedApp.of(context).delegate.currentLocale.languageCode;
+      final currentLang = LocalizedApp.of(
+        context,
+      ).delegate.currentLocale.languageCode;
       setState(() {
         if (useSystem) {
           _selectedLocaleOption = 'system';
@@ -118,9 +121,30 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final profile = await ref.read(currentProfileProvider.future);
-        if (!mounted || profile == null) return;
+        if (!mounted) return;
+        final authUser = ref.read(authRepositoryProvider).currentUser;
+        final suggestedUsername =
+            (authUser?.userMetadata?['username'] as String?)?.trim();
         setState(() {
-          _usernameController.text = profile.username;
+          // Kullanıcı yazmaya başlamışsa async prefill ile üzerine yazma.
+          final usernameEmpty = _usernameController.text.trim().isEmpty;
+          if (usernameEmpty &&
+              profile != null &&
+              profile.username.trim().isNotEmpty) {
+            _usernameController.text = profile.username;
+          } else if (usernameEmpty &&
+              suggestedUsername != null &&
+              suggestedUsername.isNotEmpty) {
+            _usernameController.text = suggestedUsername;
+          }
+          if (_birthDateController.text.trim().isEmpty &&
+              profile?.birthDate != null) {
+            final date = profile!.birthDate!;
+            final day = date.day.toString().padLeft(2, '0');
+            final month = date.month.toString().padLeft(2, '0');
+            final year = date.year.toString();
+            _birthDateController.text = '$day.$month.$year';
+          }
         });
       } catch (_) {
         // ignore
@@ -202,27 +226,55 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
       }
       return;
     }
-
-    // Home'a giderken router redirect loop'a düşmesin diye pending'i hemen kapat.
-    ref.read(signupSetupPendingProvider.notifier).state = false;
-    // Kullanıcı "devam et" dediğinde, Supabase/flag güncellemesi henüz gelmemiş olsa bile
-    // redirect loop'a girip tekrar bu ekrana dönmesin.
-    ref.read(signupSetupRedirectOverrideProvider.notifier).state = true;
-    // Akış kapandığı için step'i sıfırla (gerekirse yeniden mount edilirse eski adımda kalmasın).
-    ref.read(signupSetupStepProvider.notifier).state = 0;
     try {
-      // İlk tamamlamadan sonra ikinci tur setup'a düşmeyi engellemek için
-      // kullanıcı bazlı local bir "tamamlandı" işareti bırak.
+      final userId = ref.read(authRepositoryProvider).currentUser?.id;
+      if (userId == null || userId.isEmpty) {
+        throw StateError('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+      }
+
+      final birthDate = _parseBirthDate(_birthDateController.text.trim());
+      final age = int.tryParse(_ageController.text.trim());
+      final username = _usernameController.text.trim();
+
+      // KRITIK: Onboarding tamamlanmadan önce Supabase'e yazım başarılı olmalı.
+      await ref
+          .read(authRepositoryProvider)
+          .updateProfile(
+            id: userId,
+            username: username,
+            age: age,
+            birthDate: birthDate,
+            signupSetupCompleted: true,
+          );
+
+      // Yazım doğrulaması: taze profile tekrar çekilip username kontrol edilir.
+      final refreshed = await ref.refresh(currentProfileProvider.future);
+      if (refreshed == null ||
+          refreshed.username.trim().toLowerCase() != username.toLowerCase()) {
+        throw StateError(
+          'Kullanıcı adı kaydı doğrulanamadı. Lütfen farklı bir kullanıcı adı deneyin.',
+        );
+      }
+
+      // Onboarding başarıyla DB'ye yazıldıktan SONRA local flag'leri bırak.
       final currentUserId = ref.read(authRepositoryProvider).currentUser?.id;
       if (currentUserId != null && currentUserId.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('$_localSetupDoneKeyPrefix$currentUserId', true);
         final age = int.tryParse(_ageController.text.trim()) ?? 18;
         await prefs.setInt('$_localAgeKeyPrefix$currentUserId', age);
-        await prefs.setBool('$_localAllowAdultKeyPrefix$currentUserId', age >= 18);
+        await prefs.setBool(
+          '$_localAllowAdultKeyPrefix$currentUserId',
+          age >= 18,
+        );
       }
 
-      // En son: bildirim izni iste.
+      // Setup artık tamamlandı; router yeniden setup'a döndürmesin.
+      ref.read(signupSetupPendingProvider.notifier).state = false;
+      ref.read(signupSetupRedirectOverrideProvider.notifier).state = true;
+      ref.read(signupSetupStepProvider.notifier).state = 0;
+
+      // İsteğe bağlı: bildirim iznini akış sonunda iste.
       try {
         final status = await NotificationPermissionService.status;
         if (!status.isGranted) {
@@ -241,48 +293,40 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
 
       if (!mounted) return;
 
-      // Bu setup onboarding'in yerine geçtiği için onboarding'i de tamam say.
+      // Bu setup onboarding'in yerine geçtiği için sadece burada tamam say.
       await markOnboardingCompleted();
       if (mounted) {
         ref.read(onboardingCompletedProvider.notifier).state = true;
       }
 
-      // Supabase tarafında "setup tamamlandı" bilgisini kaydet.
-      try {
-        final profile = await ref.read(currentProfileProvider.future);
-        if (profile != null) {
-          final birthDate = _parseBirthDate(_birthDateController.text.trim());
-          await ref.read(authRepositoryProvider).updateProfile(
-                id: profile.id,
-                username: _usernameController.text.trim(),
-                age: int.tryParse(_ageController.text.trim()),
-                birthDate: birthDate,
-                signupSetupCompleted: true,
-              );
-        }
-      } catch (e) {
-        // DB/migration/RLS hatası olsa bile UX bozulmasın:
-        // yine de kullanıcıyı ana sayfaya gönderiyoruz.
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(toUserFriendlyErrorMessage(e)),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-
       // Router hâlâ eski profile verisini görüp tekrar signup-setup'a dönebilir.
       // Bu yüzden profili hemen invalidate edip tazeleyelim.
       ref.invalidate(currentProfileProvider);
-
+      final uidForInvalidate = ref.read(authRepositoryProvider).currentUser?.id;
+      if (uidForInvalidate != null && uidForInvalidate.isNotEmpty) {
+        ref.invalidate(profileByIdProvider(uidForInvalidate));
+      }
+      if (mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        final raw = e.toString().toLowerCase();
+        final duplicateUsername =
+            raw.contains('duplicate key') || raw.contains('username');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              duplicateUsername
+                  ? 'Bu kullanıcı adı zaten kullanılıyor. Lütfen başka bir kullanıcı adı deneyin.'
+                  : toUserFriendlyErrorMessage(e),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        // Bölge filtresi ve tema/locale zaten seçildiği için home'a geçiyoruz.
-        context.go('/');
-        // Akış kapandığı için step'i sıfırla.
-        ref.read(signupSetupStepProvider.notifier).state = 0;
         setState(() => _isFinishing = false);
       }
     }
@@ -302,8 +346,11 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
       await VellumTranslatePreferences.setUseSystemLocale(true);
       final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
       final langCode = deviceLocale.languageCode;
-      final supported = langCode == 'tr' || langCode == 'en' || langCode == 'de';
-      await delegate.changeLocale(localeFromString(supported ? langCode : 'en'));
+      final supported =
+          langCode == 'tr' || langCode == 'en' || langCode == 'de';
+      await delegate.changeLocale(
+        localeFromString(supported ? langCode : 'en'),
+      );
       state.onLocaleChanged();
       return;
     }
@@ -367,7 +414,8 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     if (birthDate == null) return null;
     final today = DateTime.now();
     var age = today.year - birthDate.year;
-    final hasBirthdayPassed = (today.month > birthDate.month) ||
+    final hasBirthdayPassed =
+        (today.month > birthDate.month) ||
         (today.month == birthDate.month && today.day >= birthDate.day);
     if (!hasBirthdayPassed) age--;
     return age;
@@ -385,44 +433,45 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
         child: Stack(
           children: [
             PageView.builder(
-            controller: _pageController,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _totalPages,
-            onPageChanged: (index) {
-              setState(() => _currentPage = index);
-              ref.read(signupSetupStepProvider.notifier).state = index;
-            },
-            itemBuilder: (context, index) {
-              return SafeArea(
-                child: _SetupStep(
-                  stepIndex: index,
-                  pageColor: _pageColors[index],
-                  ageController: _ageController,
-                  birthDateController: _birthDateController,
-                  usernameController: _usernameController,
-                  selectedLocaleOption: _selectedLocaleOption,
-                  onSelectLocale: _applyLocaleOption,
-                  selectedRegionCode: _selectedRegionCode,
-                  onSelectRegion: (code) {
-                    setState(() => _selectedRegionCode = code);
-                    if (!widget.sandboxMode) {
-                      ref.read(bookLanguageFilterProvider.notifier).state = code;
-                    }
-                  },
-                  selectedThemeMode: _selectedThemeMode,
-                  onSelectTheme: (mode) async {
-                    setState(() => _selectedThemeMode = mode);
-                    if (!widget.sandboxMode) {
-                      await saveThemeMode(mode);
-                      if (context.mounted) {
-                        ref.read(themeModeProvider.notifier).state = mode;
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _totalPages,
+              onPageChanged: (index) {
+                setState(() => _currentPage = index);
+                ref.read(signupSetupStepProvider.notifier).state = index;
+              },
+              itemBuilder: (context, index) {
+                return SafeArea(
+                  child: _SetupStep(
+                    stepIndex: index,
+                    pageColor: _pageColors[index],
+                    ageController: _ageController,
+                    birthDateController: _birthDateController,
+                    usernameController: _usernameController,
+                    selectedLocaleOption: _selectedLocaleOption,
+                    onSelectLocale: _applyLocaleOption,
+                    selectedRegionCode: _selectedRegionCode,
+                    onSelectRegion: (code) {
+                      setState(() => _selectedRegionCode = code);
+                      if (!widget.sandboxMode) {
+                        ref.read(bookLanguageFilterProvider.notifier).state =
+                            code;
                       }
-                    }
-                  },
-                ),
-              );
-            },
-          ),
+                    },
+                    selectedThemeMode: _selectedThemeMode,
+                    onSelectTheme: (mode) async {
+                      setState(() => _selectedThemeMode = mode);
+                      if (!widget.sandboxMode) {
+                        await saveThemeMode(mode);
+                        if (context.mounted) {
+                          ref.read(themeModeProvider.notifier).state = mode;
+                        }
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
             Positioned(
               left: 0,
               right: 0,
@@ -481,7 +530,9 @@ class _BottomBar extends StatelessWidget {
       ),
       child: Center(
         child: Text(
-          isLast ? translate('onboarding.setup_finish') : translate('onboarding.next'),
+          isLast
+              ? translate('onboarding.setup_finish')
+              : translate('onboarding.next'),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w800,
             color: Colors.white,
@@ -492,7 +543,12 @@ class _BottomBar extends StatelessWidget {
     );
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.paddingOf(context).bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        16,
+        24,
+        MediaQuery.paddingOf(context).bottom + 24,
+      ),
       decoration: const BoxDecoration(color: Colors.white),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -511,7 +567,9 @@ class _BottomBar extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
-                      color: Colors.black.withValues(alpha: isActive ? 0.9 : 0.35),
+                      color: Colors.black.withValues(
+                        alpha: isActive ? 0.9 : 0.35,
+                      ),
                     ),
                   );
                 }),
@@ -526,10 +584,10 @@ class _BottomBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               onTap: isLast
                   ? (isFinishing
-                      ? null
-                      : () async {
-                          await onFinish();
-                        })
+                        ? null
+                        : () async {
+                            await onFinish();
+                          })
                   : onNext,
               child: buttonChild,
             ),
@@ -592,9 +650,7 @@ class _SetupStep extends StatelessWidget {
         );
         break;
       case _SignupSetupScreenState._profileAnswerPage:
-        content = _UsernameSetupStep(
-          usernameController: usernameController,
-        );
+        content = _UsernameSetupStep(usernameController: usernameController);
         break;
       case _SignupSetupScreenState._birthIntroPage:
         content = const _QuestionIntroStep(
@@ -604,9 +660,7 @@ class _SetupStep extends StatelessWidget {
         );
         break;
       case _SignupSetupScreenState._birthAnswerPage:
-        content = _BirthDateSetupStep(
-          birthDateController: birthDateController,
-        );
+        content = _BirthDateSetupStep(birthDateController: birthDateController);
         break;
       case _SignupSetupScreenState._languageIntroPage:
         content = const _QuestionIntroStep(
@@ -649,7 +703,10 @@ class _SetupStep extends StatelessWidget {
         break;
       case _SignupSetupScreenState._notificationsPage:
       default:
-        content = _NotificationsStep(onFinishPermission: () {}, isFinishing: false);
+        content = _NotificationsStep(
+          onFinishPermission: () {},
+          isFinishing: false,
+        );
         break;
     }
 
@@ -694,10 +751,26 @@ class _LanguageStep extends StatelessWidget {
     final theme = Theme.of(context);
 
     final options = <({String code, String labelKey, String flagAsset})>[
-      (code: 'system', labelKey: 'settings.language_system', flagAsset: 'assets/image/flag_system.svg'),
-      (code: 'tr', labelKey: 'settings.language_turkish', flagAsset: 'assets/image/flag_tr.svg'),
-      (code: 'en', labelKey: 'settings.language_english', flagAsset: 'assets/image/flag_en.svg'),
-      (code: 'de', labelKey: 'settings.language_german', flagAsset: 'assets/image/falg_de.svg'),
+      (
+        code: 'system',
+        labelKey: 'settings.language_system',
+        flagAsset: 'assets/image/flag_system.svg',
+      ),
+      (
+        code: 'tr',
+        labelKey: 'settings.language_turkish',
+        flagAsset: 'assets/image/flag_tr.svg',
+      ),
+      (
+        code: 'en',
+        labelKey: 'settings.language_english',
+        flagAsset: 'assets/image/flag_en.svg',
+      ),
+      (
+        code: 'de',
+        labelKey: 'settings.language_german',
+        flagAsset: 'assets/image/falg_de.svg',
+      ),
     ];
 
     return Column(
@@ -721,17 +794,15 @@ class _LanguageStep extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SvgPicture.asset(
-                      opt.flagAsset,
-                      width: 28,
-                      height: 18,
-                    ),
+                    SvgPicture.asset(opt.flagAsset, width: 28, height: 18),
                     const SizedBox(width: 12),
                     Text(
                       translate(opt.labelKey),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: opt.code == selectedOption ? Colors.white : Colors.black87,
+                        color: opt.code == selectedOption
+                            ? Colors.white
+                            : Colors.black87,
                       ),
                     ),
                   ],
@@ -750,9 +821,7 @@ class _LanguageStep extends StatelessWidget {
 }
 
 class _UsernameSetupStep extends StatelessWidget {
-  const _UsernameSetupStep({
-    required this.usernameController,
-  });
+  const _UsernameSetupStep({required this.usernameController});
 
   final TextEditingController usernameController;
 
@@ -786,9 +855,7 @@ class _UsernameSetupStep extends StatelessWidget {
 }
 
 class _BirthDateSetupStep extends StatelessWidget {
-  const _BirthDateSetupStep({
-    required this.birthDateController,
-  });
+  const _BirthDateSetupStep({required this.birthDateController});
 
   final TextEditingController birthDateController;
 
@@ -839,14 +906,10 @@ class _ProfileField extends StatelessWidget {
         hintText: hint,
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: Colors.black.withValues(alpha: 0.16),
-          ),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
         ),
       ),
       style: theme.textTheme.bodyLarge,
@@ -892,14 +955,10 @@ class _BirthDateFieldState extends State<_BirthDateField> {
         suffixIcon: const Icon(Icons.calendar_month_outlined),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: Colors.black.withValues(alpha: 0.16),
-          ),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.16)),
         ),
       ),
       style: theme.textTheme.bodyLarge,
@@ -908,10 +967,7 @@ class _BirthDateFieldState extends State<_BirthDateField> {
 }
 
 class _RegionStep extends StatelessWidget {
-  const _RegionStep({
-    required this.selectedCode,
-    required this.onSelectCode,
-  });
+  const _RegionStep({required this.selectedCode, required this.onSelectCode});
 
   final String? selectedCode;
   final ValueChanged<String?> onSelectCode;
@@ -951,7 +1007,9 @@ class _RegionStep extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: opt.code == selectedCode ? Colors.white : Colors.black87,
+                      color: opt.code == selectedCode
+                          ? Colors.white
+                          : Colors.black87,
                     ),
                   ),
                 ),
@@ -1055,6 +1113,19 @@ class _NotificationsStep extends StatefulWidget {
 }
 
 class _NotificationsStepState extends State<_NotificationsStep> {
+  Future<void> _handleNotificationPermissionTap() async {
+    final status = await NotificationPermissionService.status;
+    if (status.isPermanentlyDenied) {
+      await NotificationPermissionService.openSettings();
+      if (mounted) setState(() {});
+      return;
+    }
+    if (!status.isGranted) {
+      await NotificationPermissionService.request();
+      if (mounted) setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1086,80 +1157,89 @@ class _NotificationsStepState extends State<_NotificationsStep> {
             final title = granted
                 ? translate('settings.notifications_on')
                 : permanentlyDenied
-                    ? translate('settings.notifications_off')
-                    : translate('settings.notifications_off_prompt');
+                ? translate('settings.notifications_off')
+                : translate('settings.notifications_off_prompt');
 
             final body = granted
                 ? translate('settings.notifications_on_body')
                 : permanentlyDenied
-                    ? translate('settings.notifications_off_body')
-                    : translate('settings.notifications_request_body');
+                ? translate('settings.notifications_off_body')
+                : translate('settings.notifications_request_body');
 
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.black.withValues(alpha: 0.12),
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: _handleNotificationPermissionTap,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.black.withValues(alpha: 0.12),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          granted ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
-                          color: Colors.black87,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: Colors.black,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          textAlign: TextAlign.center,
+                          child: Icon(
+                            granted
+                                ? Icons.notifications_active_rounded
+                                : Icons.notifications_off_rounded,
+                            color: Colors.black87,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      body,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.black87,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (permanentlyDenied)
+                      Center(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            await NotificationPermissionService.openSettings();
+                          },
+                          icon: const Icon(Icons.settings_rounded, size: 18),
+                          label: Text(translate('settings.open_settings')),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    body,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.black87,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (permanentlyDenied)
-                    Center(
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          await NotificationPermissionService.openSettings();
-                        },
-                        icon: const Icon(Icons.settings_rounded, size: 18),
-                        label: Text(translate('settings.open_settings')),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -1206,10 +1286,7 @@ class _QuestionIntroStep extends StatelessWidget {
 }
 
 class _LottieOrFallback extends StatelessWidget {
-  const _LottieOrFallback({
-    required this.assetPath,
-    this.fallbackIcon,
-  });
+  const _LottieOrFallback({required this.assetPath, this.fallbackIcon});
 
   final String assetPath;
   final IconData? fallbackIcon;
@@ -1225,11 +1302,7 @@ class _LottieOrFallback extends StatelessWidget {
           return const SizedBox.shrink();
         }
         return Center(
-          child: Icon(
-            fallbackIcon!,
-            size: 84,
-            color: Colors.black54,
-          ),
+          child: Icon(fallbackIcon!, size: 84, color: Colors.black54),
         );
       },
     );
@@ -1319,8 +1392,11 @@ class _Header extends StatelessWidget {
     var currentLen = 0;
 
     for (final word in words) {
-      final nextLen = current.isEmpty ? word.length : currentLen + 1 + word.length;
-      final canAppend = current.length < maxWordsPerLine && nextLen <= maxLineChars;
+      final nextLen = current.isEmpty
+          ? word.length
+          : currentLen + 1 + word.length;
+      final canAppend =
+          current.length < maxWordsPerLine && nextLen <= maxLineChars;
       if (canAppend) {
         current.add(word);
         currentLen = nextLen;
@@ -1371,9 +1447,7 @@ class _ChoiceCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           constraints: const BoxConstraints(minWidth: 160, minHeight: 64),
           decoration: BoxDecoration(
-            color: selected
-                ? Colors.black
-                : Colors.white,
+            color: selected ? Colors.black : Colors.white,
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(
               color: selected ? selectedBorder : unselectedBorder,
@@ -1418,4 +1492,3 @@ class _HelperText extends StatelessWidget {
     );
   }
 }
-

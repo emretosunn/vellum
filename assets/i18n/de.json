@@ -287,6 +287,8 @@
     "notifications_off_prompt": "Benachrichtigungen erlauben",
     "notifications_off_body": "Aktiviere Benachrichtigungen in den App-Einstellungen, um sie zu erhalten.",
     "notifications_request_body": "Benachrichtigungen zulassen wie neue Kapitel, „Gefällt mir“-Angaben und Kommentare.",
+    "photos_permission_required": "Du musst den Zugriff auf die Galerie erlauben, um ein Foto auszuwählen.",
+    "cover_photos_permission_required": "Du musst den Zugriff auf die Galerie erlauben, um ein Coverbild auszuwählen.",
     "allow": "Zulassen",
     "language_choice": "Sprache",
     "language_system": "Systemstandard",

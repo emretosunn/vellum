@@ -61,8 +61,9 @@ class AuthRepository {
   /// Not: Web tarafında OAuth callback URL'lerinin Supabase dashboard'da doğru
   /// tanımlanması gerekir.
   Future<void> signInWithGoogleOAuth() async {
-    final redirectTo =
-        kIsWeb ? '${Uri.base.origin}/auth/callback' : _mobileAuthRedirect;
+    final redirectTo = kIsWeb
+        ? '${Uri.base.origin}/auth/callback'
+        : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
@@ -72,8 +73,9 @@ class AuthRepository {
 
   /// Facebook OAuth ile giriş yap.
   Future<void> signInWithFacebookOAuth() async {
-    final redirectTo =
-        kIsWeb ? '${Uri.base.origin}/auth/callback' : _mobileAuthRedirect;
+    final redirectTo = kIsWeb
+        ? '${Uri.base.origin}/auth/callback'
+        : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.facebook,
       redirectTo: redirectTo,
@@ -83,8 +85,9 @@ class AuthRepository {
 
   /// Apple OAuth ile giriş yap.
   Future<void> signInWithAppleOAuth() async {
-    final redirectTo =
-        kIsWeb ? '${Uri.base.origin}/auth/callback' : _mobileAuthRedirect;
+    final redirectTo = kIsWeb
+        ? '${Uri.base.origin}/auth/callback'
+        : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: redirectTo,
@@ -116,14 +119,16 @@ class AuthRepository {
     final userId = currentUser?.id;
     if (userId == null) return null;
 
-    final data =
-        await _client.from('profiles').select().eq('id', userId).maybeSingle();
+    final data = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
 
     if (data == null) return null;
     final profile = Profile.fromJson(data);
-    final normalized = await _maybeNormalizeOAuthUsername(profile);
-    await _cacheUsername(normalized.username);
-    return normalized;
+    await _cacheUsername(profile.username);
+    return profile;
   }
 
   /// Profili güncelle (username, bio, links, avatar_url, is_verified_author)
@@ -139,7 +144,10 @@ class AuthRepository {
     DateTime? birthDate,
   }) async {
     final updates = <String, dynamic>{};
-    if (username != null) updates['username'] = username;
+    final trimmedUsername = username?.trim();
+    if (trimmedUsername != null && trimmedUsername.isNotEmpty) {
+      updates['username'] = trimmedUsername;
+    }
     if (bio != null) updates['bio'] = bio;
     if (links != null) updates['links'] = links;
     if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
@@ -155,9 +163,26 @@ class AuthRepository {
     }
 
     if (updates.isEmpty) {
-      final data =
-          await _client.from('profiles').select().eq('id', id).single();
-      return Profile.fromJson(data);
+      final data = await _client
+          .from('profiles')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+      if (data != null) {
+        return Profile.fromJson(data);
+      }
+      final user = currentUser;
+      final fallbackUsername =
+          trimmedUsername ??
+          user?.userMetadata?['username']?.toString().trim() ??
+          user?.email?.split('@').first ??
+          'reader';
+      final inserted = await _client
+          .from('profiles')
+          .upsert({'id': id, 'username': fallbackUsername}, onConflict: 'id')
+          .select()
+          .single();
+      return Profile.fromJson(inserted);
     }
 
     final data = await _client
@@ -165,7 +190,33 @@ class AuthRepository {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
+
+    if (data == null) {
+      final user = currentUser;
+      final metadataUsername = user?.userMetadata?['username']
+          ?.toString()
+          .trim();
+      final fallbackUsername =
+          (updates['username'] as String?)?.trim().isNotEmpty == true
+          ? updates['username'] as String
+          : ((metadataUsername != null && metadataUsername.isNotEmpty)
+                ? metadataUsername
+                : (user?.email?.split('@').first ?? 'reader'));
+      final upsertPayload = <String, dynamic>{
+        'id': id,
+        'username': fallbackUsername,
+        ...updates,
+      };
+      final inserted = await _client
+          .from('profiles')
+          .upsert(upsertPayload, onConflict: 'id')
+          .select()
+          .single();
+      final profile = Profile.fromJson(inserted);
+      await _cacheUsername(profile.username);
+      return profile;
+    }
 
     final profile = Profile.fromJson(data);
     await _cacheUsername(profile.username);
@@ -174,7 +225,10 @@ class AuthRepository {
 
   /// Geliştirici panelinden başka kullanıcının Pro Yazar rozetini ayarla.
   /// RLS yüzünden direkt UPDATE çalışmadığı için Supabase RPC kullanır.
-  Future<void> setVerifiedAuthor({required String targetUserId, required bool value}) async {
+  Future<void> setVerifiedAuthor({
+    required String targetUserId,
+    required bool value,
+  }) async {
     final res = await _client.rpc(
       'set_verified_author',
       params: {'_target_user_id': targetUserId, '_value': value},
@@ -195,14 +249,15 @@ class AuthRepository {
     final fileExt = filePath.split('.').last.toLowerCase();
     final storagePath = '$userId/avatar.$fileExt';
 
-    await _client.storage.from('avatars').uploadBinary(
+    await _client.storage
+        .from('avatars')
+        .uploadBinary(
           storagePath,
           fileBytes,
           fileOptions: const FileOptions(upsert: true),
         );
 
-    final publicUrl =
-        _client.storage.from('avatars').getPublicUrl(storagePath);
+    final publicUrl = _client.storage.from('avatars').getPublicUrl(storagePath);
     return publicUrl;
   }
 
@@ -229,14 +284,15 @@ class AuthRepository {
         .eq('id', userId);
   }
 
-  /// Yazar arama (username üzerinden, sadece author rolü)
+  /// Kullanıcı adı arama (username üzerinden, tüm roller).
+  /// Not: UI tarafında bu metot çeşitli yerlerde "yazar" araması için de
+  /// kullanıldığı için isim korunuyor.
   Future<List<Profile>> searchAuthors(String query) async {
     if (query.trim().isEmpty) return [];
 
     final data = await _client
         .from('profiles')
         .select()
-        .eq('role', 'author')
         .ilike('username', '%${query.trim()}%')
         .limit(20);
 
@@ -256,82 +312,6 @@ class AuthRepository {
     if (value == null || value.isEmpty) return null;
     return value;
   }
-
-  Future<Profile> _maybeNormalizeOAuthUsername(Profile profile) async {
-    final user = currentUser;
-    if (user == null) return profile;
-
-    final provider = (user.appMetadata['provider'] as String?)?.toLowerCase();
-    if (provider != 'facebook' && provider != 'google') return profile;
-
-    final emailLocal = (user.email?.split('@').first ?? '').trim().toLowerCase();
-    final current = profile.username.trim().toLowerCase();
-
-    final looksAutoGenerated = current == emailLocal ||
-        current.contains('@') ||
-        current == 'reader' ||
-        current == 'okuyucu';
-    if (!looksAutoGenerated) return profile;
-
-    final base = _buildBaseUsernameFromMetadata(user);
-    if (base.isEmpty) return profile;
-
-    final unique = await _findUniqueUsername(base, profile.id);
-    if (unique.toLowerCase() == current) return profile;
-
-    final updatedData = await _client
-        .from('profiles')
-        .update({'username': unique})
-        .eq('id', profile.id)
-        .select()
-        .single();
-    return Profile.fromJson(updatedData);
-  }
-
-  String _buildBaseUsernameFromMetadata(User user) {
-    final meta = user.userMetadata;
-    final fullName = (meta?['full_name'] as String?)?.trim();
-    final name = (meta?['name'] as String?)?.trim();
-    final givenName = (meta?['given_name'] as String?)?.trim();
-    final familyName = (meta?['family_name'] as String?)?.trim();
-
-    final candidate = [
-      if (fullName != null && fullName.isNotEmpty) fullName,
-      if (name != null && name.isNotEmpty) name,
-      if (givenName != null && givenName.isNotEmpty) givenName,
-      if (familyName != null && familyName.isNotEmpty) familyName,
-    ].join(' ');
-
-    final compact = candidate
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '');
-    if (compact.length >= 3) return compact;
-
-    final emailLocal = (user.email?.split('@').first ?? '')
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '');
-    if (emailLocal.length >= 3) return emailLocal;
-
-    return 'vellumreader';
-  }
-
-  Future<String> _findUniqueUsername(String base, String currentUserId) async {
-    final safeBase = base.length > 22 ? base.substring(0, 22) : base;
-
-    for (var i = 0; i < 200; i++) {
-      final candidate = i == 0 ? safeBase : '$safeBase$i';
-      final hit = await _client
-          .from('profiles')
-          .select('id')
-          .eq('username', candidate)
-          .maybeSingle();
-
-      if (hit == null) return candidate;
-      if ((hit['id'] as String?) == currentUserId) return candidate;
-    }
-
-    return '$safeBase${DateTime.now().millisecondsSinceEpoch % 100000}';
-  }
 }
 
 // ─── Providers ────────────────────────────────────
@@ -343,9 +323,7 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
 
 /// Auth repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(
-    ref.watch(supabaseClientProvider),
-  );
+  return AuthRepository(ref.watch(supabaseClientProvider));
 });
 
 /// Auth state stream provider
@@ -365,7 +343,9 @@ final cachedUsernameProvider = FutureProvider<String?>((ref) async {
 });
 
 /// Herhangi bir kullanıcının profili (family provider)
-final profileByIdProvider =
-    FutureProvider.family<Profile?, String>((ref, userId) async {
+final profileByIdProvider = FutureProvider.family<Profile?, String>((
+  ref,
+  userId,
+) async {
   return ref.read(authRepositoryProvider).getProfileById(userId);
 });

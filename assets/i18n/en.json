@@ -288,6 +288,8 @@
     "notifications_off_prompt": "Allow notifications",
     "notifications_off_body": "Enable notifications in app settings to receive them.",
     "notifications_request_body": "Allow to receive notifications like new chapters, likes and comments.",
+    "photos_permission_required": "You need to grant gallery access to select a photo.",
+    "cover_photos_permission_required": "You need to grant gallery access to select a cover image.",
     "allow": "Allow",
     "language_choice": "Language",
     "language_system": "System default",

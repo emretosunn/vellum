@@ -228,9 +228,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 isDark: isDark,
                 onEdit: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => _ProfileEditPage(profile: profile),
-                  ),
+                  MaterialPageRoute(builder: (_) => const _ProfileEditPage()),
                 ),
               ),
               loading: () => const Center(
@@ -255,10 +253,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: translate('settings.profile_info'),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          _ProfileEditPage(profile: profileAsync.valueOrNull),
-                    ),
+                    MaterialPageRoute(builder: (_) => const _ProfileEditPage()),
                   ),
                 ),
                 _SettingsTile(
@@ -519,8 +514,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 // ─── Profil Düzenleme Sayfası ─────────────────────────
 
 class _ProfileEditPage extends ConsumerStatefulWidget {
-  const _ProfileEditPage({this.profile});
-  final dynamic profile;
+  const _ProfileEditPage();
 
   @override
   ConsumerState<_ProfileEditPage> createState() => _ProfileEditPageState();
@@ -536,27 +530,53 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   String? _avatarUrl;
   Uint8List? _avatarBytes;
   late List<Map<String, dynamic>> _links;
+  bool _remoteHydrated = false;
+  bool _didUserEdit = false;
 
   @override
   void initState() {
     super.initState();
-    final p = widget.profile;
-    _usernameController = TextEditingController(text: p?.username ?? '');
-    _birthDateController = TextEditingController(
-      text: _formatBirthDate(p?.birthDate),
-    );
-    _bioController = TextEditingController(text: p?.bio ?? '');
-    _avatarUrl = p?.avatarUrl;
-    _links = List<Map<String, dynamic>>.from(
-      (p?.links as List<dynamic>?)?.map(
-            (e) => Map<String, dynamic>.from(e as Map),
-          ) ??
-          <Map<String, dynamic>>[],
-    );
+    _usernameController = TextEditingController(text: '');
+    _birthDateController = TextEditingController(text: '');
+    _bioController = TextEditingController(text: '');
+    _avatarUrl = null;
+    _links = <Map<String, dynamic>>[];
+    _usernameController.addListener(_markDirty);
+    _birthDateController.addListener(_markDirty);
+    _bioController.addListener(_markDirty);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _remoteHydrated) return;
+      try {
+        final latest = await ref.read(currentProfileProvider.future);
+        if (!mounted || latest == null) return;
+        if (_didUserEdit) {
+          _remoteHydrated = true;
+          return;
+        }
+        setState(() {
+          _usernameController.text = latest.username;
+          _birthDateController.text = _formatBirthDate(latest.birthDate);
+          _bioController.text = latest.bio;
+          _avatarUrl = latest.avatarUrl;
+          _links = List<Map<String, dynamic>>.from(latest.links);
+          _remoteHydrated = true;
+        });
+      } catch (_) {
+        // ignore hydration errors
+      }
+    });
+  }
+
+  void _markDirty() {
+    _didUserEdit = true;
   }
 
   @override
   void dispose() {
+    _usernameController.removeListener(_markDirty);
+    _birthDateController.removeListener(_markDirty);
+    _bioController.removeListener(_markDirty);
     _usernameController.dispose();
     _birthDateController.dispose();
     _bioController.dispose();
@@ -616,6 +636,24 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   }
 
   Future<void> _pickAvatar() async {
+    final permission = await Permission.photos.status;
+    var granted = permission.isGranted || permission.isLimited;
+    if (!granted) {
+      final requested = await Permission.photos.request();
+      granted = requested.isGranted || requested.isLimited;
+    }
+    if (!granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(translate('settings.photos_permission_required')),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     final picker = ImagePicker();
     final image = await picker.pickImage(
       source: ImageSource.gallery,
@@ -848,7 +886,18 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
             links: _links,
             avatarUrl: _avatarUrl,
           );
+      final refreshed = await ref.refresh(currentProfileProvider.future);
+      if (refreshed != null && mounted) {
+        setState(() {
+          _usernameController.text = refreshed.username;
+          _birthDateController.text = _formatBirthDate(refreshed.birthDate);
+          _bioController.text = refreshed.bio;
+          _avatarUrl = refreshed.avatarUrl;
+          _links = List<Map<String, dynamic>>.from(refreshed.links);
+        });
+      }
       ref.invalidate(currentProfileProvider);
+      ref.invalidate(profileByIdProvider(userId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

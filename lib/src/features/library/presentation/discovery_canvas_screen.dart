@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -6,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
@@ -25,14 +25,20 @@ class DiscoveryCanvasScreen extends ConsumerStatefulWidget {
 
 class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   late final TransformationController _transformationController;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   bool _initializedDefaultView = false;
+  bool _isSearchOpen = false;
+  bool _isSearching = false;
   int _visibleCount = 16;
   static const int _pageSize = 25;
   final List<Book> _books = <Book>[];
+  List<Book> _searchResults = <Book>[];
   bool _isInitialLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
   Object? _initialError;
+  Object? _searchError;
 
   @override
   void initState() {
@@ -50,13 +56,70 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _transformationController.dispose();
     super.dispose();
   }
 
   void _storeTransform() {
-    ref.read(discoveryCanvasTransformProvider.notifier).state =
-        Matrix4.copy(_transformationController.value);
+    ref.read(discoveryCanvasTransformProvider.notifier).state = Matrix4.copy(
+      _transformationController.value,
+    );
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchOpen = !_isSearchOpen;
+      if (!_isSearchOpen) {
+        _searchController.clear();
+        _searchResults = <Book>[];
+        _searchError = null;
+        _isSearching = false;
+      }
+    });
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = <Book>[];
+        _searchError = null;
+        _isSearching = false;
+      });
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+      setState(() {
+        _isSearching = true;
+        _searchError = null;
+      });
+      try {
+        final results = await ref
+            .read(bookRepositoryProvider)
+            .searchBooks(query);
+        if (!mounted) return;
+        setState(() {
+          _searchResults = results;
+        });
+      } catch (error) {
+        if (!mounted) return;
+        setState(() {
+          _searchError = error;
+          _searchResults = <Book>[];
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSearching = false;
+          });
+        }
+      }
+    });
   }
 
   Future<void> _loadInitialBooks() async {
@@ -82,11 +145,13 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
     });
 
     try {
-      final batch = await ref.read(bookRepositoryProvider).getPublishedBooks(
-        limit: _pageSize,
-        offset: _books.length,
-        sortOrder: BookSortOrder.recent,
-      );
+      final batch = await ref
+          .read(bookRepositoryProvider)
+          .getPublishedBooks(
+            limit: _pageSize,
+            offset: _books.length,
+            sortOrder: BookSortOrder.recent,
+          );
 
       if (!mounted) return;
       setState(() {
@@ -104,11 +169,12 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
         }
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isInitialLoading = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -118,7 +184,18 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(translate('discovery_canvas.title')),
+        title: _isSearchOpen
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: translate('discovery_canvas.search_hint'),
+                  border: InputBorder.none,
+                ),
+              )
+            : Text(translate('discovery_canvas.title')),
         centerTitle: true,
         automaticallyImplyLeading: false,
         backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.88),
@@ -131,157 +208,183 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
             ),
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _toggleSearch,
+            icon: Icon(
+              _isSearchOpen ? Icons.close_rounded : Icons.search_rounded,
+            ),
+            tooltip: translate('discovery_canvas.search_hint'),
+          ),
+        ],
       ),
-      body: _isInitialLoading
+      body: (_isSearchOpen && _searchController.text.trim().isNotEmpty)
+          ? _DiscoverySearchResults(
+              results: _searchResults,
+              isSearching: _isSearching,
+              error: _searchError,
+            )
+          : _isInitialLoading
           ? const Center(child: CircularProgressIndicator())
           : (_initialError != null && _books.isEmpty)
-              ? Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline_rounded,
-                  size: 48,
-                  color: theme.colorScheme.error,
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      translate('discovery_canvas.error_load'),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonal(
+                      onPressed: _loadInitialBooks,
+                      child: Text(translate('common.retry')),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  translate('discovery_canvas.error_load'),
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                FilledButton.tonal(
-                  onPressed: _loadInitialBooks,
-                  child: Text(translate('common.retry')),
-                ),
-              ],
-            ),
-          ),
-        )
-              : LayoutBuilder(
-            builder: (context, constraints) {
-              final canvasWidth = constraints.maxWidth * 2.2;
-              final canvasHeight = constraints.maxHeight * 2.2;
-              final nodes = _buildNodes(
-                _books,
-                Size(canvasWidth, canvasHeight),
-              );
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final canvasWidth = constraints.maxWidth * 2.2;
+                final canvasHeight = constraints.maxHeight * 2.2;
+                final nodes = _buildNodes(
+                  _books,
+                  Size(canvasWidth, canvasHeight),
+                );
 
-              if (!_initializedDefaultView &&
-                  ref.read(discoveryCanvasTransformProvider) == null) {
-                _initializedDefaultView = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!mounted) return;
-                  // İlk açılışta tuvalin ortasına yakın konuma getir;
-                  // kullanıcı tek kitap değil, daha zengin bir dağılım görsün.
-                  _transformationController.value = Matrix4.identity()
-                    ..translate(
-                      -(canvasWidth - constraints.maxWidth) * 0.42,
-                      -(canvasHeight - constraints.maxHeight) * 0.32,
-                    );
-                  _storeTransform();
-                });
-              }
+                if (!_initializedDefaultView &&
+                    ref.read(discoveryCanvasTransformProvider) == null) {
+                  _initializedDefaultView = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    // İlk açılışta tuvalin ortasına yakın konuma getir;
+                    // kullanıcı tek kitap değil, daha zengin bir dağılım görsün.
+                    _transformationController.value = Matrix4.identity()
+                      ..translateByDouble(
+                        -(canvasWidth - constraints.maxWidth) * 0.42,
+                        -(canvasHeight - constraints.maxHeight) * 0.32,
+                        0,
+                        1,
+                      );
+                    _storeTransform();
+                  });
+                }
 
-              return Column(
-                children: [
-                  Expanded(
-                    child: nodes.isEmpty
-                        ? Center(
-                            child: Text(
-                              translate('discovery_canvas.empty'),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                return Column(
+                  children: [
+                    Expanded(
+                      child: nodes.isEmpty
+                          ? Center(
+                              child: Text(
+                                translate('discovery_canvas.empty'),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                          )
-                        : InteractiveViewer(
-                            transformationController: _transformationController,
-                            minScale: 0.5,
-                            maxScale: 2.5,
-                            constrained: false,
-                            boundaryMargin: const EdgeInsets.all(300),
-                            onInteractionEnd: (_) {
-                              _storeTransform();
-                              if (_visibleCount < nodes.length) {
-                                setState(() {
-                                  _visibleCount =
-                                      (_visibleCount + 10).clamp(0, nodes.length);
-                                });
-                              }
-                              final isNearRenderedEnd =
-                                  _visibleCount + 8 >= nodes.length;
-                              if (isNearRenderedEnd && _hasMore) {
-                                _loadMoreBooks();
-                              }
-                            },
-                            child: SizedBox(
-                              width: canvasWidth,
-                              height: canvasHeight,
-                              child: Stack(
-                                children: [
-                                  for (final node
-                                      in nodes.take(_visibleCount))
-                                    Positioned(
-                                      left: node.dx,
-                                      top: node.dy,
-                                      child: _CanvasBookCover(
-                                        book: node.book,
-                                        angle: node.angle,
-                                        onTap: () async {
-                                          _storeTransform();
-                                          await context.push('/book/${node.book.id}');
-                                          if (!mounted) return;
-                                          final saved =
-                                              ref.read(discoveryCanvasTransformProvider);
-                                          if (saved != null) {
-                                            _transformationController.value =
-                                                Matrix4.copy(saved);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  if (_isLoadingMore)
-                                    Positioned(
-                                      right: 18,
-                                      bottom: 18,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: theme.colorScheme.surface
-                                              .withValues(alpha: 0.92),
-                                          borderRadius: BorderRadius.circular(14),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: theme.colorScheme.shadow
-                                                  .withValues(alpha: 0.16),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
+                            )
+                          : InteractiveViewer(
+                              transformationController:
+                                  _transformationController,
+                              minScale: 0.5,
+                              maxScale: 2.5,
+                              constrained: false,
+                              boundaryMargin: const EdgeInsets.all(300),
+                              onInteractionEnd: (_) {
+                                _storeTransform();
+                                if (_visibleCount < nodes.length) {
+                                  setState(() {
+                                    _visibleCount = (_visibleCount + 10).clamp(
+                                      0,
+                                      nodes.length,
+                                    );
+                                  });
+                                }
+                                final isNearRenderedEnd =
+                                    _visibleCount + 8 >= nodes.length;
+                                if (isNearRenderedEnd && _hasMore) {
+                                  _loadMoreBooks();
+                                }
+                              },
+                              child: SizedBox(
+                                width: canvasWidth,
+                                height: canvasHeight,
+                                child: Stack(
+                                  children: [
+                                    for (final node in nodes.take(
+                                      _visibleCount,
+                                    ))
+                                      Positioned(
+                                        left: node.dx,
+                                        top: node.dy,
+                                        child: _CanvasBookCover(
+                                          book: node.book,
+                                          angle: node.angle,
+                                          onTap: () async {
+                                            _storeTransform();
+                                            await context.push(
+                                              '/book/${node.book.id}',
+                                            );
+                                            if (!mounted) return;
+                                            final saved = ref.read(
+                                              discoveryCanvasTransformProvider,
+                                            );
+                                            if (saved != null) {
+                                              _transformationController.value =
+                                                  Matrix4.copy(saved);
+                                            }
+                                          },
                                         ),
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(10),
-                                          child: SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.2,
+                                      ),
+                                    if (_isLoadingMore)
+                                      Positioned(
+                                        right: 18,
+                                        bottom: 18,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surface
+                                                .withValues(alpha: 0.92),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: theme.colorScheme.shadow
+                                                    .withValues(alpha: 0.16),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(10),
+                                            child: SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.2,
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                  ),
-                ],
-              );
-            },
-          ),
+                    ),
+                  ],
+                );
+              },
+            ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 74),
         child: FloatingActionButton(
@@ -289,7 +392,7 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
           foregroundColor: Colors.white,
           onPressed: () {
             _transformationController.value = Matrix4.identity()
-              ..translate(-260.0, -180.0);
+              ..translateByDouble(-260.0, -180.0, 0, 1);
             _storeTransform();
           },
           child: const Icon(Icons.center_focus_strong_rounded),
@@ -320,8 +423,10 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
 
       for (var attempt = 0; attempt < 18; attempt++) {
         final theta = baseTheta + (attempt * 0.35);
-        final jitterX = ((book.id.hashCode + attempt * 31) % 24 - 12).toDouble();
-        final jitterY = ((book.title.hashCode + attempt * 17) % 20 - 10).toDouble();
+        final jitterX = ((book.id.hashCode + attempt * 31) % 24 - 12)
+            .toDouble();
+        final jitterY = ((book.title.hashCode + attempt * 17) % 20 - 10)
+            .toDouble();
 
         x = centerX + (radius * math.cos(theta)) + jitterX;
         y = centerY + (radius * math.sin(theta)) + jitterY;
@@ -364,6 +469,92 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   }
 }
 
+class _DiscoverySearchResults extends StatelessWidget {
+  const _DiscoverySearchResults({
+    required this.results,
+    required this.isSearching,
+    required this.error,
+  });
+
+  final List<Book> results;
+  final bool isSearching;
+  final Object? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (isSearching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            translate('discovery_canvas.error_load'),
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    if (results.isEmpty) {
+      return Center(
+        child: Text(
+          translate('discovery_canvas.empty'),
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: results.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final book = results[index];
+        return ListTile(
+          onTap: () => context.push('/book/${book.id}'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          tileColor: theme.colorScheme.surfaceContainerLowest,
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 44,
+              height: 62,
+              child:
+                  (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: book.coverImageUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Image.asset(
+                        AppAssets.defaultBookCover,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(AppAssets.defaultBookCover, fit: BoxFit.cover),
+            ),
+          ),
+          title: Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            (book.summary).trim().isEmpty ? '-' : book.summary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+        );
+      },
+    );
+  }
+}
+
 class _CanvasBookCover extends StatelessWidget {
   const _CanvasBookCover({
     required this.book,
@@ -402,7 +593,8 @@ class _CanvasBookCover extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+              child:
+                  (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
                   ? CachedNetworkImage(
                       imageUrl: book.coverImageUrl!,
                       fit: BoxFit.cover,
@@ -421,10 +613,7 @@ class _CanvasBookCover extends StatelessWidget {
                         fit: BoxFit.cover,
                       ),
                     )
-                  : Image.asset(
-                      AppAssets.defaultBookCover,
-                      fit: BoxFit.cover,
-                    ),
+                  : Image.asset(AppAssets.defaultBookCover, fit: BoxFit.cover),
             ),
           ),
         ),

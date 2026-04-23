@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/data/auth_repository.dart';
@@ -16,6 +17,14 @@ class ImageUploadService {
 
   /// Galeriden resim seç. Null dönerse kullanıcı iptal etmiştir.
   Future<XFile?> pickImage() async {
+    final status = await Permission.photos.status;
+    var granted = status.isGranted || status.isLimited;
+    if (!granted) {
+      final requested = await Permission.photos.request();
+      granted = requested.isGranted || requested.isLimited;
+    }
+    if (!granted) return null;
+
     final picker = ImagePicker();
     return picker.pickImage(
       source: ImageSource.gallery,
@@ -35,7 +44,9 @@ class ImageUploadService {
     final path = '$userId/$bookId.$ext';
     final bytes = await file.readAsBytes();
 
-    await _client.storage.from(_bucket).uploadBinary(
+    await _client.storage
+        .from(_bucket)
+        .uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(

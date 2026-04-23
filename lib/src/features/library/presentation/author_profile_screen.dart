@@ -34,10 +34,12 @@ class AuthorProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authorAsync = ref.watch(profileByIdProvider(authorId));
-    final booksAsync = ref.watch(authorBooksProvider(authorId));
     final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
     final isOwnProfile = currentUserId != null && authorId == currentUserId;
+    final authorAsync = isOwnProfile
+        ? ref.watch(currentProfileProvider)
+        : ref.watch(profileByIdProvider(authorId));
+    final booksAsync = ref.watch(authorBooksProvider(authorId));
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -77,8 +79,12 @@ class AuthorProfileScreen extends ConsumerWidget {
                       booksAsync.whenOrNull(
                             data: (books) => Consumer(
                               builder: (context, ref, _) {
-                                final totalLikesAsync = ref.watch(authorTotalLikesProvider(authorId));
-                                final followerCountAsync = ref.watch(followerCountProvider(authorId));
+                                final totalLikesAsync = ref.watch(
+                                  authorTotalLikesProvider(authorId),
+                                );
+                                final followerCountAsync = ref.watch(
+                                  followerCountProvider(authorId),
+                                );
                                 return totalLikesAsync.when(
                                   data: (totalLikes) => followerCountAsync.when(
                                     data: (followerCount) => _StatsRow(
@@ -135,7 +141,8 @@ class AuthorProfileScreen extends ConsumerWidget {
                                   error: (_, __) => _StatsRow(
                                     bookCount: books.length,
                                     totalLikes: 0,
-                                    followerCount: followerCountAsync.valueOrNull ?? 0,
+                                    followerCount:
+                                        followerCountAsync.valueOrNull ?? 0,
                                     isDark: isDark,
                                     theme: theme,
                                     memberSince: author.createdAt,
@@ -154,7 +161,11 @@ class AuthorProfileScreen extends ConsumerWidget {
 
                       // Paylaşımlar (yazarın metin postları)
                       const SizedBox(height: 20),
-                      _AuthorPostsSection(authorId: authorId, isDark: isDark, theme: theme),
+                      _AuthorPostsSection(
+                        authorId: authorId,
+                        isDark: isDark,
+                        theme: theme,
+                      ),
 
                       // Bio bölümü
                       if (author.bio.isNotEmpty) ...[
@@ -250,11 +261,7 @@ class AuthorProfileScreen extends ConsumerWidget {
                     );
                   }
 
-                  return _BooksList(
-                    books: books,
-                    isDark: isDark,
-                    theme: theme,
-                  );
+                  return _BooksList(books: books, isDark: isDark, theme: theme);
                 },
               ),
 
@@ -271,10 +278,16 @@ class AuthorProfileScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.person_off_outlined,
-              size: 48, color: theme.colorScheme.error),
+          Icon(
+            Icons.person_off_outlined,
+            size: 48,
+            color: theme.colorScheme.error,
+          ),
           const SizedBox(height: 16),
-          Text(translate('profile.author_not_found'), style: theme.textTheme.titleMedium),
+          Text(
+            translate('profile.author_not_found'),
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: () => context.pop(),
@@ -305,7 +318,12 @@ class _ProfileHeaderSliver extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUserId = ref.watch(authRepositoryProvider).currentUser?.id;
     final isFollowingAsync = currentUserId != null && !isOwnProfile
-        ? ref.watch(isFollowingProvider((followerId: currentUserId, followingId: authorId)))
+        ? ref.watch(
+            isFollowingProvider((
+              followerId: currentUserId,
+              followingId: authorId,
+            )),
+          )
         : null;
     final isBlockedAsync = currentUserId != null && !isOwnProfile
         ? ref.watch(isBlockedUserProvider(authorId))
@@ -410,8 +428,7 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                     ),
                     child: CircleAvatar(
                       radius: 44,
-                      backgroundColor:
-                          Colors.white.withValues(alpha: 0.15),
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
                       backgroundImage: author.avatarUrl != null
                           ? NetworkImage(author.avatarUrl!)
                           : null,
@@ -432,10 +449,10 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                           : null,
                     ),
                   ).animate().scale(
-                        delay: 100.ms,
-                        duration: 500.ms,
-                        curve: Curves.easeOutBack,
-                      ),
+                    delay: 100.ms,
+                    duration: 500.ms,
+                    curve: Curves.easeOutBack,
+                  ),
 
                   const SizedBox(height: 14),
 
@@ -466,62 +483,68 @@ class _ProfileHeaderSliver extends ConsumerWidget {
 
                   // Rozetler: Pro Yazar (sadece geliştirici verir), Premium (abonelik)
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      if (author.isVerifiedAuthor)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.verified,
-                                color: Colors.white,
-                                size: 14,
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (author.isVerifiedAuthor)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                translate('profile.pro_author'),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.verified,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    translate('profile.pro_author'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (author.isPro)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.accent,
+                                    AppColors.accentDark,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                translate('subscription.premium_badge'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      if (author.isPro)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AppColors.accent, AppColors.accentDark],
                             ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            translate('subscription.premium_badge'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ).animate().fadeIn(delay: 300.ms).scale(
+                        ],
+                      )
+                      .animate()
+                      .fadeIn(delay: 300.ms)
+                      .scale(
                         begin: const Offset(0.8, 0.8),
                         curve: Curves.easeOutBack,
                       ),
@@ -541,16 +564,22 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                                 isFollowing: following,
                                 onPressed: isBlocked
                                     ? () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              translate('profile.unblock_for_follow'),
+                                              translate(
+                                                'profile.unblock_for_follow',
+                                              ),
                                             ),
                                           ),
                                         );
                                       }
                                     : () async {
-                                        final repo = ref.read(followRepositoryProvider);
+                                        final repo = ref.read(
+                                          followRepositoryProvider,
+                                        );
                                         if (following) {
                                           await repo.unfollow(
                                             followerId: currentUserId,
@@ -563,21 +592,28 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                                           );
                                         }
                                         ref.invalidate(
-                                          isFollowingProvider(
-                                            (followerId: currentUserId, followingId: authorId),
-                                          ),
+                                          isFollowingProvider((
+                                            followerId: currentUserId,
+                                            followingId: authorId,
+                                          )),
                                         );
                                         ref.invalidate(followingIdsProvider);
                                         ref.invalidate(followingFeedProvider);
-                                        ref.invalidate(followerCountProvider(authorId));
+                                        ref.invalidate(
+                                          followerCountProvider(authorId),
+                                        );
                                       },
                               ),
                               const SizedBox(height: 10),
                               _BlockActionButton(
                                 isBlocked: isBlocked,
                                 onPressed: () async {
-                                  final blockRepo = ref.read(userBlockRepositoryProvider);
-                                  final followRepo = ref.read(followRepositoryProvider);
+                                  final blockRepo = ref.read(
+                                    userBlockRepositoryProvider,
+                                  );
+                                  final followRepo = ref.read(
+                                    followRepositoryProvider,
+                                  );
                                   if (isBlocked) {
                                     await blockRepo.unblockUser(
                                       userId: currentUserId,
@@ -593,16 +629,21 @@ class _ProfileHeaderSliver extends ConsumerWidget {
                                       followingId: authorId,
                                     );
                                   }
-                                  ref.invalidate(isBlockedUserProvider(authorId));
+                                  ref.invalidate(
+                                    isBlockedUserProvider(authorId),
+                                  );
                                   ref.invalidate(blockedUserIdsProvider);
                                   ref.invalidate(
-                                    isFollowingProvider(
-                                      (followerId: currentUserId, followingId: authorId),
-                                    ),
+                                    isFollowingProvider((
+                                      followerId: currentUserId,
+                                      followingId: authorId,
+                                    )),
                                   );
                                   ref.invalidate(followingIdsProvider);
                                   ref.invalidate(followingFeedProvider);
-                                  ref.invalidate(followerCountProvider(authorId));
+                                  ref.invalidate(
+                                    followerCountProvider(authorId),
+                                  );
                                 },
                               ),
                             ],
@@ -683,13 +724,17 @@ class _FollowActionButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  isFollowing ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                  isFollowing
+                      ? Icons.person_remove_rounded
+                      : Icons.person_add_rounded,
                   color: isFollowing ? Colors.white : AppColors.primary,
                   size: 22,
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  isFollowing ? translate('profile.unfollow') : translate('profile.follow'),
+                  isFollowing
+                      ? translate('profile.unfollow')
+                      : translate('profile.follow'),
                   style: TextStyle(
                     color: isFollowing ? Colors.white : AppColors.primary,
                     fontWeight: FontWeight.w700,
@@ -706,10 +751,7 @@ class _FollowActionButton extends StatelessWidget {
 }
 
 class _BlockActionButton extends StatelessWidget {
-  const _BlockActionButton({
-    required this.isBlocked,
-    required this.onPressed,
-  });
+  const _BlockActionButton({required this.isBlocked, required this.onPressed});
 
   final bool isBlocked;
   final VoidCallback onPressed;
@@ -717,41 +759,51 @@ class _BlockActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: isBlocked ? Colors.white : AppColors.error,
-          backgroundColor:
-              isBlocked ? AppColors.error.withValues(alpha: 0.85) : Colors.white,
-          side: BorderSide(
-            color: isBlocked
-                ? Colors.white.withValues(alpha: 0.4)
-                : AppColors.error.withValues(alpha: 0.45),
-            width: 1.4,
+          constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: isBlocked ? Colors.white : AppColors.error,
+              backgroundColor: isBlocked
+                  ? AppColors.error.withValues(alpha: 0.85)
+                  : Colors.white,
+              side: BorderSide(
+                color: isBlocked
+                    ? Colors.white.withValues(alpha: 0.4)
+                    : AppColors.error.withValues(alpha: 0.45),
+                width: 1.4,
+              ),
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: Icon(
+              isBlocked ? Icons.block_flipped : Icons.block_outlined,
+              size: 18,
+            ),
+            label: Text(
+              isBlocked
+                  ? translate('profile.unblock_user')
+                  : translate('profile.block_user'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
-          minimumSize: const Size.fromHeight(46),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        icon: Icon(
-          isBlocked ? Icons.block_flipped : Icons.block_outlined,
-          size: 18,
-        ),
-        label: Text(
-          isBlocked ? translate('profile.unblock_user') : translate('profile.block_user'),
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.15, curve: Curves.easeOut);
+        )
+        .animate()
+        .fadeIn(delay: 400.ms)
+        .slideY(begin: 0.15, curve: Curves.easeOut);
   }
 }
 
 // ─── Yazar paylaşımları bölümü ─────────────────────────
 
 class _AuthorPostsSection extends ConsumerWidget {
-  const _AuthorPostsSection({required this.authorId, required this.isDark, required this.theme});
+  const _AuthorPostsSection({
+    required this.authorId,
+    required this.isDark,
+    required this.theme,
+  });
   final String authorId;
   final bool isDark;
   final ThemeData theme;
@@ -760,7 +812,12 @@ class _AuthorPostsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final postsAsync = ref.watch(authorPostsProvider(authorId));
     return postsAsync.when(
-      loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      ),
       error: (_, __) => const SizedBox.shrink(),
       data: (posts) {
         if (posts.isEmpty) return const SizedBox.shrink();
@@ -773,34 +830,57 @@ class _AuthorPostsSection extends ConsumerWidget {
                   width: 4,
                   height: 24,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.primary, AppColors.secondary]),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(translate('profile.posts'), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  translate('profile.posts'),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            ...posts.map((post) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(post.content, style: theme.textTheme.bodyMedium, maxLines: 10, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 6),
-                    Text(_formatPostDate(post.createdAt), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  ],
+            ...posts.map(
+              (post) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.content,
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 10,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatPostDate(post.createdAt),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )),
+            ),
           ],
         );
       },
@@ -811,9 +891,18 @@ class _AuthorPostsSection extends ConsumerWidget {
     final now = DateTime.now();
     final diff = now.difference(d);
     if (diff.inMinutes < 1) return translate('profile.time_just_now');
-    if (diff.inMinutes < 60) return translate('profile.time_minutes_ago', args: {'n': '${diff.inMinutes}'});
-    if (diff.inHours < 24) return translate('profile.time_hours_ago', args: {'n': '${diff.inHours}'});
-    if (diff.inDays < 7) return translate('profile.time_days_ago', args: {'n': '${diff.inDays}'});
+    if (diff.inMinutes < 60)
+      return translate(
+        'profile.time_minutes_ago',
+        args: {'n': '${diff.inMinutes}'},
+      );
+    if (diff.inHours < 24)
+      return translate(
+        'profile.time_hours_ago',
+        args: {'n': '${diff.inHours}'},
+      );
+    if (diff.inDays < 7)
+      return translate('profile.time_days_ago', args: {'n': '${diff.inDays}'});
     return '${d.day}.${d.month}.${d.year}';
   }
 }
@@ -926,11 +1015,7 @@ class _StatCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: AppColors.primary,
-            size: 22,
-          ),
+          Icon(icon, color: AppColors.primary, size: 22),
           const SizedBox(width: 12),
           Text(
             value,
@@ -1069,7 +1154,9 @@ class _ReadBookCard extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                child:
+                    (book.coverImageUrl != null &&
+                        book.coverImageUrl!.isNotEmpty)
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
@@ -1123,14 +1210,10 @@ class _BooksList extends StatelessWidget {
           (context, index) {
             final book = books[index];
             return RepaintBoundary(
-              child: _BookListItem(
-              book: book,
-              isDark: isDark,
-              theme: theme,
-            )
-                .animate()
-                .fadeIn(delay: Duration(milliseconds: 350 + index * 60))
-                .slideX(begin: 0.03, curve: Curves.easeOutCubic),
+              child: _BookListItem(book: book, isDark: isDark, theme: theme)
+                  .animate()
+                  .fadeIn(delay: Duration(milliseconds: 350 + index * 60))
+                  .slideX(begin: 0.03, curve: Curves.easeOutCubic),
             );
           },
           childCount: books.length,
@@ -1191,7 +1274,9 @@ class _BookListItem extends StatelessWidget {
                   child: SizedBox(
                     width: 64,
                     height: 86,
-                    child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                    child:
+                        (book.coverImageUrl != null &&
+                            book.coverImageUrl!.isNotEmpty)
                         ? Image.network(
                             book.coverImageUrl!,
                             fit: BoxFit.cover,
@@ -1249,7 +1334,6 @@ class _BookListItem extends StatelessWidget {
       ),
     );
   }
-
 }
 
 // ─── Kitap Grid (Tablet/Desktop) ─────────────────
@@ -1280,23 +1364,16 @@ class _BooksGrid extends StatelessWidget {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final book = books[index];
-            return _BookGridItem(
-              book: book,
-              isDark: isDark,
-              theme: theme,
-            )
-                .animate()
-                .fadeIn(delay: Duration(milliseconds: 350 + index * 80))
-                .scale(
-                  begin: const Offset(0.95, 0.95),
-                  curve: Curves.easeOutCubic,
-                );
-          },
-          childCount: books.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final book = books[index];
+          return _BookGridItem(book: book, isDark: isDark, theme: theme)
+              .animate()
+              .fadeIn(delay: Duration(milliseconds: 350 + index * 80))
+              .scale(
+                begin: const Offset(0.95, 0.95),
+                curve: Curves.easeOutCubic,
+              );
+        }, childCount: books.length),
       ),
     );
   }
@@ -1322,9 +1399,7 @@ class _BookGridItem extends StatelessWidget {
         onTap: () => context.push('/book/${book.id}'),
         child: Container(
           decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.white,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isDark
@@ -1348,9 +1423,12 @@ class _BookGridItem extends StatelessWidget {
               Expanded(
                 flex: 3,
                 child: ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty)
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child:
+                      (book.coverImageUrl != null &&
+                          book.coverImageUrl!.isNotEmpty)
                       ? Image.network(
                           book.coverImageUrl!,
                           fit: BoxFit.cover,
@@ -1426,7 +1504,6 @@ class _BookGridItem extends StatelessWidget {
       ),
     );
   }
-
 }
 
 // ─── Bio Bölümü ────────────────────────────────────
@@ -1544,11 +1621,7 @@ class _LinksSection extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    _getLinkIcon(title),
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
+                  Icon(_getLinkIcon(title), size: 16, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Text(
                     title,
