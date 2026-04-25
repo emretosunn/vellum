@@ -2,7 +2,7 @@ name: vellum
 description: "Vellum - Digital Publishing Platform by Vexorabyte"
 publish_to: 'none'
 
-version: 0.6.0+15
+version: 0.6.0+16
 
 environment:
   sdk: ^3.9.2
@@ -91,8 +91,8 @@ flutter_launcher_icons:
   web:
     generate: true
     image_path: "assets/icon/icon.png"
-    background_color: "#hex_code"
-    theme_color: "#hex_code"
+    background_color: "#1E1E2E"
+    theme_color: "#5E5CE6"
   windows:
     generate: true
     image_path: "assets/icon/icon.png"

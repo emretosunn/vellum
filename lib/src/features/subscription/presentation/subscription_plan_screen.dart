@@ -136,8 +136,8 @@ class _SubscriptionPlanModalContentState
           .getSubscriptionProducts();
       if (!mounted) return;
       setState(() {
-        _monthlyProduct = products['aylik_premium'];
-        _yearlyProduct = products['yillik_premium'];
+        _monthlyProduct = products['monthly'];
+        _yearlyProduct = products['yearly'];
       });
     } finally {
       if (mounted) {

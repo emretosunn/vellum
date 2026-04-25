@@ -45,6 +45,8 @@
 	<string>Vellum, oluşturduğunuz veya düzenlediğiniz görselleri isterseniz Fotoğraflar arşivinize kaydedebilmeniz için ekleme izni ister. Uygulama, siz onay vermeden arşivinize otomatik kayıt yapmaz.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Vellum, profil fotoğrafı veya kitap kapağı için doğrudan yeni bir fotoğraf çekebilmeniz amacıyla kamera erişim izni ister. Kamera yalnızca fotoğraf çekme işlemi sırasında, sizin açık eyleminizle kullanılır.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Vellum, yeni etkileşimler, güncellemeler ve size özel hatırlatmalar hakkında sizi bilgilendirebilmek için bildirim izni ister. Bildirim tercihlerinizi uygulama ayarlarından dilediğiniz zaman değiştirebilirsiniz.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
@@ -636,12 +635,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   }
 
   Future<void> _pickAvatar() async {
-    final permission = await Permission.photos.status;
-    var granted = permission.isGranted || permission.isLimited;
-    if (!granted) {
-      final requested = await Permission.photos.request();
-      granted = requested.isGranted || requested.isLimited;
-    }
+    final granted = await _ensureGalleryPermission();
     if (!granted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -692,6 +686,28 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
+  }
+
+  Future<bool> _ensureGalleryPermission() async {
+    if (kIsWeb) return true;
+
+    var photoStatus = await Permission.photos.status;
+    var granted = photoStatus.isGranted || photoStatus.isLimited;
+    if (!granted) {
+      photoStatus = await Permission.photos.request();
+      granted = photoStatus.isGranted || photoStatus.isLimited;
+    }
+    if (granted) return true;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      var storageStatus = await Permission.storage.status;
+      if (!storageStatus.isGranted) {
+        storageStatus = await Permission.storage.request();
+      }
+      if (storageStatus.isGranted) return true;
+    }
+
+    return false;
   }
 
   void _addLink() {

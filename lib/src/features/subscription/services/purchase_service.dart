@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -11,28 +12,64 @@ import '../data/subscription_repository.dart';
 /// Ödeme penceresinin çıkması için:
 /// - Cihazda Play Store ile giriş yapılmış olmalı (gerçek cihaz veya Play Store’lu emülatör).
 /// - Uygulama Play Console’da en az “Dahili test” ile yayında olmalı.
-/// - Play Console > Monetize > Abonelikler’de [aylik_premium] ve [yillik_premium]
-///   ürünleri oluşturulup etkinleştirilmiş olmalı.
+/// - Google Play için ürün kimlikleri: [aylik_premium], [yillik_premium]
+/// - App Store için ürün kimlikleri: [vellum_monthly], [annual_vellum]
 class SubscriptionPurchaseService {
   SubscriptionPurchaseService(this._iap, this._ref);
 
   final InAppPurchase _iap;
   final Ref _ref;
 
-  static const String _monthlyId = 'aylik_premium';
-  static const String _yearlyId = 'yillik_premium';
+  static const String _monthlyIdAndroid = 'aylik_premium';
+  static const String _yearlyIdAndroid = 'yillik_premium';
+  static const String _monthlyIdApple = 'vellum_monthly';
+  static const String _yearlyIdApple = 'annual_vellum';
+
+  static const Set<String> _monthlyIds = {
+    _monthlyIdAndroid,
+    _monthlyIdApple,
+  };
+  static const Set<String> _yearlyIds = {
+    _yearlyIdAndroid,
+    _yearlyIdApple,
+  };
+
+  bool get _isApplePlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  String get _monthlyId => _isApplePlatform ? _monthlyIdApple : _monthlyIdAndroid;
+  String get _yearlyId => _isApplePlatform ? _yearlyIdApple : _yearlyIdAndroid;
+  String get _storeName => _isApplePlatform ? 'App Store' : 'Google Play';
 
   Future<Map<String, ProductDetails>> getSubscriptionProducts() async {
     final available = await _iap.isAvailable();
     if (!available) return const {};
 
-    final response = await _iap.queryProductDetails({_monthlyId, _yearlyId});
+    final response = await _iap.queryProductDetails({
+      _monthlyIdAndroid,
+      _yearlyIdAndroid,
+      _monthlyIdApple,
+      _yearlyIdApple,
+    });
     if (response.error != null || response.productDetails.isEmpty) {
       return const {};
     }
 
+    ProductDetails? monthly;
+    ProductDetails? yearly;
+    for (final p in response.productDetails) {
+      if (_monthlyIds.contains(p.id)) {
+        monthly ??= p;
+      } else if (_yearlyIds.contains(p.id)) {
+        yearly ??= p;
+      }
+    }
+
     return {
-      for (final p in response.productDetails) p.id: p,
+      if (monthly != null) 'monthly': monthly,
+      if (yearly != null) 'yearly': yearly,
     };
   }
 
@@ -50,8 +87,8 @@ class SubscriptionPurchaseService {
     final available = await _iap.isAvailable();
     if (!available) {
       throw Exception(
-        'Google Play mağazası kullanılamıyor. '
-        'Cihazda Play Store girişi yapıldığından ve uygulama Play Console\'da (en az dahili test) yayında olduğundan emin olun.',
+        '$_storeName şu anda kullanılamıyor. '
+        'Lütfen mağaza hesabınızın girişini ve uygulamanın mağaza tarafındaki dağıtım durumunu kontrol edin.',
       );
     }
 
@@ -63,7 +100,7 @@ class SubscriptionPurchaseService {
     if (response.productDetails.isEmpty) {
       throw Exception(
         'Ürün bulunamadı: $productId. '
-        'Play Console > Monetize > Abonelikler bölümünde bu kimlikle ürün oluşturup etkinleştirdiğinizden emin olun.',
+        'Lütfen ilgili mağaza panelinde bu kimlikle ürünün oluşturulup etkinleştirildiğini doğrulayın.',
       );
     }
 

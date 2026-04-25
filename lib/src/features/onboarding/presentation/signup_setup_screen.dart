@@ -1113,6 +1113,23 @@ class _NotificationsStep extends StatefulWidget {
 }
 
 class _NotificationsStepState extends State<_NotificationsStep> {
+  bool _autoRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _autoRequested) return;
+      _autoRequested = true;
+      final status = await NotificationPermissionService.status;
+      if (!mounted) return;
+      if (!status.isGranted && !status.isPermanentlyDenied) {
+        await NotificationPermissionService.request();
+        if (mounted) setState(() {});
+      }
+    });
+  }
+
   Future<void> _handleNotificationPermissionTap() async {
     final status = await NotificationPermissionService.status;
     if (status.isPermanentlyDenied) {

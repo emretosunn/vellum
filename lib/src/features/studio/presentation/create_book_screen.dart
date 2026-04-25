@@ -98,8 +98,8 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
 
   Future<void> _pickCoverImage() async {
     final service = ref.read(imageUploadServiceProvider);
-    final file = await service.pickImage();
-    if (file == null) {
+    final result = await service.pickImage();
+    if (result.permissionDenied) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -112,6 +112,9 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
       }
       return;
     }
+    final file = result.file;
+    if (file == null) return;
+
     final bytes = await file.readAsBytes();
     setState(() {
       _pickedImage = file;

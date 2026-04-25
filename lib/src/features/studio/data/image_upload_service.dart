@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -15,23 +16,46 @@ class ImageUploadService {
 
   static const _bucket = 'book-covers';
 
-  /// Galeriden resim seç. Null dönerse kullanıcı iptal etmiştir.
-  Future<XFile?> pickImage() async {
-    final status = await Permission.photos.status;
-    var granted = status.isGranted || status.isLimited;
+  /// Galeriden resim seç.
+  /// - permissionDenied=true ise izin reddedildiği için galeri açılamamıştır.
+  /// - file=null, permissionDenied=false ise kullanıcı picker'ı iptal etmiştir.
+  Future<PickImageResult> pickImage() async {
+    final granted = await _ensureGalleryPermission();
     if (!granted) {
-      final requested = await Permission.photos.request();
-      granted = requested.isGranted || requested.isLimited;
+      return const PickImageResult(permissionDenied: true);
     }
-    if (!granted) return null;
 
     final picker = ImagePicker();
-    return picker.pickImage(
+    final file = await picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 800,
       maxHeight: 1200,
       imageQuality: 85,
     );
+    return PickImageResult(file: file, permissionDenied: false);
+  }
+
+  Future<bool> _ensureGalleryPermission() async {
+    if (kIsWeb) return true;
+
+    var photoStatus = await Permission.photos.status;
+    var granted = photoStatus.isGranted || photoStatus.isLimited;
+    if (!granted) {
+      photoStatus = await Permission.photos.request();
+      granted = photoStatus.isGranted || photoStatus.isLimited;
+    }
+    if (granted) return true;
+
+    // Android eski sürümlerde photos yerine storage gerekebilir.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      var storageStatus = await Permission.storage.status;
+      if (!storageStatus.isGranted) {
+        storageStatus = await Permission.storage.request();
+      }
+      if (storageStatus.isGranted) return true;
+    }
+
+    return false;
   }
 
   /// Seçilen dosyayı Supabase Storage'a yükleyip public URL döndür.
@@ -64,3 +88,10 @@ class ImageUploadService {
 final imageUploadServiceProvider = Provider<ImageUploadService>((ref) {
   return ImageUploadService(ref.watch(supabaseClientProvider));
 });
+
+class PickImageResult {
+  const PickImageResult({this.file, required this.permissionDenied});
+
+  final XFile? file;
+  final bool permissionDenied;
+}
