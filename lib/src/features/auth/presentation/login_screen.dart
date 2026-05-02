@@ -197,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signInWithAppleOAuth();
+      await authRepo.signInWithApple();
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -2,7 +2,7 @@ name: vellum
 description: "Vellum - Digital Publishing Platform by Vexorabyte"
 publish_to: 'none'
 
-version: 0.6.0+16
+version: 0.6.5+17
 
 environment:
   sdk: ^3.9.2
@@ -61,6 +61,7 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   connectivity_plus: ^7.0.0
+  crypto: ^3.0.7
   sign_in_with_apple: ^7.0.1
   flutter_svg: ^2.2.4
   dropdown_button2: 3.0.0

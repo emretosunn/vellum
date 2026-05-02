@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/profile.dart';
@@ -134,8 +137,24 @@ class AuthRepository {
     );
   }
 
-  /// Apple OAuth ile giriş yap.
-  Future<void> signInWithAppleOAuth() async {
+  /// Apple ile giriş.
+  ///
+  /// iOS/macOS: yerel Sign in with Apple (Safari veya OAuth WebView açılmaz).
+  /// Web: Supabase OAuth.
+  Future<void> signInWithApple() async {
+    if (kIsWeb) {
+      await _signInWithAppleOAuth();
+      return;
+    }
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      await _signInWithAppleNative();
+      return;
+    }
+    throw UnsupportedError('Apple ile giriş bu platformda desteklenmiyor.');
+  }
+
+  Future<void> _signInWithAppleOAuth() async {
     final redirectTo = kIsWeb
         ? '${Uri.base.origin}/auth/callback'
         : _mobileAuthRedirect;
@@ -146,6 +165,59 @@ class AuthRepository {
           ? LaunchMode.platformDefault
           : LaunchMode.inAppWebView,
     );
+  }
+
+  Future<void> _signInWithAppleNative() async {
+    final rawNonce = _generateRawNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw const AuthException(
+        'Apple kimlik jetonu alınamadı.',
+      );
+    }
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
+
+    if (credential.givenName != null || credential.familyName != null) {
+      final parts = <String>[];
+      final gn = credential.givenName?.trim();
+      final fn = credential.familyName?.trim();
+      if (gn != null && gn.isNotEmpty) parts.add(gn);
+      if (fn != null && fn.isNotEmpty) parts.add(fn);
+      final fullName = parts.join(' ');
+      if (fullName.isNotEmpty) {
+        await _client.auth.updateUser(
+          UserAttributes(
+            data: {
+              'full_name': fullName,
+              if (credential.givenName != null)
+                'given_name': credential.givenName,
+              if (credential.familyName != null)
+                'family_name': credential.familyName,
+            },
+          ),
+        );
+      }
+    }
+  }
+
+  String _generateRawNonce() {
+    final random = Random.secure();
+    return base64Url.encode(List<int>.generate(16, (_) => random.nextInt(256)));
   }
 
   /// Uygulama içinden hesap silme talebi oluştur.

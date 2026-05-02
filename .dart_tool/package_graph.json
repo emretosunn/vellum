@@ -5,12 +5,13 @@
   "packages": [
     {
       "name": "vellum",
-      "version": "0.6.0+16",
+      "version": "0.6.5+17",
       "dependencies": [
         "animations",
         "cached_network_image",
         "concentric_transition",
         "connectivity_plus",
+        "crypto",
         "cupertino_icons",
         "dio",
         "dropdown_button2",
@@ -224,6 +225,13 @@
         "meta",
         "sign_in_with_apple_platform_interface",
         "sign_in_with_apple_web"
+      ]
+    },
+    {
+      "name": "crypto",
+      "version": "3.0.7",
+      "dependencies": [
+        "typed_data"
       ]
     },
     {
@@ -870,13 +878,6 @@
       ]
     },
     {
-      "name": "crypto",
-      "version": "3.0.7",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
       "name": "code_builder",
       "version": "4.11.1",
       "dependencies": [
@@ -1107,6 +1108,13 @@
         "flutter",
         "meta",
         "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "typed_data",
+      "version": "1.4.0",
+      "dependencies": [
+        "collection"
       ]
     },
     {
@@ -1736,13 +1744,6 @@
       "dependencies": [
         "meta",
         "path"
-      ]
-    },
-    {
-      "name": "typed_data",
-      "version": "1.4.0",
-      "dependencies": [
-        "collection"
       ]
     },
     {
