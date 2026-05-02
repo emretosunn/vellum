@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
@@ -140,6 +142,40 @@ final unreadNotificationCountProvider =
 
 final cachedNotificationsProvider =
     StateProvider<List<NotificationItem>>((ref) => const []);
+
+/// notifications tablosu mevcut kullanıcı için değişirse event üretir.
+final notificationsRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) return Stream<int>.empty();
+
+  final controller = StreamController<int>.broadcast();
+  final channel = client
+      .channel('public:notifications:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (_) {
+          if (!controller.isClosed) {
+            controller.add(DateTime.now().millisecondsSinceEpoch);
+          }
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() async {
+    await client.removeChannel(channel);
+    await controller.close();
+  });
+
+  return controller.stream;
+});
 
 // ═════════════════════════════════════════════════════════
 // BİLDİRİMLER EKRANI

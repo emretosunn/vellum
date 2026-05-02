@@ -181,6 +181,7 @@ class _SubscriptionPlanModalContentState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final userId = widget.ref.read(authRepositoryProvider).currentUser?.id;
+    final productsLoaded = _monthlyProduct != null || _yearlyProduct != null;
     final monthlyPriceText =
         _monthlyProduct?.price ?? _sub('subscription.price_loading_short', '--');
     final yearlyPerMonthText = _derivedPerMonthFromYearly();
@@ -300,24 +301,6 @@ class _SubscriptionPlanModalContentState
                     ),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _sub('subscription.terms_short', 'Terms'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                _sub('subscription.privacy_short', 'Privacy'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
           if (_loadingPrices)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -329,8 +312,107 @@ class _SubscriptionPlanModalContentState
                 ),
               ),
             ),
+          if (!_loadingPrices && !productsLoaded)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                children: [
+                  Text(
+                    _sub(
+                      'subscription.products_unavailable',
+                      'Abonelik urunleri su an yuklenemedi. Lutfen tekrar deneyin.',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextButton(
+                    onPressed: _loadProducts,
+                    child: Text(
+                      _sub('subscription.retry_prices', 'Fiyatlari yeniden yukle'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            _sub(
+              'subscription.legal_hint',
+              'Abonelik devam ettirilir, iptal edilene kadar otomatik yenilenir.',
+            ),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () => _showLegalDoc(
+                  context,
+                  titleKey: 'settings.terms',
+                  contentKey: 'settings.terms_content',
+                ),
+                child: Text(
+                  _sub('subscription.terms_short', 'Terms'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _showLegalDoc(
+                  context,
+                  titleKey: 'settings.privacy',
+                  contentKey: 'settings.privacy_content',
+                ),
+                child: Text(
+                  _sub('subscription.privacy_short', 'Privacy'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showLegalDoc(
+    BuildContext context, {
+    required String titleKey,
+    required String contentKey,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return AlertDialog(
+          title: Text(translate(titleKey)),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Text(
+                translate(contentKey),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(translate('common.ok')),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -127,9 +127,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     if (widget.sandboxMode) {
       if (!mounted) return;
-      final navigator = Navigator.of(context, rootNavigator: true);
-      navigator.popUntil((route) => route.isFirst);
-      context.go('/settings');
+      Navigator.of(context, rootNavigator: true).pop();
       return;
     }
 
@@ -140,10 +138,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _skip() async {
     if (widget.sandboxMode) {
-      await _completeOnboarding();
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
       return;
     }
-    await _completeOnboarding();
+    await markOnboardingCompleted();
+    if (!mounted) return;
+    ref.read(onboardingCompletedProvider.notifier).state = true;
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;

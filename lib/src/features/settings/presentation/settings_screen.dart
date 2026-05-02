@@ -6,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/theme_preferences.dart';
 import '../../../localization/translate_preferences.dart';
@@ -98,7 +97,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _requestAccountDeletion() async {
-    final confirmWord = translate('settings.delete_account_confirm_word');
+    final profile = await ref.read(currentProfileProvider.future);
+    if (!mounted) return;
+    final username = profile?.username.trim() ?? '';
+    if (username.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(translate('settings.delete_account_username_missing')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final textController = TextEditingController();
     var canSubmit = false;
 
@@ -116,10 +128,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(translate('settings.delete_account_confirm')),
                   const SizedBox(height: 12),
                   Text(
-                    translate(
-                      'settings.delete_account_type_hint',
-                      args: {'word': confirmWord},
-                    ),
+                    translate('settings.delete_account_username_prompt'),
                     style: Theme.of(ctx).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 8),
@@ -128,12 +137,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     autofocus: true,
                     onChanged: (v) {
                       setDialogState(() {
-                        canSubmit =
-                            v.trim().toUpperCase() ==
-                            confirmWord.trim().toUpperCase();
+                        canSubmit = v.trim() == username;
                       });
                     },
-                    decoration: InputDecoration(hintText: confirmWord),
+                    decoration: InputDecoration(
+                      labelText: translate('settings.delete_account_username_label'),
+                      hintText: username,
+                      errorText: textController.text.isEmpty || canSubmit
+                          ? null
+                          : translate('settings.delete_account_username_mismatch'),
+                    ),
                   ),
                 ],
               ),
@@ -160,39 +173,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(authRepositoryProvider).requestAccountDeletion();
+      await ref
+          .read(authRepositoryProvider)
+          .deleteMyAccountCascade(username: username);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(translate('settings.delete_account_requested')),
+          content: Text(translate('settings.delete_account_deleted')),
           backgroundColor: AppColors.success,
         ),
       );
-      await ref.read(authRepositoryProvider).signOut();
+      try {
+        await ref.read(authRepositoryProvider).signOut();
+      } catch (_) {}
       ref.invalidate(isProProvider);
-    } catch (_) {
-      final userEmail =
-          ref.read(authRepositoryProvider).currentUser?.email ?? '';
-      final subject = Uri.encodeComponent('Account deletion request');
-      final body = Uri.encodeComponent(
-        'Please delete my Vellum account.\n\nEmail: $userEmail',
-      );
-      final uri = Uri.parse(
-        'mailto:vexorabyte@gmail.com?subject=$subject&body=$body',
-      );
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on PostgrestException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            opened
-                ? translate('settings.delete_account_mail_fallback')
-                : translate('settings.delete_account_mail_fallback_error'),
-          ),
-          backgroundColor: opened ? AppColors.primary : AppColors.error,
+          content: Text(_mapDeleteAccountPostgrestError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
+      final low = raw.toLowerCase();
+
+      late final String message;
+      if (low.contains('username_mismatch')) {
+        message = translate('settings.delete_account_username_mismatch');
+      } else if (low.contains('profile_not_found')) {
+        message = translate('settings.delete_account_username_missing');
+      } else if (low.contains('not_authenticated')) {
+        message = translate('common.permission_denied');
+      } else if (low.contains('invalid_response') ||
+          low.contains('invalid_response_') ||
+          low.contains('null_response') ||
+          low.contains('empty_response')) {
+        message = translate('settings.delete_account_failed');
+      } else if (low.contains('unknown_error')) {
+        message = translate('settings.delete_account_unknown_rpc');
+      } else if (low.contains('pgrst202') ||
+          (low.contains('function') &&
+              low.contains('delete_my_account_cascade'))) {
+        message = translate('settings.delete_account_rpc_missing');
+      } else if (low.contains('foreign key') ||
+          low.contains('violates foreign key')) {
+        message = translate('settings.delete_account_fk_blocked');
+      } else if (low.contains('permission denied') ||
+          low.contains('42501')) {
+        message = translate('settings.delete_account_permission');
+      } else {
+        message = translate('settings.delete_account_failed');
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      );
     }
+  }
+
+  /// PostgREST / API hatalarında [toString] kod içermeyebilir; [code] ve [message] kullanılır.
+  String _mapDeleteAccountPostgrestError(PostgrestException e) {
+    final code = (e.code ?? '').toUpperCase();
+    final msg = '${e.message} ${e.details ?? ''}'.toLowerCase();
+
+    if (code.contains('PGRST202') ||
+        msg.contains('pgrst202') ||
+        msg.contains('could not find the function') ||
+        (msg.contains('function') && msg.contains('delete_my_account_cascade'))) {
+      return translate('settings.delete_account_rpc_missing');
+    }
+    if (code == '401' ||
+        code == 'PGRST301' ||
+        msg.contains('jwt') ||
+        msg.contains('not authorized')) {
+      return translate('common.permission_denied');
+    }
+    if (msg.contains('foreign key') || msg.contains('violates foreign key')) {
+      return translate('settings.delete_account_fk_blocked');
+    }
+    if (msg.contains('permission denied') || msg.contains('42501')) {
+      return translate('settings.delete_account_permission');
+    }
+    return translate('settings.delete_account_failed');
   }
 
   @override
@@ -283,12 +348,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       builder: (_) => const _BlockedUsersPage(),
                     ),
                   ),
-                ),
-                _SettingsTile(
-                  icon: Icons.delete_forever_rounded,
-                  label: translate('settings.delete_account'),
-                  subtitle: translate('settings.delete_account_subtitle'),
-                  onTap: _requestAccountDeletion,
                 ),
               ],
             ),
@@ -454,6 +513,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 32),
 
             // ─── Çıkış Yap ─────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: _requestAccountDeletion,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.delete_forever_rounded),
+                label: Text(
+                  translate('settings.delete_account'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -635,12 +714,19 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
   }
 
   Future<void> _pickAvatar() async {
-    final granted = await _ensureGalleryPermission();
+    final source = await _showImageSourcePicker();
+    if (source == null) return;
+
+    final granted = await _ensurePermissionForSource(source);
     if (!granted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(translate('settings.photos_permission_required')),
+            content: Text(
+              source == ImageSource.camera
+                  ? translate('settings.camera_permission_required')
+                  : translate('settings.photos_permission_required'),
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -650,7 +736,7 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
 
     final picker = ImagePicker();
     final image = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 512,
       maxHeight: 512,
       imageQuality: 80,
@@ -688,8 +774,16 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     }
   }
 
-  Future<bool> _ensureGalleryPermission() async {
+  Future<bool> _ensurePermissionForSource(ImageSource source) async {
     if (kIsWeb) return true;
+
+    if (source == ImageSource.camera) {
+      var cameraStatus = await Permission.camera.status;
+      if (!cameraStatus.isGranted) {
+        cameraStatus = await Permission.camera.request();
+      }
+      return cameraStatus.isGranted;
+    }
 
     var photoStatus = await Permission.photos.status;
     var granted = photoStatus.isGranted || photoStatus.isLimited;
@@ -708,6 +802,29 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     }
 
     return false;
+  }
+
+  Future<ImageSource?> _showImageSourcePicker() async {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(translate('settings.choose_from_gallery')),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(translate('settings.take_photo')),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _addLink() {

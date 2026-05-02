@@ -219,9 +219,7 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     if (widget.sandboxMode) {
       ref.read(signupSetupStepProvider.notifier).state = 0;
       if (mounted) {
-        final navigator = Navigator.of(context, rootNavigator: true);
-        navigator.popUntil((route) => route.isFirst);
-        context.go('/settings');
+        Navigator.of(context, rootNavigator: true).pop();
         setState(() => _isFinishing = false);
       }
       return;
@@ -554,28 +552,22 @@ class _BottomBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            children: [
-              const Spacer(),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(totalPages, (i) {
-                  final isActive = i == currentPage;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: isActive ? 24 : 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      color: Colors.black.withValues(
-                        alpha: isActive ? 0.9 : 0.35,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(width: 18),
-            ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(totalPages, (i) {
+              final isActive = i == currentPage;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: isActive ? 24 : 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.black.withValues(
+                    alpha: isActive ? 0.9 : 0.35,
+                  ),
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 16),
           Material(

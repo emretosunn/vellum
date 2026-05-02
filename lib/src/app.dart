@@ -6,6 +6,11 @@ import 'package:flutter_translate/flutter_translate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/data/auth_repository.dart';
+import 'features/library/data/author_post_repository.dart';
+import 'features/library/data/book_repository.dart';
+import 'features/library/data/content_realtime_provider.dart';
+import 'features/library/data/review_repository.dart';
+import 'features/notifications/presentation/notifications_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'features/settings/data/app_config_repository.dart';
 import 'routing/app_router.dart';
@@ -34,6 +39,43 @@ class VellumApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<int>>(appConfigRealtimeProvider, (_, next) {
+      next.whenData((_) => ref.invalidate(appConfigProvider));
+    });
+    ref.listen<AsyncValue<int>>(currentProfileRealtimeProvider, (_, next) {
+      next.whenData((_) {
+        ref.invalidate(currentProfileProvider);
+        final uid = ref.read(authRepositoryProvider).currentUser?.id;
+        if (uid != null) {
+          ref.invalidate(profileByIdProvider(uid));
+        }
+      });
+    });
+    ref.listen<AsyncValue<int>>(notificationsRealtimeProvider, (_, next) {
+      next.whenData((_) {
+        ref.invalidate(notificationsListProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+      });
+    });
+    ref.listen<AsyncValue<int>>(contentRealtimeProvider, (_, next) {
+      next.whenData((_) {
+        ref.invalidate(publishedBooksProvider);
+        ref.invalidate(featuredBooksProvider);
+        ref.invalidate(myBooksProvider);
+        ref.invalidate(searchedBooksProvider);
+        ref.invalidate(exclusiveBooksProvider);
+        ref.invalidate(recentBooksProvider);
+        ref.invalidate(allBooksProvider);
+        ref.invalidate(bookDetailProvider);
+        ref.invalidate(authorBooksProvider);
+        ref.invalidate(bookReviewsProvider);
+        ref.invalidate(bookRatingStatsProvider);
+        ref.invalidate(userReviewProvider);
+        ref.invalidate(authorPostsProvider);
+        ref.invalidate(followingFeedProvider);
+      });
+    });
+
     final authState = ref.watch(authStateProvider);
     final isLoggedIn = authState.whenOrNull(
           data: (state) => state.session != null,

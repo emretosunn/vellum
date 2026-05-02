@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../../constants/app_assets.dart';
 import '../../../constants/app_colors.dart';
 import '../data/book_repository.dart';
+import '../data/content_realtime_provider.dart';
 import '../domain/book.dart';
 
 final discoveryCanvasTransformProvider = StateProvider<Matrix4?>((ref) => null);
@@ -27,6 +28,10 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   late final TransformationController _transformationController;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  Timer? _canvasReloadDebounce;
+  /// İlk frame’de `publishedBooksProvider` tamamlanınca tetiklenen dinleyicinin,
+  /// `initState`’teki ilk `_loadInitialBooks` ile çakışıp çift istek atmasını önler.
+  bool _suppressPublishedListReload = true;
   bool _initializedDefaultView = false;
   bool _isSearchOpen = false;
   bool _isSearching = false;
@@ -40,6 +45,9 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   Object? _initialError;
   Object? _searchError;
 
+  bool get _canvasMainMode =>
+      !_isSearchOpen || _searchController.text.trim().isEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +55,7 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
     _loadInitialBooks();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _suppressPublishedListReload = false;
       final saved = ref.read(discoveryCanvasTransformProvider);
       if (saved != null) {
         _transformationController.value = Matrix4.copy(saved);
@@ -57,9 +66,20 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _canvasReloadDebounce?.cancel();
     _searchController.dispose();
     _transformationController.dispose();
     super.dispose();
+  }
+
+  /// Yayınlı kitap listesi veya DB’de `books` değişince tuvali sunucu verisiyle eşitler.
+  void _debouncedReloadCanvas() {
+    if (!_canvasMainMode) return;
+    _canvasReloadDebounce?.cancel();
+    _canvasReloadDebounce = Timer(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      _loadInitialBooks();
+    });
   }
 
   void _storeTransform() {
@@ -181,6 +201,15 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    ref.listen<AsyncValue<int>>(contentRealtimeProvider, (previous, next) {
+      next.whenData((_) => _debouncedReloadCanvas());
+    });
+
+    ref.listen<AsyncValue<List<Book>>>(publishedBooksProvider, (previous, next) {
+      if (_suppressPublishedListReload) return;
+      next.whenData((_) => _debouncedReloadCanvas());
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -334,6 +363,7 @@ class _DiscoveryCanvasScreenState extends ConsumerState<DiscoveryCanvasScreen> {
                                               '/book/${node.book.id}',
                                             );
                                             if (!mounted) return;
+                                            _debouncedReloadCanvas();
                                             final saved = ref.read(
                                               discoveryCanvasTransformProvider,
                                             );

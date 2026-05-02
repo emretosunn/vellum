@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -99,5 +101,37 @@ final appConfigRepositoryProvider = Provider<AppConfigRepository>((ref) {
 final appConfigProvider =
     FutureProvider<RemoteAppConfig>((ref) async {
   return ref.read(appConfigRepositoryProvider).fetch();
+});
+
+/// app_config(global) değişirse event üretir.
+final appConfigRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
+  final client = Supabase.instance.client;
+  final controller = StreamController<int>.broadcast();
+
+  final channel = client
+      .channel('public:app_config:global')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'app_config',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: 'global',
+        ),
+        callback: (_) {
+          if (!controller.isClosed) {
+            controller.add(DateTime.now().millisecondsSinceEpoch);
+          }
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() async {
+    await client.removeChannel(channel);
+    await controller.close();
+  });
+
+  return controller.stream;
 });
 

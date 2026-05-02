@@ -97,14 +97,19 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
       translate(_contentWarningKeys[label] ?? label);
 
   Future<void> _pickCoverImage() async {
+    final source = await _showImageSourcePicker();
+    if (source == null) return;
+
     final service = ref.read(imageUploadServiceProvider);
-    final result = await service.pickImage();
+    final result = await service.pickImage(source: source);
     if (result.permissionDenied) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              translate('settings.cover_photos_permission_required'),
+              source == PickImageSource.camera
+                  ? translate('settings.camera_permission_required')
+                  : translate('settings.cover_photos_permission_required'),
             ),
             behavior: SnackBarBehavior.floating,
           ),
@@ -120,6 +125,29 @@ class _CreateBookScreenState extends ConsumerState<CreateBookScreen> {
       _pickedImage = file;
       _pickedImageBytes = bytes;
     });
+  }
+
+  Future<PickImageSource?> _showImageSourcePicker() async {
+    return showModalBottomSheet<PickImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(translate('settings.choose_from_gallery')),
+              onTap: () => Navigator.of(ctx).pop(PickImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(translate('settings.take_photo')),
+              onTap: () => Navigator.of(ctx).pop(PickImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _createBook() async {

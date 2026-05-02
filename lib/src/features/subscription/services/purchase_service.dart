@@ -95,7 +95,7 @@ class SubscriptionPurchaseService {
     final productId = isYearly ? _yearlyId : _monthlyId;
     final response = await _iap.queryProductDetails({productId});
     if (response.error != null) {
-      throw Exception('Play yanıt hatası: ${response.error!.message}');
+      throw Exception('$_storeName yanıt hatası: ${response.error!.message}');
     }
     if (response.productDetails.isEmpty) {
       throw Exception(
@@ -184,7 +184,6 @@ class SubscriptionPurchaseService {
       throw Exception('Mağaza şu anda kullanılamıyor.');
     }
 
-    final completer = Completer<List<PurchaseDetails>>();
     late final StreamSubscription<List<PurchaseDetails>> sub;
     final restored = <PurchaseDetails>[];
 
@@ -199,14 +198,33 @@ class SubscriptionPurchaseService {
           }
         }
       }
-      if (!completer.isCompleted) {
-        completer.complete(List<PurchaseDetails>.from(restored));
-      }
     });
 
     try {
       await _iap.restorePurchases();
-      final restoredPurchases = await completer.future;
+      // Bazı cihaz/sandbox kombinasyonlarında restore event'i gecikmeli gelebilir.
+      // Kısa bir bekleme penceresiyle stream'den gelen event'leri toplayalım.
+      await Future<void>.delayed(const Duration(seconds: 4));
+
+      var restoredPurchases = List<PurchaseDetails>.from(restored);
+      // Android'de ek emniyet: geçmiş satın alımları da sorgula.
+      if (restoredPurchases.isEmpty && !_isApplePlatform) {
+        try {
+          final androidAddition =
+              _iap.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+          final pastResponse = await androidAddition.queryPastPurchases();
+          if (pastResponse.error == null && pastResponse.pastPurchases.isNotEmpty) {
+            restoredPurchases = pastResponse.pastPurchases
+                .where(
+                  (p) => p.productID == _monthlyId || p.productID == _yearlyId,
+                )
+                .toList();
+          }
+        } on Object {
+          // Sadece fallback amaçlı; hata olursa mevcut davranışla devam edilir.
+        }
+      }
+
       if (restoredPurchases.isEmpty) return false;
 
       final hasYearly = restoredPurchases.any((p) => p.productID == _yearlyId);

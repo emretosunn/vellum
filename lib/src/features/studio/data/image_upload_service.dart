@@ -19,15 +19,19 @@ class ImageUploadService {
   /// Galeriden resim seç.
   /// - permissionDenied=true ise izin reddedildiği için galeri açılamamıştır.
   /// - file=null, permissionDenied=false ise kullanıcı picker'ı iptal etmiştir.
-  Future<PickImageResult> pickImage() async {
-    final granted = await _ensureGalleryPermission();
+  Future<PickImageResult> pickImage({
+    PickImageSource source = PickImageSource.gallery,
+  }) async {
+    final granted = await _ensurePermissionForSource(source);
     if (!granted) {
       return const PickImageResult(permissionDenied: true);
     }
 
     final picker = ImagePicker();
     final file = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source == PickImageSource.camera
+          ? ImageSource.camera
+          : ImageSource.gallery,
       maxWidth: 800,
       maxHeight: 1200,
       imageQuality: 85,
@@ -35,8 +39,16 @@ class ImageUploadService {
     return PickImageResult(file: file, permissionDenied: false);
   }
 
-  Future<bool> _ensureGalleryPermission() async {
+  Future<bool> _ensurePermissionForSource(PickImageSource source) async {
     if (kIsWeb) return true;
+
+    if (source == PickImageSource.camera) {
+      var cameraStatus = await Permission.camera.status;
+      if (!cameraStatus.isGranted) {
+        cameraStatus = await Permission.camera.request();
+      }
+      return cameraStatus.isGranted;
+    }
 
     var photoStatus = await Permission.photos.status;
     var granted = photoStatus.isGranted || photoStatus.isLimited;
@@ -95,3 +107,5 @@ class PickImageResult {
   final XFile? file;
   final bool permissionDenied;
 }
+
+enum PickImageSource { gallery, camera }

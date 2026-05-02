@@ -24,6 +24,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const String _kOnboardingName = 'onboarding_display_name';
+  static const String _kAuthLegalAccepted = 'auth_legal_accepted';
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -41,6 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadOnboardingName();
+    _loadLegalAcceptance();
   }
 
   Future<void> _loadOnboardingName() async {
@@ -49,6 +51,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _onboardingName = prefs.getString(_kOnboardingName)?.trim();
     });
+  }
+
+  Future<void> _loadLegalAcceptance() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _acceptedTerms = prefs.getBool(_kAuthLegalAccepted) ?? false;
+    });
+  }
+
+  Future<void> _persistLegalAcceptance(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kAuthLegalAccepted, value);
   }
 
   @override
@@ -116,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    if (!_ensureTermsAcceptedIfSigningUp()) return;
+    if (!_ensureTermsAcceptedForSocialAuth()) return;
 
     setState(() {
       _isLoading = true;
@@ -144,7 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithFacebook() async {
-    if (!_ensureTermsAcceptedIfSigningUp()) return;
+    if (!_ensureTermsAcceptedForSocialAuth()) return;
 
     setState(() {
       _isLoading = true;
@@ -171,7 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithApple() async {
-    if (!_ensureTermsAcceptedIfSigningUp()) return;
+    if (!_ensureTermsAcceptedForSocialAuth()) return;
 
     setState(() {
       _isLoading = true;
@@ -219,8 +234,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  bool _ensureTermsAcceptedIfSigningUp() {
-    if (_isLogin || _acceptedTerms) return true;
+  bool _ensureTermsAcceptedForSocialAuth() {
+    if (_acceptedTerms) return true;
     setState(() {
       _errorMessage = _auth(
         'auth.accept_terms_required',
@@ -546,46 +561,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLogoBox({
-    required double size,
-    required double borderRadius,
-    required double iconSize,
-  }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Image.asset(
-          'assets/image/vellum_logo.png',
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.auto_stories_rounded,
-            color: AppColors.primary,
-            size: iconSize,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildFormCard(BuildContext context) {
     final theme = Theme.of(context);
     final showApple = kIsWeb ||
@@ -621,40 +596,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onTap: _isLoading ? null : _signInWithApple,
                 leading: const Icon(Icons.apple_rounded, size: 24),
               ),
-            if (!_isLogin) ...[
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: Checkbox(
-                      value: _acceptedTerms,
-                      onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
-                      activeColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: Checkbox(
+                    value: _acceptedTerms,
+                    onChanged: (v) async {
+                      final value = v ?? false;
+                      setState(() => _acceptedTerms = value);
+                      await _persistLegalAcceptance(value);
+                    },
+                    activeColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: _showLegalDialog,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Text(
+                      _auth('auth.accept_terms', 'Kullanım şartlarını kabul ediyorum'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InkWell(
-                      onTap: _showLegalDialog,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Text(
-                        _auth('auth.accept_terms', 'Kullanım şartlarını kabul ediyorum'),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _showLegalDialog,
+              child: Text(
+                '${translate('settings.terms')} • ${translate('settings.privacy')}',
               ),
-            ],
+            ),
             const SizedBox(height: 42),
             Text(
               _auth('auth.or', 'veya'),
@@ -799,8 +783,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   width: 24,
                   child: Checkbox(
                     value: _acceptedTerms,
-                    onChanged: (v) =>
-                        setState(() => _acceptedTerms = v ?? false),
+                    onChanged: (v) async {
+                      final value = v ?? false;
+                      setState(() => _acceptedTerms = value);
+                      await _persistLegalAcceptance(value);
+                    },
                     activeColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),

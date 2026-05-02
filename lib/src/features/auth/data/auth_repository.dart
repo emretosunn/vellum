@@ -1,9 +1,56 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/profile.dart';
+
+/// RPC `delete_my_account_cascade` cevabini parse eder (Map, Liste veya UTF-8 String).
+Map<String, dynamic> _normalizeDeleteAccountRpcResult(dynamic raw) {
+  if (raw == null) {
+    return {'ok': false, 'error': 'null_response'};
+  }
+
+  dynamic candidate = raw;
+  if (candidate is String && candidate.trim().isNotEmpty) {
+    try {
+      candidate = jsonDecode(candidate.trim());
+    } catch (_) {
+      return {'ok': false, 'error': 'invalid_response_string'};
+    }
+  }
+
+  if (candidate is Map) {
+    try {
+      return Map<String, dynamic>.from(candidate);
+    } catch (_) {
+      return {'ok': false, 'error': 'invalid_response_map'};
+    }
+  }
+  if (candidate is List) {
+    if (candidate.isEmpty) {
+      return {'ok': false, 'error': 'empty_response'};
+    }
+    final first = candidate.first;
+    if (first is Map) {
+      return Map<String, dynamic>.from(first);
+    }
+  }
+
+  return {
+    'ok': false,
+    'error': 'invalid_response_type',
+    'type': raw.runtimeType.toString(),
+  };
+}
+
+bool _deleteAccountRpcTruthyOk(dynamic ok) =>
+    ok == true ||
+    ok == 1 ||
+    (ok is String && const {'true', '1'}.contains(ok.trim().toLowerCase()));
 
 /// Supabase Auth + Profiles repository
 class AuthRepository {
@@ -67,7 +114,9 @@ class AuthRepository {
     await _client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      authScreenLaunchMode: LaunchMode.externalApplication,
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.inAppWebView,
     );
   }
 
@@ -79,7 +128,9 @@ class AuthRepository {
     await _client.auth.signInWithOAuth(
       OAuthProvider.facebook,
       redirectTo: redirectTo,
-      authScreenLaunchMode: LaunchMode.externalApplication,
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.inAppWebView,
     );
   }
 
@@ -91,7 +142,9 @@ class AuthRepository {
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: redirectTo,
-      authScreenLaunchMode: LaunchMode.externalApplication,
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.inAppWebView,
     );
   }
 
@@ -110,6 +163,32 @@ class AuthRepository {
       'reason': reason,
       'status': 'pending',
     });
+  }
+
+  /// Kullanıcının kendi hesabını ve ilişkili verilerini kalıcı olarak siler.
+  /// Doğrulama için mevcut kullanıcı adını ister.
+  Future<void> deleteMyAccountCascade({required String username}) async {
+    final user = currentUser;
+    if (user == null) {
+      throw Exception('Oturum bulunamadı');
+    }
+
+    try {
+      final result = await _client.rpc(
+        'delete_my_account_cascade',
+        params: {'p_username': username.trim()},
+      );
+
+      final map = _normalizeDeleteAccountRpcResult(result);
+
+      final okVal = map['ok'];
+      if (_deleteAccountRpcTruthyOk(okVal)) return;
+
+      final err = map['error']?.toString().trim();
+      throw Exception((err == null || err.isEmpty) ? 'unknown_error' : err);
+    } on PostgrestException {
+      rethrow;
+    }
   }
 
   // ─── Profile ──────────────────────────────────────
@@ -348,4 +427,40 @@ final profileByIdProvider = FutureProvider.family<Profile?, String>((
   userId,
 ) async {
   return ref.read(authRepositoryProvider).getProfileById(userId);
+});
+
+/// Mevcut kullanıcının profile satırı değiştiğinde event üretir.
+final currentProfileRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final uid = client.auth.currentUser?.id;
+  if (uid == null) {
+    return Stream<int>.empty();
+  }
+
+  final controller = StreamController<int>.broadcast();
+  final channel = client
+      .channel('public:profiles:$uid')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'profiles',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: uid,
+        ),
+        callback: (_) {
+          if (!controller.isClosed) {
+            controller.add(DateTime.now().millisecondsSinceEpoch);
+          }
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() async {
+    await client.removeChannel(channel);
+    await controller.close();
+  });
+
+  return controller.stream;
 });

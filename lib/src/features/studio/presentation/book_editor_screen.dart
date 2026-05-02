@@ -24,8 +24,24 @@ class BookEditorScreen extends ConsumerStatefulWidget {
   ConsumerState<BookEditorScreen> createState() => _BookEditorScreenState();
 }
 
+/// Yayın gereksinimleri için kitap çapında metrikler (sayfa bazlı metin dahil).
+class _BookPublishStats {
+  const _BookPublishStats({
+    required this.pageCount,
+    required this.totalNonSpaceChars,
+  });
+  final int pageCount;
+  final int totalNonSpaceChars;
+
+  bool get meetsPageRule => pageCount >= _BookEditorScreenState._minPagesToPublish;
+  bool get meetsCharRule =>
+      totalNonSpaceChars >= _BookEditorScreenState._minTotalNonSpaceCharsToPublish;
+}
+
 class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
   static const _maxCharsPerPage = 2000;
+  static const _minPagesToPublish = 3;
+  static const _minTotalNonSpaceCharsToPublish = 500;
 
   List<Chapter> _chapters = [];
   int _currentPageIndex = 0;
@@ -78,6 +94,24 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
         );
       }
     }
+  }
+
+  /// Tüm sayfaların güncel metnini dahil eder (aktif sayfa için controller kullanılır).
+  _BookPublishStats _computePublishStats() {
+    int totalChars = 0;
+    final pageCount = _chapters.length;
+    for (int i = 0; i < _chapters.length; i++) {
+      final text = i == _currentPageIndex
+          ? _textController.text
+          : ((_chapters[i].content['text'] as String?) ?? '');
+      final trimmed = text.trim();
+      if (trimmed.isEmpty) continue;
+      totalChars += trimmed.replaceAll(RegExp(r'\s+'), '').length;
+    }
+    return _BookPublishStats(
+      pageCount: pageCount,
+      totalNonSpaceChars: totalChars,
+    );
   }
 
   void _loadPageContent(int index) {
@@ -278,27 +312,23 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
   Future<void> _publishBook() async {
     if (_book == null) return;
 
-    // Yayın ön koşulları:
-    // - En az 3 sayfa (chapter)
-    // - En az 5000 kelime (tüm sayfaların toplam metni)
-    final pageCount = _chapters.length;
-    int totalWords = 0;
-    for (int i = 0; i < _chapters.length; i++) {
-      final text = i == _currentPageIndex
-          ? _textController.text
-          : ((_chapters[i].content['text'] as String?) ?? '');
-      final trimmed = text.trim();
-      if (trimmed.isEmpty) continue;
-      totalWords +=
-          trimmed.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-    }
-
+    final stats = _computePublishStats();
     final reasons = <String>[];
-    if (pageCount < 3) {
-      reasons.add('En az 3 sayfa gerekli. (Şu an: $pageCount)');
+    if (!stats.meetsPageRule) {
+      reasons.add(
+        translate(
+          'studio.publish_blocker_pages',
+          args: {'n': '${stats.pageCount}'},
+        ),
+      );
     }
-    if (totalWords < 5000) {
-      reasons.add('En az 5000 kelime gerekli. (Şu an: $totalWords)');
+    if (!stats.meetsCharRule) {
+      reasons.add(
+        translate(
+          'studio.publish_blocker_chars',
+          args: {'n': '${stats.totalNonSpaceChars}'},
+        ),
+      );
     }
 
     if (reasons.isNotEmpty) {
@@ -308,14 +338,12 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text('Yayınlanamaz'),
+          title: Text(translate('studio.cannot_publish_title')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Kitabınızın yayınlanması için aşağıdaki şartları tamamlamalısınız:',
-              ),
+              Text(translate('studio.cannot_publish_intro')),
               const SizedBox(height: 12),
               ...reasons.map((r) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -460,9 +488,14 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     }
 
     final charCount = _textController.text.length;
+    final publishStats = _computePublishStats();
     final isPublished = _book?.status == BookStatus.published;
+    final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final editorBottomPad = keyboardBottom > 0 ? 8.0 : 16.0;
+    final dockBottomMargin = keyboardBottom > 0 ? 8.0 : 16.0;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Column(
@@ -473,7 +506,14 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildEditorPanel(theme, isDark, charCount),
+                      child: _buildEditorPanel(
+                        theme,
+                        isDark,
+                        charCount,
+                        publishStats,
+                        editorBottomPad,
+                        dockBottomMargin,
+                      ),
                     ),
                   ],
                 ),
@@ -528,20 +568,9 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Sayfalar',
+                                  translate('studio.pages'),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  width: 28,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(2),
-                                    gradient: const LinearGradient(
-                                      colors: [AppColors.primary, AppColors.secondary],
-                                    ),
                                   ),
                                 ),
                               ],
@@ -614,7 +643,9 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                                 (chapter.content['text'] as String?) ?? '';
                             final preview = pageText.length > 40
                                 ? '${pageText.substring(0, 40)}...'
-                                : (pageText.isEmpty ? 'Boş sayfa' : pageText);
+                                : (pageText.isEmpty
+                                    ? translate('studio.empty_page')
+                                    : pageText);
 
                             return InkWell(
                               onTap: () {
@@ -731,7 +762,7 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
     bool isPublished,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -780,23 +811,12 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _book?.title ?? 'Kitap Editörü',
+                    _book?.title ?? translate('studio.book_editor'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 32,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.secondary],
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -901,131 +921,280 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
   }
 
   // ── Editör paneli ──
-  Widget _buildEditorPanel(ThemeData theme, bool isDark, int charCount) {
-    final progress = (charCount / _maxCharsPerPage).clamp(0.0, 1.0);
-    final isNearLimit = charCount > _maxCharsPerPage * 0.9;
+  Widget _buildEditorPanel(
+    ThemeData theme,
+    bool isDark,
+    int charCount,
+    _BookPublishStats publishStats,
+    double editorBottomPad,
+    double dockBottomMargin,
+  ) {
+    final pageProgress = (charCount / _maxCharsPerPage).clamp(0.0, 1.0);
+    final isNearPageLimit = charCount > _maxCharsPerPage * 0.9;
+    final publishCharProgress =
+        (publishStats.totalNonSpaceChars / _minTotalNonSpaceCharsToPublish)
+            .clamp(0.0, 1.0);
+    final publishPageProgress =
+        (publishStats.pageCount / _minPagesToPublish).clamp(0.0, 1.0);
 
     return Column(
       children: [
-        // Sayfa başlığı (özel stil)
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(16),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06),
               ),
             ),
             child: TextField(
               controller: _titleController,
               decoration: InputDecoration(
-                hintText: 'Sayfa başlığı...',
+                hintText: translate('studio.page_title_hint'),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                hintStyle: theme.textTheme.titleLarge?.copyWith(
+                contentPadding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                hintStyle: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
                 ),
                 prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: 14, right: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                  padding: const EdgeInsets.only(left: 10, right: 6),
+                  child: Align(
+                    widthFactor: 1,
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.title_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                     ),
-                    child: const Icon(Icons.title_rounded, size: 20, color: AppColors.primary),
                   ),
                 ),
+                prefixIconConstraints: const BoxConstraints(
+                  minHeight: 0,
+                  minWidth: 0,
+                ),
               ),
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style:
+                  theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               onChanged: (_) => _hasUnsavedChanges = true,
             ),
           ),
         ),
 
-        // Karakter sayacı + sayfa bilgisi (kart)
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
-              borderRadius: BorderRadius.circular(14),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.04),
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Sayfa ${_currentPageIndex + 1} / ${_chapters.length}',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$charCount / $_maxCharsPerPage',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: isNearLimit ? AppColors.error : theme.colorScheme.onSurfaceVariant,
-                    fontWeight: isNearLimit ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 6,
-                      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        isNearLimit ? AppColors.error : AppColors.primary,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        translate(
+                          'studio.page_n_of_m',
+                          args: {
+                            'n': '${_currentPageIndex + 1}',
+                            'm': '${_chapters.length}',
+                          },
+                        ),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
+                    Text(
+                      translate(
+                        'studio.editor_this_page',
+                        args: {
+                          'n': '$charCount',
+                          'max': '$_maxCharsPerPage',
+                        },
+                      ),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: isNearPageLimit
+                            ? AppColors.error
+                            : theme.colorScheme.onSurfaceVariant,
+                        fontWeight:
+                            isNearPageLimit ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pageProgress,
+                    minHeight: 4,
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.06),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isNearPageLimit ? AppColors.error : AppColors.primary,
+                    ),
                   ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  translate('studio.editor_publish_bar_label'),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      publishStats.meetsPageRule
+                          ? Icons.check_circle_rounded
+                          : Icons.circle_outlined,
+                      size: 16,
+                      color: publishStats.meetsPageRule
+                          ? Colors.green.shade600
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        translate(
+                          'studio.editor_publish_pages_hint',
+                          args: {'n': '${publishStats.pageCount}'},
+                        ),
+                        style: theme.textTheme.labelSmall,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 72,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: publishPageProgress,
+                          minHeight: 4,
+                          backgroundColor: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.06),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            publishStats.meetsPageRule
+                                ? Colors.green.shade600
+                                : AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        publishStats.meetsCharRule
+                            ? Icons.check_circle_rounded
+                            : Icons.circle_outlined,
+                        size: 16,
+                        color: publishStats.meetsCharRule
+                            ? Colors.green.shade600
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        translate(
+                          'studio.editor_publish_chars_hint',
+                          args: {
+                            'n':
+                                '${publishStats.totalNonSpaceChars}',
+                            'min': '$_minTotalNonSpaceCharsToPublish',
+                          },
+                        ),
+                        style: theme.textTheme.labelSmall,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 72,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: publishCharProgress,
+                          minHeight: 4,
+                          backgroundColor: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.06),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            publishStats.meetsCharRule
+                                ? Colors.green.shade600
+                                : AppColors.secondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
 
-        // Metin editörü (özel container)
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, editorBottomPad),
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
-                borderRadius: BorderRadius.circular(18),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.04),
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 child: TextField(
                   controller: _textController,
                   decoration: InputDecoration(
-                    hintText: 'Yazmaya başlayın...',
+                    hintText: translate('studio.write_hint'),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    contentPadding:
+                        const EdgeInsets.fromLTRB(18, 16, 18, 18),
                     hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.35),
                     ),
                   ),
-                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.75),
+                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.72),
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
@@ -1035,106 +1204,53 @@ class _BookEditorScreenState extends ConsumerState<BookEditorScreen> {
           ),
         ),
 
-        // Alt sayfa navigasyonu (glassmorphism tarzı)
         Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          margin: EdgeInsets.fromLTRB(12, 0, 12, dockBottomMargin),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(20),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _currentPageIndex > 0
-                      ? () {
-                          _saveCurrentPage(silent: true);
-                          _loadPageContent(_currentPageIndex - 1);
-                        }
-                      : null,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _currentPageIndex > 0
-                          ? AppColors.primary.withValues(alpha: 0.12)
-                          : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.chevron_left_rounded,
-                      size: 28,
-                      color: _currentPageIndex > 0
-                          ? AppColors.primary
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    ),
-                  ),
+              IconButton(
+                tooltip: translate('studio.prev_page_tooltip'),
+                onPressed: _currentPageIndex > 0
+                    ? () {
+                        _saveCurrentPage(silent: true);
+                        _loadPageContent(_currentPageIndex - 1);
+                      }
+                    : null,
+                icon: Icon(
+                  Icons.chevron_left_rounded,
+                  size: 30,
+                  color: _currentPageIndex > 0
+                      ? AppColors.primary
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
               ),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '${_currentPageIndex + 1} / ${_chapters.length}',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _currentPageIndex < _chapters.length - 1
-                      ? () {
-                          _saveCurrentPage(silent: true);
-                          _loadPageContent(_currentPageIndex + 1);
-                        }
-                      : null,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _currentPageIndex < _chapters.length - 1
-                          ? AppColors.primary.withValues(alpha: 0.12)
-                          : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 28,
-                      color: _currentPageIndex < _chapters.length - 1
-                          ? AppColors.primary
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    ),
-                  ),
+              IconButton(
+                tooltip: translate('studio.next_page_tooltip'),
+                onPressed: _currentPageIndex < _chapters.length - 1
+                    ? () {
+                        _saveCurrentPage(silent: true);
+                        _loadPageContent(_currentPageIndex + 1);
+                      }
+                    : null,
+                icon: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 30,
+                  color: _currentPageIndex < _chapters.length - 1
+                      ? AppColors.primary
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
               ),
             ],
