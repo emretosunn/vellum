@@ -826,23 +826,18 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
       return cameraStatus.isGranted;
     }
 
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // Android'de sistem fotoğraf seçici (Photo Picker) ile depolama izni gerekmez.
+      return true;
+    }
+
     var photoStatus = await Permission.photos.status;
     var granted = photoStatus.isGranted || photoStatus.isLimited;
     if (!granted) {
       photoStatus = await Permission.photos.request();
       granted = photoStatus.isGranted || photoStatus.isLimited;
     }
-    if (granted) return true;
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      var storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted) {
-        storageStatus = await Permission.storage.request();
-      }
-      if (storageStatus.isGranted) return true;
-    }
-
-    return false;
+    return granted;
   }
 
   Future<ImageSource?> _showImageSourcePicker() async {

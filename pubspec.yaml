@@ -2,7 +2,7 @@ name: vellum
 description: "Vellum - Digital Publishing Platform by Vexorabyte"
 publish_to: 'none'
 
-version: 0.6.5+17
+version: 0.6.5+18
 
 environment:
   sdk: ^3.9.2
