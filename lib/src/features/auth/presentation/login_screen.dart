@@ -122,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = _authErrorMessage(e);
+          _errorMessage = _authErrorMessage(e, source: 'email');
         });
       }
     } finally {
@@ -149,7 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = _authErrorMessage(e);
+        _errorMessage = _authErrorMessage(e, source: 'google');
       });
     } finally {
       if (mounted) {
@@ -176,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = _authErrorMessage(e);
+        _errorMessage = _authErrorMessage(e, source: 'facebook');
       });
     } finally {
       if (mounted) {
@@ -201,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = _authErrorMessage(e);
+        _errorMessage = _authErrorMessage(e, source: 'apple');
       });
     } finally {
       if (mounted) {
@@ -353,7 +353,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  String _authErrorMessage(Object error) {
+  String _authErrorMessage(Object error, {String? source}) {
     final raw = error.toString();
     final msg = raw.toLowerCase();
 
@@ -409,7 +409,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     }
 
-    return _auth('auth.error_generic', 'Bir hata oluştu. Lütfen tekrar deneyin.');
+    if (msg.contains('google_sign_in:clientconfigurationerror')) {
+      return _withSystemDetail(
+        'Google giriş yapılandırması eksik veya hatalı. Lütfen destek ile paylaşın.',
+        source: source,
+        raw: raw,
+      );
+    }
+    if (msg.contains('google_sign_in:providerconfigurationerror')) {
+      return _withSystemDetail(
+        'Bu cihazda Google servisleri kullanılamıyor. Lütfen farklı cihazda tekrar deneyin.',
+        source: source,
+        raw: raw,
+      );
+    }
+    if (msg.contains('google_sign_in:canceled')) {
+      return _withSystemDetail(
+        'Google giriş işlemi iptal edildi.',
+        source: source,
+        raw: raw,
+      );
+    }
+    if (msg.contains('google_sign_in:')) {
+      return _withSystemDetail(
+        'Google giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.',
+        source: source,
+        raw: raw,
+      );
+    }
+
+    return _withSystemDetail(
+      _auth('auth.error_generic', 'Bir hata oluştu. Lütfen tekrar deneyin.'),
+      source: source,
+      raw: raw,
+    );
+  }
+
+  String _withSystemDetail(
+    String userMessage, {
+    String? source,
+    String? raw,
+  }) {
+    final cleanRaw = (raw ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final from = source == null || source.isEmpty ? 'auth' : source;
+    if (cleanRaw.isEmpty) return userMessage;
+    return '$userMessage\nSistem: source=$from | detail=$cleanRaw';
   }
 
   String _buildHelloWithName() {

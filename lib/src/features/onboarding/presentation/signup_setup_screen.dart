@@ -34,6 +34,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
   static const String _localSetupDoneKeyPrefix = 'signup_setup_completed_';
   static const String _localAgeKeyPrefix = 'user_age_';
   static const String _localAllowAdultKeyPrefix = 'allow_adult_content_';
+  static const String _localBirthDraftKeyPrefix = 'signup_setup_birth_draft_';
+  static const String _localUsernameDraftKeyPrefix =
+      'signup_setup_username_draft_';
   late final PageController _pageController;
   static const int _totalPages = 11;
   static const int _profileIntroPage = 0;
@@ -77,6 +80,8 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
   final TextEditingController _birthDateController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
 
+  String? get _currentUserId => ref.read(authRepositoryProvider).currentUser?.id;
+
   @override
   void initState() {
     super.initState();
@@ -86,6 +91,8 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
         .toInt();
     _pageController = PageController(initialPage: _currentPage);
     _selectedThemeMode = ref.read(themeModeProvider);
+    _birthDateController.addListener(_persistSetupDraft);
+    _usernameController.addListener(_persistSetupDraft);
 
     // Kullanıcı bu ekrana gelince pending bayrağını kapat ki router artık home'a zorlamasın.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,6 +126,7 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _restoreSetupDraft();
       try {
         final profile = await ref.read(currentProfileProvider.future);
         if (!mounted) return;
@@ -154,6 +162,8 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
 
   @override
   void dispose() {
+    _birthDateController.removeListener(_persistSetupDraft);
+    _usernameController.removeListener(_persistSetupDraft);
     _pageController.dispose();
     _ageController.dispose();
     _birthDateController.dispose();
@@ -161,8 +171,51 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     super.dispose();
   }
 
-  void _goNext() {
-    if (_currentPage == _profileAnswerPage && !_validateProfileStep()) {
+  Future<void> _restoreSetupDraft() async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final birthDraft = prefs.getString('$_localBirthDraftKeyPrefix$userId');
+    final usernameDraft = prefs.getString('$_localUsernameDraftKeyPrefix$userId');
+    if (!mounted) return;
+    setState(() {
+      if (_birthDateController.text.trim().isEmpty &&
+          birthDraft != null &&
+          birthDraft.trim().isNotEmpty) {
+        _birthDateController.text = birthDraft.trim();
+      }
+      if (_usernameController.text.trim().isEmpty &&
+          usernameDraft != null &&
+          usernameDraft.trim().isNotEmpty) {
+        _usernameController.text = usernameDraft.trim();
+      }
+    });
+  }
+
+  Future<void> _persistSetupDraft() async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_localBirthDraftKeyPrefix$userId',
+      _birthDateController.text.trim(),
+    );
+    await prefs.setString(
+      '$_localUsernameDraftKeyPrefix$userId',
+      _usernameController.text.trim(),
+    );
+  }
+
+  Future<void> _clearSetupDraft() async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_localBirthDraftKeyPrefix$userId');
+    await prefs.remove('$_localUsernameDraftKeyPrefix$userId');
+  }
+
+  Future<void> _goNext() async {
+    if (_currentPage == _profileAnswerPage && !(await _validateProfileStep())) {
       return;
     }
     if (_currentPage == _birthAnswerPage && !_validateBirthStep()) {
@@ -187,7 +240,7 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
 
     // Kullanıcı swipe ile ara adımları geçebilirse bile
     // bitirmede kritik doğrulamaları zorunlu tut.
-    if (!_validateProfileStep()) {
+    if (!(await _validateProfileStep())) {
       if (mounted) {
         setState(() {
           _isFinishing = false;
@@ -266,6 +319,7 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
           age >= 18,
         );
       }
+      await _clearSetupDraft();
 
       // Setup artık tamamlandı; router yeniden setup'a döndürmesin.
       ref.read(signupSetupPendingProvider.notifier).state = false;
@@ -316,7 +370,7 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
           SnackBar(
             content: Text(
               duplicateUsername
-                  ? 'Bu kullanıcı adı zaten kullanılıyor. Lütfen başka bir kullanıcı adı deneyin.'
+                  ? 'Bu kullanıcı adı kullanımda (alınmış). Lütfen başka bir kullanıcı adı seçin.'
                   : toUserFriendlyErrorMessage(e),
             ),
             behavior: SnackBarBehavior.floating,
@@ -360,13 +414,24 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
     state.onLocaleChanged();
   }
 
-  bool _validateProfileStep() {
+  Future<bool> _validateProfileStep() async {
     final username = _usernameController.text.trim();
 
     String? message;
     if (username.length < 3) {
       message = translate('onboarding.setup_profile_username_required');
     }
+    if (message == null) {
+      final userId = ref.read(authRepositoryProvider).currentUser?.id;
+      final isAvailable = await ref
+          .read(authRepositoryProvider)
+          .isUsernameAvailable(username, excludeUserId: userId);
+      if (!isAvailable) {
+        message =
+            'Bu kullanıcı adı kullanımda (alınmış). Lütfen başka bir kullanıcı adı seçin.';
+      }
+    }
+    if (!mounted) return false;
     if (message != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -478,7 +543,9 @@ class _SignupSetupScreenState extends ConsumerState<SignupSetupScreen> {
                 currentPage: _currentPage,
                 totalPages: _totalPages,
                 isFinishing: _isFinishing,
-                onNext: _goNext,
+                onNext: () {
+                  _goNext();
+                },
                 onFinish: _finish,
                 buttonColor: pageColor,
               ),

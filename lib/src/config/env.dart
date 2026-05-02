@@ -3,6 +3,8 @@
 abstract final class Env {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
 
   /// Tüm zorunlu key'lerin tanımlı olduğunu doğrular.
   /// Uygulama başlangıcında çağrılmalı.
@@ -10,6 +12,8 @@ abstract final class Env {
     const required = {
       'SUPABASE_URL': supabaseUrl,
       'SUPABASE_ANON_KEY': supabaseAnonKey,
+      'GOOGLE_WEB_CLIENT_ID': googleWebClientId,
+      'GOOGLE_IOS_CLIENT_ID': googleIosClientId,
     };
 
     final missing = required.entries

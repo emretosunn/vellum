@@ -137,7 +137,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     autofocus: true,
                     onChanged: (v) {
                       setDialogState(() {
-                        canSubmit = v.trim() == username;
+                        canSubmit =
+                            v.trim().toLowerCase() == username.toLowerCase();
                       });
                     },
                     decoration: InputDecoration(
@@ -189,10 +190,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(isProProvider);
     } on PostgrestException catch (e) {
       if (!mounted) return;
+      final friendly = _mapDeleteAccountPostgrestError(e);
+      final detail = _buildDeleteAccountDebugDetail(
+        'postgrest',
+        code: e.code,
+        message: e.message,
+        details: e.details?.toString(),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_mapDeleteAccountPostgrestError(e)),
+          content: Text(kDebugMode ? '$friendly\n$detail' : friendly),
           backgroundColor: AppColors.error,
+          duration: kDebugMode
+              ? const Duration(seconds: 8)
+              : const Duration(seconds: 4),
         ),
       );
     } catch (e) {
@@ -219,7 +230,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               low.contains('delete_my_account_cascade'))) {
         message = translate('settings.delete_account_rpc_missing');
       } else if (low.contains('foreign key') ||
-          low.contains('violates foreign key')) {
+          low.contains('violates foreign key') ||
+          low.contains('23503') ||
+          low.contains('still referenced')) {
         message = translate('settings.delete_account_fk_blocked');
       } else if (low.contains('permission denied') ||
           low.contains('42501')) {
@@ -228,8 +241,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         message = translate('settings.delete_account_failed');
       }
 
+      final detail = _buildDeleteAccountDebugDetail('exception', message: raw);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(kDebugMode ? '$message\n$detail' : message),
+          backgroundColor: AppColors.error,
+          duration: kDebugMode
+              ? const Duration(seconds: 8)
+              : const Duration(seconds: 4),
+        ),
       );
     }
   }
@@ -251,13 +271,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         msg.contains('not authorized')) {
       return translate('common.permission_denied');
     }
-    if (msg.contains('foreign key') || msg.contains('violates foreign key')) {
+    if (msg.contains('foreign key') ||
+        msg.contains('violates foreign key') ||
+        msg.contains('23503') ||
+        msg.contains('still referenced')) {
       return translate('settings.delete_account_fk_blocked');
     }
     if (msg.contains('permission denied') || msg.contains('42501')) {
       return translate('settings.delete_account_permission');
     }
     return translate('settings.delete_account_failed');
+  }
+
+  String _buildDeleteAccountDebugDetail(
+    String source, {
+    String? code,
+    String? message,
+    String? details,
+  }) {
+    if (!kDebugMode) return '';
+    final parts = <String>[
+      'source=$source',
+      if (code != null && code.trim().isNotEmpty) 'code=${code.trim()}',
+      if (message != null && message.trim().isNotEmpty)
+        'msg=${message.trim().replaceAll('\n', ' ')}',
+      if (details != null && details.trim().isNotEmpty)
+        'details=${details.trim().replaceAll('\n', ' ')}',
+    ];
+    return 'debug: ${parts.join(' | ')}';
   }
 
   @override
@@ -992,6 +1033,23 @@ class _ProfileEditPageState extends ConsumerState<_ProfileEditPage> {
     if (!_formKey.currentState!.validate()) return;
     final userId = ref.read(authRepositoryProvider).currentUser?.id;
     if (userId == null) return;
+    final username = _usernameController.text.trim();
+    final isUsernameAvailable = await ref
+        .read(authRepositoryProvider)
+        .isUsernameAvailable(username, excludeUserId: userId);
+    if (!isUsernameAvailable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Bu kullanıcı adı kullanımda (alınmış). Lütfen başka bir kullanıcı adı seçin.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     final birthDate = _parseBirthDate(_birthDateController.text);
     if (_birthDateController.text.trim().isNotEmpty && birthDate == null) {
       if (mounted) {

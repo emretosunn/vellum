@@ -25,14 +25,16 @@ begin
     return jsonb_build_object('ok', false, 'error', 'profile_not_found');
   end if;
 
-  if btrim(coalesce(p_username, '')) <> btrim(v_username) then
+  -- profiles_username_unique_lower ile uyumlu: karsilastirma buyuk/kucuk harf duyarsiz
+  if lower(btrim(coalesce(p_username, ''))) <> lower(btrim(v_username)) then
     return jsonb_build_object('ok', false, 'error', 'username_mismatch');
   end if;
 
   -- Kullaniciya ait / kullaniciyi referanslayan tum kayitlari temizle.
   if to_regclass('public.review_reports') is not null then
     delete from public.review_reports
-    where reporter_user_id = v_uid;
+    where reporter_user_id = v_uid
+       or review_id in (select id from public.reviews where user_id = v_uid);
   end if;
 
   if to_regclass('public.book_reports') is not null then
@@ -100,13 +102,54 @@ begin
     where user_id = v_uid;
   end if;
 
-  -- Tum bucketlarda kullanicinin storage.objects kaydi (aksi halde auth.users silinmez)
-  delete from storage.objects where owner = v_uid;
+  -- Storage: storage.objects uzerinde dogrudan DELETE Supabase tarafindan yasaklanir.
+  -- Dosyalar uygulama tarafinda Storage API ile silinir (bkz. AuthRepository).
 
   -- Profil + auth kullanicisi
   delete from public.profiles where id = v_uid;
 
-  -- Auth: kullanici (identities cogunlukla users silinince cascade olur)
+  -- Auth: oturum / token / MFA (auth.users silinmeden once; aksi halde FK hatasi)
+  if to_regclass('auth.refresh_tokens') is not null then
+    delete from auth.refresh_tokens where user_id = v_uid::text;
+  end if;
+  if to_regclass('auth.mfa_challenges') is not null
+     and to_regclass('auth.mfa_factors') is not null then
+    delete from auth.mfa_challenges
+    using auth.mfa_factors
+    where auth.mfa_challenges.factor_id = auth.mfa_factors.id
+      and auth.mfa_factors.user_id = v_uid;
+  end if;
+  if to_regclass('auth.mfa_factors') is not null then
+    delete from auth.mfa_factors where user_id = v_uid;
+  end if;
+  if to_regclass('auth.mfa_amr_claims') is not null
+     and to_regclass('auth.sessions') is not null then
+    delete from auth.mfa_amr_claims where session_id in (
+      select id from auth.sessions where user_id = v_uid
+    );
+  end if;
+  if to_regclass('auth.sessions') is not null then
+    delete from auth.sessions where user_id = v_uid;
+  end if;
+  if to_regclass('auth.flow_state') is not null then
+    delete from auth.flow_state where user_id = v_uid;
+  end if;
+  if to_regclass('auth.oauth_authorizations') is not null then
+    delete from auth.oauth_authorizations where user_id = v_uid;
+  end if;
+  if to_regclass('auth.oauth_consents') is not null then
+    delete from auth.oauth_consents where user_id = v_uid;
+  end if;
+  if to_regclass('auth.webauthn_challenges') is not null then
+    delete from auth.webauthn_challenges where user_id = v_uid;
+  end if;
+  if to_regclass('auth.webauthn_credentials') is not null then
+    delete from auth.webauthn_credentials where user_id = v_uid;
+  end if;
+  if to_regclass('auth.one_time_tokens') is not null then
+    delete from auth.one_time_tokens where user_id = v_uid;
+  end if;
+
   delete from auth.identities where user_id = v_uid;
   delete from auth.users where id = v_uid;
 
@@ -117,7 +160,7 @@ exception
 end;
 $$;
 
--- PostgREST SECURITY DEFINER: auth / storage silmek icin fonksiyon sahibi postgres olmalı
+-- PostgREST SECURITY DEFINER: auth.users silmek icin fonksiyon sahibi postgres olmalı
 -- (aksi halde "permission denied" veya auth.users silinmez)
 alter function public.delete_my_account_cascade(text) owner to postgres;
 

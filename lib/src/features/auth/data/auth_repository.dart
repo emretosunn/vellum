@@ -5,10 +5,12 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../config/env.dart';
 import '../domain/profile.dart';
 
 /// RPC `delete_my_account_cascade` cevabini parse eder (Map, Liste veya UTF-8 String).
@@ -28,7 +30,15 @@ Map<String, dynamic> _normalizeDeleteAccountRpcResult(dynamic raw) {
 
   if (candidate is Map) {
     try {
-      return Map<String, dynamic>.from(candidate);
+      final m = Map<String, dynamic>.from(candidate);
+      // Bazen PostgREST tek kolonlu jsonb doner: { "delete_my_account_cascade": { "ok": ... } }
+      if (m.length == 1) {
+        final inner = m.values.first;
+        if (inner is Map) {
+          return Map<String, dynamic>.from(inner);
+        }
+      }
+      return m;
     } catch (_) {
       return {'ok': false, 'error': 'invalid_response_map'};
     }
@@ -50,10 +60,14 @@ Map<String, dynamic> _normalizeDeleteAccountRpcResult(dynamic raw) {
   };
 }
 
-bool _deleteAccountRpcTruthyOk(dynamic ok) =>
-    ok == true ||
-    ok == 1 ||
-    (ok is String && const {'true', '1'}.contains(ok.trim().toLowerCase()));
+bool _deleteAccountRpcTruthyOk(dynamic ok) {
+  if (ok == true || ok == 1) return true;
+  if (ok is String) {
+    final v = ok.trim().toLowerCase();
+    return const {'true', '1', 't', 'yes'}.contains(v);
+  }
+  return false;
+}
 
 /// Supabase Auth + Profiles repository
 class AuthRepository {
@@ -62,6 +76,20 @@ class AuthRepository {
   static const String _cachedUsernameKey = 'cached_username';
   // go_router tarafındaki callback route'u ile birebir uyumlu tutulur.
   static const String _mobileAuthRedirect = 'vellum://auth/callback';
+
+  LaunchMode _oauthLaunchModeForCurrentPlatform() {
+    if (kIsWeb) return LaunchMode.platformDefault;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        // Android'de de gerçek gömülü OAuth ekranı kullan.
+        return LaunchMode.inAppWebView;
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return LaunchMode.inAppWebView;
+      default:
+        return LaunchMode.platformDefault;
+    }
+  }
 
   // ─── Auth ─────────────────────────────────────────
 
@@ -106,21 +134,54 @@ class AuthRepository {
     await _client.auth.signOut();
   }
 
-  /// Google OAuth ile giriş yap.
+  /// Google ile giriş.
   ///
-  /// Not: Web tarafında OAuth callback URL'lerinin Supabase dashboard'da doğru
-  /// tanımlanması gerekir.
+  /// Web: Supabase OAuth
+  /// Android/iOS/macOS: Native Google Sign-In + signInWithIdToken
   Future<void> signInWithGoogleOAuth() async {
+    if (kIsWeb) {
+      await _signInWithGoogleOAuthWeb();
+      return;
+    }
+    await _signInWithGoogleNative();
+  }
+
+  Future<void> _signInWithGoogleOAuthWeb() async {
     final redirectTo = kIsWeb
         ? '${Uri.base.origin}/auth/callback'
         : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.inAppWebView,
+      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
     );
+  }
+
+  Future<void> _signInWithGoogleNative() async {
+    try {
+      final GoogleSignIn signIn = GoogleSignIn.instance;
+      final useIosClient =
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS;
+      await signIn.initialize(
+        clientId: useIosClient ? Env.googleIosClientId : null,
+        serverClientId: Env.googleWebClientId,
+      );
+      final account = await signIn.authenticate();
+      final auth = account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw const AuthException('Google kimlik jetonu alınamadı.');
+      }
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+      );
+    } on GoogleSignInException catch (e) {
+      throw Exception(
+        'google_sign_in:${e.code.name}:${e.description ?? 'unknown'}',
+      );
+    }
   }
 
   /// Facebook OAuth ile giriş yap.
@@ -131,9 +192,7 @@ class AuthRepository {
     await _client.auth.signInWithOAuth(
       OAuthProvider.facebook,
       redirectTo: redirectTo,
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.inAppWebView,
+      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
     );
   }
 
@@ -161,9 +220,7 @@ class AuthRepository {
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: redirectTo,
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.inAppWebView,
+      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
     );
   }
 
@@ -245,6 +302,8 @@ class AuthRepository {
       throw Exception('Oturum bulunamadı');
     }
 
+    await _removeMyAvatarStorageBestEffort(user.id);
+
     try {
       final result = await _client.rpc(
         'delete_my_account_cascade',
@@ -257,9 +316,29 @@ class AuthRepository {
       if (_deleteAccountRpcTruthyOk(okVal)) return;
 
       final err = map['error']?.toString().trim();
+      if (kDebugMode) {
+        debugPrint(
+          'deleteMyAccountCascade: ok=$okVal error=${err ?? '(empty)'} raw=$result',
+        );
+      }
       throw Exception((err == null || err.isEmpty) ? 'unknown_error' : err);
     } on PostgrestException {
       rethrow;
+    }
+  }
+
+  /// `avatars` bucket içinde `{userId}/...` yüklemelerini Storage API ile siler.
+  /// Supabase'de `storage.objects` üzerine doğrudan SQL DELETE yasaktır.
+  Future<void> _removeMyAvatarStorageBestEffort(String userId) async {
+    try {
+      final objects = await _client.storage.from('avatars').list(path: userId);
+      if (objects.isEmpty) return;
+      final paths = objects.map((f) => '$userId/${f.name}').toList();
+      await _client.storage.from('avatars').remove(paths);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('avatars storage cleanup (ignored): $e\n$st');
+      }
     }
   }
 
@@ -448,6 +527,40 @@ class AuthRepository {
         .limit(20);
 
     return data.map<Profile>((json) => Profile.fromJson(json)).toList();
+  }
+
+  /// Kullanıcı adının kullanılabilir olup olmadığını kontrol eder.
+  ///
+  /// [excludeUserId] verilirse o kullanıcıya ait mevcut username "müsait" kabul edilir.
+  Future<bool> isUsernameAvailable(
+    String username, {
+    String? excludeUserId,
+  }) async {
+    final candidate = username.trim();
+    if (candidate.isEmpty) return false;
+
+    final data = await _client
+        .from('profiles')
+        .select('id, username')
+        .ilike('username', candidate)
+        .limit(10);
+
+    final targetLower = candidate.toLowerCase();
+    for (final row in data) {
+      final map = row;
+      final existingUsername = (map['username'] as String?)?.trim();
+      if (existingUsername == null) continue;
+      if (existingUsername.toLowerCase() != targetLower) continue;
+
+      final existingId = map['id']?.toString();
+      if (excludeUserId != null &&
+          excludeUserId.isNotEmpty &&
+          existingId == excludeUserId) {
+        continue;
+      }
+      return false;
+    }
+    return true;
   }
 
   Future<void> _cacheUsername(String? username) async {
