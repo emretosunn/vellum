@@ -157,16 +157,25 @@ class AuthRepository {
     );
   }
 
+  Future<void> _signInWithGoogleOAuthEmbedded() async {
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _mobileAuthRedirect,
+      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
+    );
+  }
+
   Future<void> _signInWithGoogleNative() async {
-    try {
-      final GoogleSignIn signIn = GoogleSignIn.instance;
-      final useIosClient =
-          defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.macOS;
-      await signIn.initialize(
-        clientId: useIosClient ? Env.googleIosClientId : null,
-        serverClientId: Env.googleWebClientId,
-      );
+    final GoogleSignIn signIn = GoogleSignIn.instance;
+    final useIosClient =
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    await signIn.initialize(
+      clientId: useIosClient ? Env.googleIosClientId : null,
+      serverClientId: Env.googleWebClientId,
+    );
+
+    Future<void> authenticateOnce() async {
       final account = await signIn.authenticate();
       final auth = account.authentication;
       final idToken = auth.idToken;
@@ -177,7 +186,35 @@ class AuthRepository {
         provider: OAuthProvider.google,
         idToken: idToken,
       );
+    }
+
+    try {
+      await authenticateOnce();
     } on GoogleSignInException catch (e) {
+      final desc = (e.description ?? '').toLowerCase();
+      final isFalseCancel = e.code == GoogleSignInExceptionCode.canceled &&
+          desc.contains('activity is cancelled by the user');
+      if (isFalseCancel) {
+        // Bazı Android cihazlarda hesap seçimi sonrası yalancı "canceled" dönebiliyor.
+        // Önce native'i bir kez daha deneyip, yine olursa gömülü OAuth fallback'e geç.
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        try {
+          await authenticateOnce();
+          return;
+        } on GoogleSignInException catch (e2) {
+          final desc2 = (e2.description ?? '').toLowerCase();
+          final stillFalseCancel =
+              e2.code == GoogleSignInExceptionCode.canceled &&
+              desc2.contains('activity is cancelled by the user');
+          if (stillFalseCancel) {
+            await _signInWithGoogleOAuthEmbedded();
+            return;
+          }
+          throw Exception(
+            'google_sign_in:${e2.code.name}:${e2.description ?? 'unknown'}',
+          );
+        }
+      }
       throw Exception(
         'google_sign_in:${e.code.name}:${e.description ?? 'unknown'}',
       );
