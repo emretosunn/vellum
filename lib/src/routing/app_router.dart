@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/widgets.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/auth/presentation/login_screen.dart';
 import '../features/library/presentation/all_books_screen.dart';
@@ -32,22 +33,29 @@ final GlobalKey<NavigatorState> _settingsBranchNavigatorKey =
 
 /// GoRouter yapılandırması.
 ///
-/// [isLoggedIn] parametresi auth durumuna göre yönlendirme yapar.
+/// Oturum bilgisi [redirect] içinde doğrudan [Supabase] üzerinden okunur.
+/// Böylece [refreshListenable] tetiklendiği frame'de kapalı olan `false`
+/// değeri taşınmaz (OAuth/email sonrası yanlışlıkla `/login`e atlama yarışını önler).
+///
 /// [onboardingCompleted] onboarding süreci tamamlandı mı kontrol eder.
 GoRouter createRouter({
-  bool isLoggedIn = false,
   bool onboardingCompleted = true,
   bool signupSetupPending = false,
   bool forceSignupSetup = false,
   bool signupSetupRedirectOverride = false,
+  /// Auth değişince [redirect] yeniden değerlendirilsin (OAuth / PKCE sonrası `/login`de takılmasın).
+  Listenable? authRefreshListenable,
 }) {
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: authRefreshListenable,
     // Web'de OAuth callback gibi deep-link URL'leri geldiğinde
     // browser'ın mevcut URL'ini ezmeyelim.
     overridePlatformDefaultLocation: false,
     debugLogDiagnostics: true,
     redirect: (context, state) {
+      final isLoggedIn =
+          Supabase.instance.client.auth.currentSession != null;
       final location = state.matchedLocation;
       final isSplash = location == '/splash';
       final isOnboarding = location == '/onboarding';
@@ -69,6 +77,14 @@ GoRouter createRouter({
       // `signupSetupPending` bayrağı ile yapıyoruz.
       if (!signupSetupRedirectOverride &&
           signupSetupPending &&
+          isLoggedIn &&
+          !isSignupSetup) {
+        return '/signup-setup';
+      }
+      // E-posta kaydı dışında (OAuth) yeni kullanıcılar: profil signup_setup_completed=false
+      // iken doğrudan `/`/`/login`'den kaçınıp kurulum akışına yönlendir.
+      if (!signupSetupRedirectOverride &&
+          forceSignupSetup &&
           isLoggedIn &&
           !isSignupSetup) {
         return '/signup-setup';

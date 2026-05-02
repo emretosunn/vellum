@@ -27,15 +27,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _navigateAfterDelay() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    const minSplash = Duration(milliseconds: 900);
+    const oauthWaitBudget = Duration(seconds: 12);
+    final started = DateTime.now();
+
+    await Future<void>.delayed(minSplash);
     if (!mounted) return;
 
-    final authState = ref.read(authStateProvider);
-    final isLoggedIn = authState.when(
-      data: (state) => state.session != null,
-      loading: () => false,
-      error: (_, __) => false,
-    );
+    // PKCE / deep link: StreamProvider güncellenmeden önce [currentSession]
+    // Supabase tarafında hazır olabilir. Yarışmayı önlemek için canlı oturumu
+    // repository üzerinden okuyoruz.
+    while (mounted &&
+        DateTime.now().difference(started) < oauthWaitBudget &&
+        ref.read(authRepositoryProvider).currentSession == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
+    if (!mounted) return;
+
+    final isLoggedIn = ref.read(authRepositoryProvider).currentSession != null;
 
     // Kullanıcı ilk kez mi giriş yapıyor? (signup-setup daha tamamlanmadıysa)
     if (isLoggedIn) {

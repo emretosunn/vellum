@@ -5,12 +5,11 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../config/env.dart';
 import '../domain/profile.dart';
 
 /// RPC `delete_my_account_cascade` cevabini parse eder (Map, Liste veya UTF-8 String).
@@ -77,17 +76,30 @@ class AuthRepository {
   // go_router tarafındaki callback route'u ile birebir uyumlu tutulur.
   static const String _mobileAuthRedirect = 'vellum://auth/callback';
 
-  LaunchMode _oauthLaunchModeForCurrentPlatform() {
-    if (kIsWeb) return LaunchMode.platformDefault;
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        // Android'de de gerçek gömülü OAuth ekranı kullan.
-        return LaunchMode.inAppWebView;
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-        return LaunchMode.inAppWebView;
-      default:
-        return LaunchMode.platformDefault;
+  /// Mobil OAuth: [LaunchMode.inAppWebView] `vellum://` PKCE dönüşünü sayfa gibi
+  /// yüklemeye çalışır → `net::ERR_UNKNOWN_URL_SCHEME`. [LaunchMode.inAppBrowserView]
+  /// (Android Custom Tabs / iOS SFSafariViewController) yönlendirmeyi intent ile
+  /// uygulamaya iletir.
+  ///
+  /// Ayrıca `supabase_flutter` içinde Android + Google için [LaunchMode.externalApplication]
+  /// zorlaması var; `getOAuthSignInUrl` + [launchUrl] ile aynı gömülü sekmeyi
+  /// Google/Facebook için tutarlı kullanıyoruz.
+  Future<void> _launchSupabaseOAuthInAppBrowser({
+    required OAuthProvider provider,
+    required String redirectTo,
+  }) async {
+    final res = await _client.auth.getOAuthSignInUrl(
+      provider: provider,
+      redirectTo: redirectTo,
+    );
+    final ok = await launchUrl(
+      Uri.parse(res.url),
+      mode: LaunchMode.inAppBrowserView,
+    );
+    if (!ok) {
+      throw const AuthException(
+        'Giriş penceresi açılamadı. Lütfen tekrar deneyin.',
+      );
     }
   }
 
@@ -137,88 +149,32 @@ class AuthRepository {
   /// Google ile giriş.
   ///
   /// Web: Supabase OAuth
-  /// Android/iOS/macOS: Native Google Sign-In + signInWithIdToken
+  /// Android/iOS/macOS: Supabase OAuth (Custom Tab / SFSafariViewController)
+  ///
+  /// Not: Mobilde native Google SDK tarafındaki cihaz bağımlı
+  /// "canceled/configuration" hatalarını elemek için login akışı tamamen
+  /// Supabase OAuth'a yönlendirilir.
   Future<void> signInWithGoogleOAuth() async {
     if (kIsWeb) {
       await _signInWithGoogleOAuthWeb();
       return;
     }
-    await _signInWithGoogleNative();
+    await _signInWithGoogleOAuthEmbedded();
   }
 
   Future<void> _signInWithGoogleOAuthWeb() async {
-    final redirectTo = kIsWeb
-        ? '${Uri.base.origin}/auth/callback'
-        : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: redirectTo,
-      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
+      redirectTo: '${Uri.base.origin}/auth/callback',
+      authScreenLaunchMode: LaunchMode.platformDefault,
     );
   }
 
   Future<void> _signInWithGoogleOAuthEmbedded() async {
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.google,
+    await _launchSupabaseOAuthInAppBrowser(
+      provider: OAuthProvider.google,
       redirectTo: _mobileAuthRedirect,
-      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
     );
-  }
-
-  Future<void> _signInWithGoogleNative() async {
-    final GoogleSignIn signIn = GoogleSignIn.instance;
-    final useIosClient =
-        defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
-    await signIn.initialize(
-      clientId: useIosClient ? Env.googleIosClientId : null,
-      serverClientId: Env.googleWebClientId,
-    );
-
-    Future<void> authenticateOnce() async {
-      final account = await signIn.authenticate();
-      final auth = account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        throw const AuthException('Google kimlik jetonu alınamadı.');
-      }
-      await _client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-      );
-    }
-
-    try {
-      await authenticateOnce();
-    } on GoogleSignInException catch (e) {
-      final desc = (e.description ?? '').toLowerCase();
-      final isFalseCancel = e.code == GoogleSignInExceptionCode.canceled &&
-          desc.contains('activity is cancelled by the user');
-      if (isFalseCancel) {
-        // Bazı Android cihazlarda hesap seçimi sonrası yalancı "canceled" dönebiliyor.
-        // Önce native'i bir kez daha deneyip, yine olursa gömülü OAuth fallback'e geç.
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-        try {
-          await authenticateOnce();
-          return;
-        } on GoogleSignInException catch (e2) {
-          final desc2 = (e2.description ?? '').toLowerCase();
-          final stillFalseCancel =
-              e2.code == GoogleSignInExceptionCode.canceled &&
-              desc2.contains('activity is cancelled by the user');
-          if (stillFalseCancel) {
-            await _signInWithGoogleOAuthEmbedded();
-            return;
-          }
-          throw Exception(
-            'google_sign_in:${e2.code.name}:${e2.description ?? 'unknown'}',
-          );
-        }
-      }
-      throw Exception(
-        'google_sign_in:${e.code.name}:${e.description ?? 'unknown'}',
-      );
-    }
   }
 
   /// Facebook OAuth ile giriş yap.
@@ -226,10 +182,17 @@ class AuthRepository {
     final redirectTo = kIsWeb
         ? '${Uri.base.origin}/auth/callback'
         : _mobileAuthRedirect;
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.facebook,
+    if (kIsWeb) {
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.facebook,
+        redirectTo: redirectTo,
+        authScreenLaunchMode: LaunchMode.platformDefault,
+      );
+      return;
+    }
+    await _launchSupabaseOAuthInAppBrowser(
+      provider: OAuthProvider.facebook,
       redirectTo: redirectTo,
-      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
     );
   }
 
@@ -251,13 +214,10 @@ class AuthRepository {
   }
 
   Future<void> _signInWithAppleOAuth() async {
-    final redirectTo = kIsWeb
-        ? '${Uri.base.origin}/auth/callback'
-        : _mobileAuthRedirect;
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
-      redirectTo: redirectTo,
-      authScreenLaunchMode: _oauthLaunchModeForCurrentPlatform(),
+      redirectTo: '${Uri.base.origin}/auth/callback',
+      authScreenLaunchMode: LaunchMode.platformDefault,
     );
   }
 

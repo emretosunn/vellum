@@ -9,7 +9,6 @@
 import 'package:app_links_web/app_links_web.dart';
 import 'package:connectivity_plus/src/connectivity_plus_web.dart';
 import 'package:flutter_keyboard_visibility_temp_fork/flutter_keyboard_visibility_web.dart';
-import 'package:google_sign_in_web/google_sign_in_web.dart';
 import 'package:image_picker_for_web/image_picker_for_web.dart';
 import 'package:package_info_plus/src/package_info_plus_web.dart';
 import 'package:permission_handler_html/permission_handler_html.dart';
@@ -24,7 +23,6 @@ void registerPlugins([final Registrar? pluginRegistrar]) {
   AppLinksPluginWeb.registerWith(registrar);
   ConnectivityPlusWebPlugin.registerWith(registrar);
   FlutterKeyboardVisibilityTempForkWeb.registerWith(registrar);
-  GoogleSignInPlugin.registerWith(registrar);
   ImagePickerPlugin.registerWith(registrar);
   PackageInfoPlusWebPlugin.registerWith(registrar);
   WebPermissionHandler.registerWith(registrar);

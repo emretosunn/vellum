@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'features/auth/data/auth_repository.dart';
 import 'features/library/data/author_post_repository.dart';
@@ -33,6 +34,21 @@ final signupSetupRedirectOverrideProvider = StateProvider<bool>((ref) => false);
 /// Signup-setup akışında hangi adımdayız? (Dil/tema değişimi sırasında widget yeniden
 /// oluşturulursa bile adımı kaybetmemek için state'i burada tutuyoruz.)
 final signupSetupStepProvider = StateProvider<int>((ref) => 0);
+
+/// [GoRouter.redirect] oturum açıldığında yeniden çalışsın (OAuth PKCE tamamlanınca
+/// kullanıcı `/login`de kalmasın).
+final goRouterAuthRefreshProvider = Provider<GoRouterAuthRefresh>((ref) {
+  final notifier = GoRouterAuthRefresh();
+  ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, __) {
+    notifier.notifyAuthChanged();
+  });
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
+
+class GoRouterAuthRefresh extends ChangeNotifier {
+  void notifyAuthChanged() => notifyListeners();
+}
 
 class VellumApp extends ConsumerWidget {
   const VellumApp({super.key});
@@ -76,12 +92,6 @@ class VellumApp extends ConsumerWidget {
       });
     });
 
-    final authState = ref.watch(authStateProvider);
-    final isLoggedIn = authState.whenOrNull(
-          data: (state) => state.session != null,
-        ) ??
-        false;
-
     final onboardingDone = ref.watch(onboardingCompletedProvider);
     final signupSetupPending = ref.watch(signupSetupPendingProvider);
     final signupSetupRedirectOverride =
@@ -93,11 +103,11 @@ class VellumApp extends ConsumerWidget {
         profileAsync.valueOrNull?.signupSetupCompleted == false;
 
     final router = createRouter(
-      isLoggedIn: isLoggedIn,
       onboardingCompleted: onboardingDone,
       signupSetupPending: signupSetupPending,
       forceSignupSetup: forceSignupSetup,
       signupSetupRedirectOverride: signupSetupRedirectOverride,
+      authRefreshListenable: ref.watch(goRouterAuthRefreshProvider),
     );
     final themeMode = ref.watch(themeModeProvider);
     final localizationDelegate = LocalizedApp.of(context).delegate;
