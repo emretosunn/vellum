@@ -75,6 +75,17 @@ class AuthRepository {
   static const String _cachedUsernameKey = 'cached_username';
   // go_router tarafındaki callback route'u ile birebir uyumlu tutulur.
   static const String _mobileAuthRedirect = 'vellum://auth/callback';
+  static DateTime? _lastOAuthLaunchAt;
+
+  static bool get isRecentOAuthLaunch {
+    final at = _lastOAuthLaunchAt;
+    if (at == null) return false;
+    return DateTime.now().difference(at) < const Duration(seconds: 25);
+  }
+
+  static void clearRecentOAuthLaunch() {
+    _lastOAuthLaunchAt = null;
+  }
 
   /// Mobil OAuth: [LaunchMode.inAppWebView] `vellum://` PKCE dönüşünü sayfa gibi
   /// yüklemeye çalışır → `net::ERR_UNKNOWN_URL_SCHEME`. [LaunchMode.inAppBrowserView]
@@ -88,6 +99,7 @@ class AuthRepository {
     required OAuthProvider provider,
     required String redirectTo,
   }) async {
+    _lastOAuthLaunchAt = DateTime.now();
     final res = await _client.auth.getOAuthSignInUrl(
       provider: provider,
       redirectTo: redirectTo,

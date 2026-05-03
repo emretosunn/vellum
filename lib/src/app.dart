@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'features/auth/data/auth_repository.dart';
 import 'features/library/data/author_post_repository.dart';
@@ -39,7 +42,12 @@ final signupSetupStepProvider = StateProvider<int>((ref) => 0);
 /// kullanıcı `/login`de kalmasın).
 final goRouterAuthRefreshProvider = Provider<GoRouterAuthRefresh>((ref) {
   final notifier = GoRouterAuthRefresh();
-  ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, __) {
+  ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
+    final state = next.valueOrNull;
+    if (state?.session != null) {
+      AuthRepository.clearRecentOAuthLaunch();
+      unawaited(closeInAppWebView());
+    }
     notifier.notifyAuthChanged();
   });
   ref.onDispose(notifier.dispose);

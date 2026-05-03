@@ -28,7 +28,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _navigateAfterDelay() async {
     const minSplash = Duration(milliseconds: 900);
-    const oauthWaitBudget = Duration(seconds: 12);
+    const oauthWaitBudget = Duration(seconds: 4);
     final started = DateTime.now();
 
     await Future<void>.delayed(minSplash);
@@ -37,10 +37,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // PKCE / deep link: StreamProvider güncellenmeden önce [currentSession]
     // Supabase tarafında hazır olabilir. Yarışmayı önlemek için canlı oturumu
     // repository üzerinden okuyoruz.
+    final shouldWaitForOAuth = AuthRepository.isRecentOAuthLaunch;
     while (mounted &&
+        shouldWaitForOAuth &&
         DateTime.now().difference(started) < oauthWaitBudget &&
         ref.read(authRepositoryProvider).currentSession == null) {
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     if (!mounted) return;
 
