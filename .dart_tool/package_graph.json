@@ -32,6 +32,7 @@
         "in_app_purchase",
         "in_app_purchase_android",
         "in_app_update",
+        "intl",
         "json_annotation",
         "lottie",
         "package_info_plus",

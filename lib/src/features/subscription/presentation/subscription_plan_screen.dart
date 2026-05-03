@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_translate/flutter_translate.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../constants/app_colors.dart';
@@ -146,16 +147,19 @@ class _SubscriptionPlanModalContentState
     }
   }
 
-  String _currencySymbol(String? code) {
-    switch ((code ?? '').toUpperCase()) {
-      case 'TRY':
-        return '₺';
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '€';
-      default:
-        return code ?? '';
+  String _formatCurrency(double amount, String? currencyCode) {
+    final code = (currencyCode ?? '').toUpperCase();
+    final locale = Localizations.localeOf(context);
+    final localeName = (locale.countryCode == null || locale.countryCode!.isEmpty)
+        ? locale.languageCode
+        : '${locale.languageCode}_${locale.countryCode}';
+    try {
+      return NumberFormat.simpleCurrency(
+        locale: localeName,
+        name: code.isEmpty ? null : code,
+      ).format(amount);
+    } catch (_) {
+      return amount.toStringAsFixed(2);
     }
   }
 
@@ -164,9 +168,8 @@ class _SubscriptionPlanModalContentState
     if (yearly == null) {
       return _sub('subscription.price_loading_short', '--');
     }
-    final symbol = _currencySymbol(yearly.currencyCode);
     final v = yearly.rawPrice / 12;
-    return '$symbol${v.toStringAsFixed(2)}';
+    return _formatCurrency(v, yearly.currencyCode);
   }
 
   String _yearlyPerYearLabel() {
